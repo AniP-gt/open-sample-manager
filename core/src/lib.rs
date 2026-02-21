@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+pub mod analysis;
+pub mod db;
+pub mod scanner;
+pub mod threading;
+pub mod ffi;
+pub mod search;
+pub mod embedding;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SampleSummary {
     pub file_name: String,
