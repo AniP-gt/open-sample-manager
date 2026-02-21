@@ -1,0 +1,6 @@
+/.DS_Store
+/core/target/
+/target/
+/ui/node_modules/
+/ui/dist/
+/plugin/build/

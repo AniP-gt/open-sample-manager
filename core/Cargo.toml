@@ -1,0 +1,11 @@
+[package]
+name = "open-sample-manager-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = "=1.10.0"
+rayon-core = "=1.12.1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
