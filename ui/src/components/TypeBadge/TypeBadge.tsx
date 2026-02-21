@@ -16,7 +16,7 @@ export function TypeBadge({ type }: TypeBadgeProps) {
   return (
     <span
       style={{
-        fontSize: "9px",
+        fontSize: "14px",
         fontFamily: "'Courier New', monospace",
         fontWeight: 700,
         letterSpacing: "0.12em",

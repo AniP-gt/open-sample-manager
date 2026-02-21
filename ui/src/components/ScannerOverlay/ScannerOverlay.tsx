@@ -78,7 +78,7 @@ export function ScannerOverlay({ onDone }: ScannerOverlayProps) {
             style={{
               color: "#f1f5f9",
               fontFamily: "'Courier New', monospace",
-              fontSize: "13px",
+              fontSize: "18px",
               letterSpacing: "0.06em",
             }}
           >
@@ -88,7 +88,7 @@ export function ScannerOverlay({ onDone }: ScannerOverlayProps) {
         <div
           style={{
             fontFamily: "'Courier New', monospace",
-            fontSize: "11px",
+            fontSize: "16px",
             color: "#6b7280",
             marginBottom: "16px",
             minHeight: "16px",
@@ -118,7 +118,7 @@ export function ScannerOverlay({ onDone }: ScannerOverlayProps) {
           style={{
             textAlign: "right",
             fontFamily: "'Courier New', monospace",
-            fontSize: "10px",
+            fontSize: "15px",
             color: "#374151",
           }}
         >

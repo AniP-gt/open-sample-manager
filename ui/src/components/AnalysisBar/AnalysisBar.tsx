@@ -20,7 +20,7 @@ export function AnalysisBar({ label, value, max, color }: AnalysisBarProps) {
       >
         <span
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#6b7280",
             fontFamily: "'Courier New', monospace",
             letterSpacing: "0.08em",
@@ -30,7 +30,7 @@ export function AnalysisBar({ label, value, max, color }: AnalysisBarProps) {
         </span>
         <span
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: color,
             fontFamily: "'Courier New', monospace",
           }}
