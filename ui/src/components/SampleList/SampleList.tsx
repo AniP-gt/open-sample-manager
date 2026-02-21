@@ -70,14 +70,14 @@ export function SampleList({
           placeholder="Search by filename, tag, key... (FTS5)"
           style={{
             flex: 1,
-            fontSize: "12px",
+            fontSize: "16px",
             color: "#9ca3af",
             letterSpacing: "0.04em",
           }}
         />
         <span
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#374151",
             letterSpacing: "0.1em",
           }}
@@ -93,7 +93,7 @@ export function SampleList({
           gridTemplateColumns: "28px 1fr 80px 60px 60px 80px",
           padding: "6px 16px",
           borderBottom: "1px solid #0f1117",
-          fontSize: "8px",
+          fontSize: "13px",
           letterSpacing: "0.14em",
           color: "#374151",
         }}
@@ -130,11 +130,11 @@ export function SampleList({
               transition: "background 0.1s",
             }}
           >
-            <div style={{ fontSize: "9px", color: "#374151" }}>{s.id}</div>
+            <div style={{ fontSize: "14px", color: "#374151" }}>{s.id}</div>
             <div>
               <div
                 style={{
-                  fontSize: "11px",
+                  fontSize: "16px",
                   color: "#d1d5db",
                   letterSpacing: "0.02em",
                   marginBottom: "3px",
@@ -147,7 +147,7 @@ export function SampleList({
                   <span
                     key={t}
                     style={{
-                      fontSize: "8px",
+                      fontSize: "13px",
                       padding: "1px 4px",
                       background: "#0f1117",
                       color: "#4b5563",
@@ -165,14 +165,14 @@ export function SampleList({
             </div>
             <div
               style={{
-                fontSize: "11px",
+                fontSize: "16px",
                 color: s.bpm ? "#22d3ee" : "#374151",
                 fontWeight: s.bpm ? 700 : 400,
               }}
             >
               {s.bpm ? `${s.bpm}` : "—"}
             </div>
-            <div style={{ fontSize: "11px", color: "#6b7280" }}>
+            <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
@@ -194,7 +194,7 @@ export function SampleList({
                 />
               </div>
               <span
-                style={{ fontSize: "9px", color: "#4b5563", width: "28px" }}
+                style={{ fontSize: "14px", color: "#4b5563", width: "32px" }}
               >
                 {(s.low_ratio * 100).toFixed(0)}%
               </span>

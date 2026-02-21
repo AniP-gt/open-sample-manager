@@ -44,7 +44,7 @@ export function FilterSidebar({
       <div>
         <div
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#374151",
             letterSpacing: "0.14em",
             marginBottom: "10px",
@@ -68,7 +68,7 @@ export function FilterSidebar({
                   : "2px solid transparent",
               padding: "6px 8px",
               fontFamily: "'Courier New', monospace",
-              fontSize: "11px",
+              fontSize: "16px",
               color: filters.filterType === t ? "#f1f5f9" : "#6b7280",
               cursor: "pointer",
               letterSpacing: "0.08em",
@@ -78,7 +78,7 @@ export function FilterSidebar({
           >
             {t.toUpperCase()}
             <span
-              style={{ float: "right", color: "#374151", fontSize: "10px" }}
+               style={{ float: "right", color: "#374151", fontSize: "15px" }}
             >
               {getTypeCount(t)}
             </span>
@@ -90,7 +90,7 @@ export function FilterSidebar({
       <div>
         <div
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#374151",
             letterSpacing: "0.14em",
             marginBottom: "10px",
@@ -114,10 +114,10 @@ export function FilterSidebar({
               onChange={(e) =>
                 onFilterChange({ filterBpmMin: e.target.value })
               }
-              style={{ width: "100%", fontSize: "10px", color: "#9ca3af" }}
+              style={{ width: "100%", fontSize: "15px", color: "#9ca3af" }}
             />
           </div>
-          <span style={{ color: "#374151", fontSize: "10px" }}>—</span>
+          <span style={{ color: "#374151", fontSize: "15px" }}>—</span>
           <div
             style={{
               flex: 1,
@@ -133,17 +133,17 @@ export function FilterSidebar({
               onChange={(e) =>
                 onFilterChange({ filterBpmMax: e.target.value })
               }
-              style={{ width: "100%", fontSize: "10px", color: "#9ca3af" }}
+              style={{ width: "100%", fontSize: "15px", color: "#9ca3af" }}
             />
           </div>
         </div>
       </div>
 
-      
+
       <div>
         <div
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#374151",
             letterSpacing: "0.14em",
             marginBottom: "10px",
@@ -158,7 +158,7 @@ export function FilterSidebar({
               className="tag-chip"
               onClick={() => onFilterChange({ search: tag })}
               style={{
-                fontSize: "9px",
+                fontSize: "14px",
                 padding: "2px 6px",
                 background: "#0f1117",
                 border: "1px solid #1f2937",
@@ -177,7 +177,7 @@ export function FilterSidebar({
       <div>
         <div
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#374151",
             letterSpacing: "0.14em",
             marginBottom: "10px",
@@ -185,7 +185,7 @@ export function FilterSidebar({
         >
           DB STATUS
         </div>
-        <div style={{ fontSize: "9px", color: "#4b5563", lineHeight: 1.8 }}>
+        <div style={{ fontSize: "14px", color: "#4b5563", lineHeight: 1.8 }}>
           <div>ENGINE: SQLite + FTS5</div>
           <div>RECORDS: {samples.length}</div>
           <div>INDEX: ✓ BPM, TYPE</div>

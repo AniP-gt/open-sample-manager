@@ -36,7 +36,7 @@ export function Header({ sampleCount, scanned, onScanClick }: HeaderProps) {
         <div>
           <div
             style={{
-              fontSize: "13px",
+              fontSize: "18px",
               fontWeight: 700,
               letterSpacing: "0.1em",
               color: "#f1f5f9",
@@ -46,7 +46,7 @@ export function Header({ sampleCount, scanned, onScanClick }: HeaderProps) {
           </div>
           <div
             style={{
-              fontSize: "9px",
+              fontSize: "14px",
               color: "#374151",
               letterSpacing: "0.12em",
             }}
@@ -60,7 +60,7 @@ export function Header({ sampleCount, scanned, onScanClick }: HeaderProps) {
         {scanned && (
           <div
             style={{
-              fontSize: "9px",
+              fontSize: "14px",
               color: "#22d3ee",
               letterSpacing: "0.1em",
               background: "#22d3ee10",
@@ -75,7 +75,7 @@ export function Header({ sampleCount, scanned, onScanClick }: HeaderProps) {
         <button
           onClick={onScanClick}
           style={{
-            fontSize: "10px",
+            fontSize: "15px",
             letterSpacing: "0.1em",
             background: "#f97316",
             color: "#000",

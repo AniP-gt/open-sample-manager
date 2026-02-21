@@ -36,7 +36,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
       <div>
         <div
           style={{
-            fontSize: "10px",
+            fontSize: "16px",
             color: "#f1f5f9",
             letterSpacing: "0.06em",
             marginBottom: "4px",
@@ -57,7 +57,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
           {sample.bpm && (
             <span
               style={{
-                fontSize: "9px",
+                fontSize: "14px",
                 color: "#22d3ee",
                 letterSpacing: "0.1em",
               }}
@@ -127,7 +127,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
               </svg>
             )}
           </button>
-          <span style={{ fontSize: "9px", color: "#374151" }}>
+          <span style={{ fontSize: "14px", color: "#374151" }}>
             {sample.duration.toFixed(3)}s
           </span>
         </div>
@@ -137,7 +137,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
       <div>
         <div
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#374151",
             letterSpacing: "0.14em",
             marginBottom: "12px",
@@ -187,7 +187,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
         >
           <div
             style={{
-              fontSize: "9px",
+              fontSize: "14px",
               color: "#f97316",
               letterSpacing: "0.12em",
               marginBottom: "8px",
@@ -195,7 +195,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
           >
             KICK DETECTION
           </div>
-          <div style={{ fontSize: "9px", color: "#6b7280", lineHeight: 2 }}>
+          <div style={{ fontSize: "14px", color: "#6b7280", lineHeight: 2 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>low_ratio &gt; 0.6</span>
               <span
@@ -248,7 +248,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
         >
           <div
             style={{
-              fontSize: "9px",
+              fontSize: "14px",
               color: "#22d3ee",
               letterSpacing: "0.12em",
               marginBottom: "8px",
@@ -256,7 +256,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
           >
             LOOP CLASSIFIER
           </div>
-          <div style={{ fontSize: "9px", color: "#6b7280", lineHeight: 2 }}>
+          <div style={{ fontSize: "14px", color: "#6b7280", lineHeight: 2 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>duration &gt; 1.0s</span>
               <span style={{ color: "#22d3ee" }}>✓ {sample.duration.toFixed(2)}s</span>
@@ -277,7 +277,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
       <div>
         <div
           style={{
-            fontSize: "9px",
+            fontSize: "14px",
             color: "#374151",
             letterSpacing: "0.14em",
             marginBottom: "8px",
@@ -306,7 +306,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
           ))}
         </div>
         <div
-          style={{ fontSize: "8px", color: "#374151", marginTop: "6px" }}
+          style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}
         >
           cos-sim search · HNSW ready
         </div>
@@ -318,7 +318,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
       >
         <div
           style={{
-            fontSize: "8px",
+            fontSize: "13px",
             color: "#374151",
             letterSpacing: "0.08em",
             marginBottom: "4px",
@@ -328,7 +328,7 @@ export function DetailPanel({ sample }: DetailPanelProps) {
         </div>
         <div
           style={{
-            fontSize: "8px",
+            fontSize: "13px",
             color: "#4b5563",
             wordBreak: "break-all",
             lineHeight: 1.6,
