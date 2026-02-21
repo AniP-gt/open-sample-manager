@@ -4,13 +4,14 @@ Open Sample Manager development workspace for:
 
 - Rust core (`core/`)
 - React + TypeScript UI (`ui/`)
+- Tauri desktop app (`src-tauri/`)
 - JUCE plugin scaffold (`plugin/`)
 
 ## Prerequisites (macOS)
 
 - Xcode Command Line Tools
   - `xcode-select --install`
-- Rust via rustup
+- Rust via rustup (stable channel)
   - `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - Node.js 20 LTS or later (includes npm)
 - CMake 3.22 or later
@@ -27,28 +28,52 @@ This script checks required commands and installs UI dependencies.
 
 ## Daily development
 
-- Rust core check:
+### Tauri Desktop App
+
+- Start development server:
+
+```bash
+npm run tauri:dev
+```
+
+- Build production app:
+
+```bash
+npm run tauri:build
+```
+
+### Rust Core
+
+- Check:
 
 ```bash
 cargo check --workspace
 ```
 
-- Rust tests:
+- Tests:
 
 ```bash
 cargo test --workspace
 ```
 
-- UI dev server:
+### UI (standalone web)
+
+- Dev server:
 
 ```bash
 npm run dev --prefix ui
 ```
 
-- UI type check:
+- Type check:
 
 ```bash
 npm run typecheck --prefix ui
+```
+
+- Build:
+
+```bash
+npm run build --prefix ui
 ```
 
 ## JUCE plugin scaffold
