@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1f2937;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e2e8f0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sample-row:hover {
+  background: #0f1117 !important;
+  cursor: pointer;
+}
+
+.sample-row.active {
+  background: #111827 !important;
+  border-left: 2px solid #f97316 !important;
+}
+
+.icon-btn:hover {
+  color: #f97316 !important;
+}
+
+.tag-chip:hover {
+  background: #1f2937 !important;
+  cursor: pointer;
+}
