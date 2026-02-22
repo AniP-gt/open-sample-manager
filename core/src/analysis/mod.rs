@@ -6,6 +6,7 @@ pub mod kick;
 pub mod loop_classifier;
 pub mod onset;
 
+#[derive(Debug, Clone)]
 pub struct AnalysisResult {
     pub features: Vec<f64>,
     pub metadata: String,

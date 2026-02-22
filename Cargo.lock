@@ -2240,6 +2240,7 @@ dependencies = [
  "rusqlite",
  "rustfft",
  "serde",
+ "serde_json",
  "symphonia",
  "tempfile",
  "thiserror 1.0.69",
