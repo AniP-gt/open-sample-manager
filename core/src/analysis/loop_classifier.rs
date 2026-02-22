@@ -1,12 +1,18 @@
+/// Classification result indicating whether audio is a loop or one-shot sample.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoopType {
+    /// Audio sample that repeats periodically (loop).
     Loop,
+    /// One-shot or non-repeating audio sample.
     OneShot,
 }
 
+/// Configuration parameters for loop vs one-shot classification algorithm.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LoopClassificationConfig {
+    /// Minimum audio duration in seconds to be classified as a loop.
     pub min_duration_seconds: f64,
+    /// Minimum periodicity strength (0.0 to 1.0) to qualify as a loop.
     pub min_periodicity_strength: f64,
 }
 
@@ -19,10 +25,29 @@ impl Default for LoopClassificationConfig {
     }
 }
 
+/// Classify audio as a loop or one-shot sample using default configuration.
+///
+/// Uses standard thresholds: minimum 1.0 second duration and 0.3 periodicity strength.
+///
+/// # Arguments
+/// * `duration` - Duration of the audio sample in seconds
+/// * `periodicity` - Periodicity strength score (0.0 to 1.0)
+///
+/// # Returns
+/// LoopType indicating whether the audio is a Loop or OneShot.
 pub fn classify_loop(duration: f64, periodicity: f64) -> LoopType {
     classify_loop_with_config(duration, periodicity, LoopClassificationConfig::default())
 }
 
+/// Classify audio as loop or one-shot with custom configuration parameters.
+///
+/// # Arguments
+/// * `duration` - Duration of the audio sample in seconds
+/// * `periodicity` - Periodicity strength score (0.0 to 1.0)
+/// * `config` - Custom configuration with thresholds
+///
+/// # Returns
+/// LoopType indicating whether the audio is a Loop or OneShot.
 pub fn classify_loop_with_config(
     duration: f64,
     periodicity: f64,

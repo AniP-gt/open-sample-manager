@@ -1,5 +1,15 @@
 use super::fft_utils::{compute_stft, DEFAULT_FFT_SIZE, DEFAULT_HOP_SIZE};
 
+/// Compute spectral flux to detect changes in frequency content across frames.
+///
+/// Calculates the magnitude changes in the frequency domain between consecutive frames,
+/// which indicates transients and onsets in the audio signal.
+///
+/// # Arguments
+/// * `spectra` - Vector of frequency-domain spectral frames
+///
+/// # Returns
+/// Vector of spectral flux values (one per frame).
 pub fn compute_spectral_flux(spectra: &[Vec<f32>]) -> Vec<f32> {
     if spectra.is_empty() {
         return Vec::new();
@@ -25,6 +35,16 @@ pub fn compute_spectral_flux(spectra: &[Vec<f32>]) -> Vec<f32> {
     flux
 }
 
+/// Normalize spectral flux to zero mean and unit variance.
+///
+/// Standardizes flux values to improve onset detection robustness across
+/// different audio levels and frequency content distributions.
+///
+/// # Arguments
+/// * `flux` - Spectral flux values to normalize
+///
+/// # Returns
+/// Vector of normalized flux values (z-scored).
 pub fn normalize_flux(flux: &[f32]) -> Vec<f32> {
     if flux.is_empty() {
         return Vec::new();
@@ -48,6 +68,18 @@ pub fn normalize_flux(flux: &[f32]) -> Vec<f32> {
     flux.iter().map(|value| (value - mean) / std_dev).collect()
 }
 
+/// Detect onset times in audio samples using spectral flux analysis.
+///
+/// Identifies transient events (note attacks, percussive hits) by analyzing
+/// changes in the frequency spectrum and finding local peaks in spectral flux.
+///
+/// # Arguments
+/// * `samples` - Audio samples to analyze
+/// * `sample_rate` - Sample rate in Hz (e.g., 44100)
+/// * `threshold` - Detection threshold for normalized spectral flux
+///
+/// # Returns
+/// Vector of onset times in seconds.
 pub fn detect_onsets(samples: &[f32], sample_rate: u32, threshold: f32) -> Vec<f64> {
     if sample_rate == 0 {
         return Vec::new();

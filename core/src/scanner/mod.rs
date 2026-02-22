@@ -8,6 +8,7 @@ const AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "flac", "ogg", "aiff"];
 
 /// Scanner that watches a set of root paths for audio files.
 pub struct Scanner {
+    /// Directory paths being monitored for audio files.
     pub watched_paths: Vec<PathBuf>,
 }
 
@@ -162,6 +163,7 @@ mod tests {
         File::create(&file).unwrap();
 
         let mtime = get_file_mtime(&file);
+
         assert!(mtime.is_some());
     }
 

@@ -3,15 +3,25 @@ use std::cmp::Ordering;
 use super::fft_utils::{compute_stft, DEFAULT_FFT_SIZE, DEFAULT_HOP_SIZE};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Configuration parameters for kick drum detection algorithm.
 pub struct KickDetectionConfig {
+    /// Lower frequency boundary (Hz) for the low frequency band.
     pub low_band_start_hz: f64,
+    /// Upper frequency boundary (Hz) for the low frequency band.
     pub low_band_end_hz: f64,
+    /// Threshold for low band energy ratio to trigger kick detection.
     pub low_ratio_threshold: f64,
+    /// Minimum slope (dB/ms) of attack to qualify as a kick.
     pub attack_slope_threshold: f64,
+    /// Ratio of decay level relative to peak (0.0 to 1.0).
     pub decay_level_ratio: f64,
+    /// Maximum allowed decay time in milliseconds.
     pub max_decay_time_ms: f64,
+    /// Window size (ms) for envelope analysis.
     pub envelope_window_ms: f64,
+    /// FFT size for spectral analysis.
     pub fft_size: usize,
+    /// Hop size (stride) for spectral frames.
     pub hop_size: usize,
 }
 
@@ -32,10 +42,15 @@ impl Default for KickDetectionConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Result of kick drum detection containing detection status and analysis metrics.
 pub struct KickResult {
+    /// True if a kick drum was detected.
     pub is_kick: bool,
+    /// Energy ratio of low frequency band relative to full spectrum.
     pub low_ratio: f64,
+    /// Attack slope in dB/ms (steepness of amplitude increase).
     pub attack_slope: f64,
+    /// Duration in milliseconds of the decay phase.
     pub decay_time_ms: f64,
 }
 
@@ -50,10 +65,22 @@ impl KickResult {
     }
 }
 
+/// Detect kick drums in audio samples using default configuration.
+///
+/// Uses standard thresholds optimized for typical music production samples.
 pub fn detect_kick(samples: &[f32], sample_rate: u32) -> KickResult {
     detect_kick_with_config(samples, sample_rate, KickDetectionConfig::default())
 }
 
+/// Detect kick drums with custom configuration parameters.
+///
+/// # Arguments
+/// * `samples` - Audio samples to analyze
+/// * `sample_rate` - Sample rate in Hz
+/// * `config` - Detection configuration with thresholds and parameters
+///
+/// # Returns
+/// KickResult with detection status and analysis metrics.
 pub fn detect_kick_with_config(
     samples: &[f32],
     sample_rate: u32,
@@ -147,7 +174,7 @@ fn compute_abs_envelope(samples: &[f32], sample_rate: u32, window_ms: f64) -> (V
 
     let window_samples = ((sample_rate as f64 * window_ms / 1_000.0).round() as usize).max(1);
     let frame_duration_seconds = window_samples as f64 / sample_rate as f64;
-    let frame_count = (samples.len() + window_samples - 1) / window_samples;
+    let frame_count = samples.len().div_ceil(window_samples);
     let mut envelope = Vec::with_capacity(frame_count);
 
     for chunk in samples.chunks(window_samples) {

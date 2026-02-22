@@ -9,9 +9,13 @@ const MIN_BPM: f64 = 60.0;
 const MAX_BPM: f64 = 200.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Result of BPM estimation containing tempo and confidence metrics.
 pub struct BpmResult {
+    /// Estimated beats per minute (BPM) value.
     pub bpm: f64,
+    /// Confidence score of the BPM estimate (0.0 to 1.0).
     pub confidence: f64,
+    /// Periodicity strength indicating how well-defined the beat is.
     pub periodicity_strength: f64,
 }
 
@@ -25,6 +29,17 @@ impl BpmResult {
     }
 }
 
+/// Estimate the BPM (beats per minute) from audio samples.
+///
+/// Analyzes the audio using STFT (Short-Time Fourier Transform) to detect the
+/// periodicity and estimate tempo. Works best on rhythmic audio with clear beats.
+///
+/// # Arguments
+/// * `samples` - Audio samples to analyze
+/// * `sample_rate` - Sample rate in Hz (e.g., 44100)
+///
+/// # Returns
+/// BpmResult with estimated BPM, confidence, and periodicity metrics.
 pub fn estimate_bpm(samples: &[f32], sample_rate: u32) -> BpmResult {
     if sample_rate == 0 || samples.len() < DEFAULT_FFT_SIZE {
         return BpmResult::empty();

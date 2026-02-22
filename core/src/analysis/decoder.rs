@@ -25,15 +25,19 @@ pub struct DecodedAudio {
 #[derive(Debug, Error)]
 pub enum DecodeError {
     #[error("I/O error: {0}")]
+    /// I/O errors when reading files.
     Io(#[from] std::io::Error),
 
     #[error("Symphonia error: {0}")]
+    /// Audio format decoding errors from symphonia library.
     Symphonia(#[from] SymphoniaError),
 
     #[error("No audio tracks found in file")]
+    /// Audio file contains no audio tracks.
     NoAudioTrack,
 
     #[error("Could not create decoder for track")]
+    /// Unable to create decoder for the audio track.
     DecoderCreation,
 }
 

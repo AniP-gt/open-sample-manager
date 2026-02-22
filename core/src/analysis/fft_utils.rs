@@ -3,9 +3,12 @@ use std::sync::Arc;
 
 use realfft::{num_complex::Complex32, RealFftPlanner, RealToComplex};
 
+/// Default FFT size (number of samples per frame).
 pub const DEFAULT_FFT_SIZE: usize = 1024;
+/// Default hop size (stride between consecutive frames).
 pub const DEFAULT_HOP_SIZE: usize = 512;
 
+/// FFT processor for real-to-complex transforms with windowing and magnitude computation.
 pub struct FftProcessor {
     fft_size: usize,
     fft: Arc<dyn RealToComplex<f32>>,
@@ -15,10 +18,15 @@ pub struct FftProcessor {
 }
 
 impl FftProcessor {
+    /// Create a new FftProcessor with default FFT size (1024).
     pub fn new() -> Self {
         Self::with_size(DEFAULT_FFT_SIZE)
     }
 
+    /// Create a new FftProcessor with a specified FFT size.
+    ///
+    /// # Panics
+    /// Panics if `fft_size <= 1`.
     pub fn with_size(fft_size: usize) -> Self {
         assert!(fft_size > 1, "FFT size must be greater than 1");
 
@@ -37,16 +45,25 @@ impl FftProcessor {
         }
     }
 
+    /// Get the output length of the FFT (number of frequency bins).
     pub fn output_len(&self) -> usize {
         self.spectrum.len()
     }
 
+    /// Process a single frame and return its magnitude spectrum.
+    ///
+    /// # Panics
+    /// Panics if frame length does not match the FFT size.
     pub fn process_frame(&mut self, frame: &[f32]) -> Vec<f32> {
         let mut magnitudes = vec![0.0; self.output_len()];
         self.process_frame_into_buffer(frame, &mut magnitudes);
         magnitudes
     }
 
+    /// Process a single frame, writing magnitudes into the provided buffer.
+    ///
+    /// # Panics
+    /// Panics if frame length doesn't match FFT size or buffer length doesn't match spectrum length.
     pub fn process_frame_into_buffer(&mut self, frame: &[f32], magnitudes: &mut [f32]) {
         assert_eq!(
             frame.len(),
@@ -77,6 +94,10 @@ impl Default for FftProcessor {
     }
 }
 
+/// Compute Hann window coefficients for a given window size.
+///
+/// Returns a vector of window values in [0.0, 1.0] that taper at the edges.
+/// Useful for reducing spectral leakage in FFT analysis.
 pub fn hann_window(size: usize) -> Vec<f32> {
     if size == 0 {
         return Vec::new();
@@ -95,6 +116,15 @@ pub fn hann_window(size: usize) -> Vec<f32> {
         .collect()
 }
 
+/// Compute Short-Time Fourier Transform (STFT) of audio samples.
+///
+/// # Arguments
+/// * `samples` - Audio samples to analyze
+/// * `frame_size` - Size of each analysis frame (typically 512 or 1024)
+/// * `hop_size` - Number of samples to advance between consecutive frames
+///
+/// # Returns
+/// Vector of magnitude spectra, one per frame. Empty if input is invalid.
 pub fn compute_stft(samples: &[f32], frame_size: usize, hop_size: usize) -> Vec<Vec<f32>> {
     if frame_size < 2 || hop_size == 0 || samples.len() < frame_size {
         return Vec::new();

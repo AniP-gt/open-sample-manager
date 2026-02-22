@@ -191,8 +191,7 @@ mod tests {
     fn test_wal_mode_enabled() {
         let tempdir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let db_path = tempdir.path().join("test.db");
-        let conn =
-            Connection::open(&db_path).expect("Failed to create file-based DB");
+        let conn = Connection::open(&db_path).expect("Failed to create file-based DB");
         init_database(&conn).expect("Failed to initialize database");
 
         let mut stmt = conn

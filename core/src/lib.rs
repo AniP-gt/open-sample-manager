@@ -17,18 +17,21 @@
 //!
 //! ```rust,no_run
 //! use open_sample_manager_core::{Scanner, AnalysisPool};
+//! use std::path::PathBuf;
 //!
 //! // Scan a directory for audio samples
 //! let mut scanner = Scanner::new();
-//! scanner.add_path("/path/to/samples".into());
+//! scanner.add_path("/path/to/samples");
 //! let samples = scanner.scan_all();
 //!
 //! // Analyze samples in parallel
-//! let pool = AnalysisPool::new(4, "samples.db").expect("Failed to create pool");
-//! for sample in samples {
-//!     pool.submit_analysis(&sample.file_name);
+//! let pool = AnalysisPool::new(4).expect("Failed to create pool");
+//! for sample_path in samples {
+//!     let _ = pool.queue(sample_path, || {
+//!         unimplemented!("analysis implementation")
+//!     });
 //! }
-//! pool.shutdown().expect("Failed to shutdown pool");
+//! pool.shutdown();
 //! ```
 //!
 //! ## Re-exports
@@ -59,23 +62,30 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Audio analysis algorithms (BPM, kick detection, loop classification).
 pub mod analysis;
+/// Database schema and initialization.
 pub mod db;
-pub mod scanner;
-pub mod threading;
-pub mod ffi;
-pub mod search;
+/// Audio feature embedding generation.
 pub mod embedding;
+/// C-compatible interface for external integration.
+pub mod ffi;
+/// Directory scanning and file discovery.
+pub mod scanner;
+/// Sample search and query functionality.
+pub mod search;
+/// Parallel processing with thread pools.
+pub mod threading;
 
 // Re-exports of commonly-used types for ergonomic API
 pub use analysis::bpm::BpmResult;
+pub use analysis::decoder::DecodedAudio;
 pub use analysis::kick::KickResult;
 pub use analysis::loop_classifier::LoopType;
-pub use analysis::decoder::DecodedAudio;
 pub use db::schema::init_database;
+pub use ffi::handle::SMHandle;
 pub use scanner::Scanner;
 pub use threading::AnalysisPool;
-pub use ffi::handle::SMHandle;
 
 /// Metadata summary for a sample file.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

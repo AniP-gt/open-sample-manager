@@ -1,3 +1,7 @@
+/// Opaque C-compatible handle for Open Sample Manager instances.
+///
+/// This is a zero-sized marker type for FFI safety. The actual handle
+/// data is stored as a heap-allocated `SMHandleInner` and accessed via raw pointers.
 #[repr(C)]
 pub struct SMHandle {
     _private: [u8; 0],
@@ -13,6 +17,16 @@ impl SMHandleInner {
     }
 }
 
+/// Initialize a new Open Sample Manager handle.
+///
+/// Allocates and initializes a new manager instance. The handle must be
+/// freed later using `sm_free()` to avoid memory leaks.
+///
+/// # Returns
+/// A non-null opaque handle pointer, or null on allocation failure.
+///
+/// # Panics
+/// Returns null instead of panicking, making it safe to call from C code.
 #[no_mangle]
 pub extern "C" fn sm_init() -> *mut SMHandle {
     let result = std::panic::catch_unwind(|| {
@@ -22,8 +36,18 @@ pub extern "C" fn sm_init() -> *mut SMHandle {
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Free an Open Sample Manager handle.
+///
+/// Deallocates the manager instance and invalidates the handle.
+/// It is safe to pass null or a handle created by `sm_init()`.
+///
+/// # Arguments
+/// * `handle` - Handle to free (can be null)
+///
+/// # Safety
+/// Do not call this with a handle from other sources or after it has been freed.
 #[no_mangle]
-pub extern "C" fn sm_free(handle: *mut SMHandle) {
+pub unsafe extern "C" fn sm_free(handle: *mut SMHandle) {
     if handle.is_null() {
         return;
     }
@@ -47,13 +71,12 @@ mod tests {
             "sm_init() must return a non-null pointer"
         );
 
-        sm_free(handle);
+        unsafe { sm_free(handle) };
     }
 
     #[test]
     fn sm_free_accepts_null() {
-
-        sm_free(std::ptr::null_mut());
+        unsafe { sm_free(std::ptr::null_mut()) };
     }
 
     #[test]
@@ -61,7 +84,7 @@ mod tests {
         let handle = sm_init();
         assert!(!handle.is_null());
 
-        sm_free(handle);
+        unsafe { sm_free(handle) };
     }
 
     #[test]
@@ -71,7 +94,7 @@ mod tests {
         assert!(!h1.is_null());
         assert!(!h2.is_null());
         assert_ne!(h1, h2, "each call to sm_init must return a unique pointer");
-        sm_free(h1);
-        sm_free(h2);
+        unsafe { sm_free(h1) };
+        unsafe { sm_free(h2) };
     }
 }
