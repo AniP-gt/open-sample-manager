@@ -2243,6 +2243,7 @@ dependencies = [
  "symphonia",
  "tempfile",
  "thiserror 1.0.69",
+ "walkdir",
 ]
 
 [[package]]
