@@ -1,3 +1,4 @@
+pub mod bpm;
 pub mod decoder;
 /// Analysis module for sample feature extraction and processing
 pub mod fft_utils;
