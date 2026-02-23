@@ -1,4 +1,4 @@
-import type { Sample, FilterState } from "../../types/sample";
+import type { FilterState, Sample } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 
 interface SampleListProps {
@@ -7,6 +7,7 @@ interface SampleListProps {
   selectedSample: Sample | null;
   onSampleSelect: (sample: Sample) => void;
   onFilterChange: (filters: Partial<FilterState>) => void;
+  onDeleteSample: (id: number) => void;
 }
 
 export function SampleList({
@@ -15,13 +16,12 @@ export function SampleList({
   selectedSample,
   onSampleSelect,
   onFilterChange,
+  onDeleteSample,
 }: SampleListProps) {
   const filtered = samples.filter((s) => {
     const matchSearch =
       s.file_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      s.tags.some((t) =>
-        t.toLowerCase().includes(filters.search.toLowerCase())
-      );
+      s.tags.some((t) => t.toLowerCase().includes(filters.search.toLowerCase()));
     const matchType =
       filters.filterType === "all" || s.sample_type === filters.filterType;
     const matchBpmMin =
@@ -42,7 +42,6 @@ export function SampleList({
         overflow: "hidden",
       }}
     >
-      
       <div
         style={{
           padding: "10px 16px",
@@ -86,11 +85,10 @@ export function SampleList({
         </span>
       </div>
 
-      
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "28px 1fr 80px 60px 60px 80px",
+          gridTemplateColumns: "28px 1fr 80px 60px 60px 80px 40px",
           padding: "6px 16px",
           borderBottom: "1px solid #0f1117",
           fontSize: "13px",
@@ -104,20 +102,18 @@ export function SampleList({
         <div>BPM</div>
         <div>DUR</div>
         <div>LOW RATIO</div>
+        <div />
       </div>
 
-      
       <div style={{ flex: 1, overflowY: "auto" }}>
         {filtered.map((s, idx) => (
           <div
             key={s.id}
-            className={`sample-row ${
-              selectedSample?.id === s.id ? "active" : ""
-            }`}
+            className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
             onClick={() => onSampleSelect(s)}
             style={{
               display: "grid",
-              gridTemplateColumns: "28px 1fr 80px 60px 60px 80px",
+              gridTemplateColumns: "28px 1fr 80px 60px 60px 80px 40px",
               padding: "8px 16px",
               borderBottom: "1px solid #0d0f16",
               borderLeft:
@@ -170,7 +166,7 @@ export function SampleList({
                 fontWeight: s.bpm ? 700 : 400,
               }}
             >
-              {s.bpm ? `${s.bpm}` : "—"}
+              {s.bpm ? `${s.bpm}` : "-"}
             </div>
             <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
@@ -193,12 +189,27 @@ export function SampleList({
                   }}
                 />
               </div>
-              <span
-                style={{ fontSize: "14px", color: "#4b5563", width: "32px" }}
-              >
+              <span style={{ fontSize: "14px", color: "#4b5563", width: "32px" }}>
                 {(s.low_ratio * 100).toFixed(0)}%
               </span>
             </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteSample(s.id);
+              }}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#6b7280",
+                cursor: "pointer",
+                padding: "4px",
+                fontSize: "12px",
+              }}
+              title="Remove from library"
+            >
+              X
+            </button>
           </div>
         ))}
       </div>

@@ -6,3 +6,5 @@ export { Header } from "./Header/Header";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { SampleList } from "./SampleList/SampleList";
 export { DetailPanel } from "./DetailPanel/DetailPanel";
+
+export { SettingsModal } from "./SettingsModal/SettingsModal";

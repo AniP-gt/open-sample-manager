@@ -210,6 +210,34 @@ impl SampleManager {
         Ok(row)
     }
 
+    /// Delete a sample by its file path.
+    ///
+    /// Also removes the corresponding FTS5 entry and tag associations.
+    ///
+    /// Returns the number of rows deleted (0 or 1).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Db`] on SQL errors.
+    pub fn delete_sample(&self, path: &str) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::delete_sample(&self.conn, path)?;
+        Ok(count)
+    }
+
+    /// Delete all samples from the database.
+    ///
+    /// Removes all rows from `samples`, `samples_fts`, and `sample_tags` tables.
+    ///
+    /// Returns the number of samples deleted.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Db`] on SQL errors.
+    pub fn clear_all_samples(&self) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::clear_all_samples(&self.conn)?;
+        Ok(count)
+    }
+
     /// Analyze a file and store the result in the database.
     fn analyze_and_store(&self, file_path: &Path) -> Result<i64, ManagerError> {
         let input = Self::analyze(file_path)?;

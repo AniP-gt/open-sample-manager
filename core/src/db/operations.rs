@@ -675,3 +675,23 @@ mod tests {
         assert!(results.is_empty());
     }
 }
+
+
+/// Delete all samples from the database.
+///
+/// Removes all rows from `samples`, `samples_fts`, and `sample_tags` tables.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn clear_all_samples(conn: &Connection) -> Result<usize, rusqlite::Error> {
+    // Clear FTS index
+    conn.execute("DELETE FROM samples_fts", [])?;
+    
+    // Clear tag associations
+    conn.execute("DELETE FROM sample_tags", [])?;
+    
+    // Clear samples and get count
+    let count = conn.execute("DELETE FROM samples", [])?;
+    
+    Ok(count)
+}

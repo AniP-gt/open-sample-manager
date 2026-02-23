@@ -2,9 +2,9 @@ interface HeaderProps {
   sampleCount: number;
   scanned: boolean;
   onScanClick: () => void;
+  onSettingsClick: () => void;
 }
-
-export function Header({ sampleCount, scanned, onScanClick }: HeaderProps) {
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick }: HeaderProps) {
   return (
     <div
       style={{
@@ -72,6 +72,22 @@ export function Header({ sampleCount, scanned, onScanClick }: HeaderProps) {
             ✓ {sampleCount} SAMPLES INDEXED
           </div>
         )}
+        <button
+          onClick={onSettingsClick}
+          title="Settings"
+          style={{
+            background: "transparent",
+            border: "1px solid #374151",
+            color: "#6b7280",
+            padding: "6px 10px",
+            borderRadius: "2px",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontFamily: "'Courier New', monospace",
+          }}
+        >
+          ⚙
+        </button>
         <button
           onClick={onScanClick}
           style={{

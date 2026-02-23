@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState } from "./types/sample";
-import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay } from "./components";
+import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal } from "./components";
 
 type TauriSampleRow = {
   id: number;
@@ -17,8 +17,6 @@ type TauriSampleRow = {
   decay_time: number | null;
   sample_type: string | null;
 };
-
-// Path is now selected via folder picker dialog
 
 const normalizeSampleType = (
   sampleType: string | null,
@@ -78,6 +76,7 @@ export function App() {
   const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(
     null,
   );
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const runSearch = async (query: string) => {
     const rows = await invoke<TauriSampleRow[]>("search_samples", { query });
@@ -151,22 +150,18 @@ export function App() {
 
   const handleScanClick = async () => {
     try {
-      // Open folder picker dialog
       const selectedPath = await open({
         directory: true,
         multiple: false,
         title: "Select Sample Library Folder",
       });
 
-      // User cancelled the dialog
       if (!selectedPath) {
         return;
       }
 
-      // selectedPath is a string when multiple: false
       const scanPath = typeof selectedPath === "string" ? selectedPath : selectedPath[0];
 
-      // Set scanning state BEFORE async operation to ensure UI updates
       setScanning(true);
       setError(null);
 
@@ -180,11 +175,36 @@ export function App() {
         setScanning(false);
       }
     } catch (e) {
-      // Dialog open failed (e.g., not running in Tauri context)
       handleInvokeError(new Error("Dialog not available. Please run the app via 'npm run tauri:dev' instead of 'npm run dev'."));
     }
   };
 
+  const handleDeleteSample = async (sampleId: number) => {
+    const path = samplePaths[sampleId];
+    if (!path) return;
+
+    try {
+      await invoke<number>("delete_sample", { path });
+      await runSearch(filters.search);
+      if (selected?.id === sampleId) {
+        setSelected(null);
+      }
+    } catch (e) {
+      handleInvokeError(e);
+    }
+  };
+
+  const handleClearAllSamples = async () => {
+    try {
+      await invoke<number>("clear_all_samples");
+      setSamples([]);
+      setSamplePaths({});
+      setSelected(null);
+      setScanned(false);
+    } catch (e) {
+      handleInvokeError(e);
+    }
+  };
 
   const handleRetry = async () => {
     if (!retryAction) {
@@ -222,6 +242,7 @@ export function App() {
         onScanClick={() => {
           void handleScanClick();
         }}
+        onSettingsClick={() => setSettingsOpen(true)}
       />
 
       {error && (
@@ -267,7 +288,7 @@ export function App() {
         style={{
           display: "flex",
           flex: 1,
-          overflow: "hidden",
+          overflow: "auto",
           height: "calc(100vh - 57px)",
         }}
       >
@@ -283,10 +304,17 @@ export function App() {
           selectedSample={selected}
           onSampleSelect={handleSampleSelect}
           onFilterChange={handleFilterChange}
+          onDeleteSample={(id) => { void handleDeleteSample(id); }}
         />
-
         {selected && <DetailPanel sample={selected} />}
       </div>
+
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onClearAllSamples={handleClearAllSamples}
+        sampleCount={samples.length}
+      />
     </div>
   );
 }

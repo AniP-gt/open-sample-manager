@@ -62,6 +62,21 @@ fn get_sample(
     manager.get_sample(&path).map_err(CommandError::from)
 }
 
+
+#[tauri::command]
+fn delete_sample(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.delete_sample(&path).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn clear_all_samples(state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.clear_all_samples().map_err(CommandError::from)
+}
 #[derive(Debug, Clone)]
 struct AppState {
     db_path: Option<std::path::PathBuf>,
@@ -133,7 +148,9 @@ fn main() {
             health_check,
             scan_directory,
             search_samples,
-            get_sample
+            get_sample,
+            delete_sample,
+            clear_all_samples
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
