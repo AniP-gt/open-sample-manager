@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { readFile } from "@tauri-apps/plugin-fs";
 import type { Sample } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 import { WaveformDisplay } from "../WaveformDisplay/WaveformDisplay";
@@ -6,12 +7,71 @@ import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 
 interface DetailPanelProps {
   sample: Sample;
+  path?: string;
 }
 
-export function DetailPanel({ sample }: DetailPanelProps) {
+export function DetailPanel({ sample, path }: DetailPanelProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [tick, setTick] = useState(0);
 
+  // Reset state when path changes
+  useEffect(() => {
+    setPlaying(false);
+    setTick(0);
+  }, [path]);
+
+  // Create audio element when path changes
+  useEffect(() => {
+    if (!path) {
+      audioRef.current = null;
+      return;
+    }
+
+    let isMounted = true;
+    let currentAudioUrl: string | null = null;
+
+    const loadAudio = async () => {
+      try {
+        // Read file as binary
+        const fileData = await readFile(path);
+        if (!isMounted) return;
+
+        // Create blob URL from binary data
+        const blob = new Blob([fileData], { type: "audio/wav" });
+        const audioUrl = URL.createObjectURL(blob);
+        currentAudioUrl = audioUrl;
+        if (!isMounted) {
+          URL.revokeObjectURL(audioUrl);
+          return;
+        }
+
+        const audio = new Audio(audioUrl);
+        audio.onended = () => setPlaying(false);
+        audio.onpause = () => setPlaying(false);
+        audio.onplay = () => setPlaying(true);
+        audioRef.current = audio;
+      } catch (err) {
+        console.error("Failed to load audio:", err);
+      }
+    };
+
+    loadAudio();
+
+    return () => {
+      isMounted = false;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+      if (currentAudioUrl) {
+        URL.revokeObjectURL(currentAudioUrl);
+      }
+    };
+  }, [path]);
+
+  // Animation tick while playing
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => setTick((t) => t + 1), 50);
@@ -21,6 +81,9 @@ export function DetailPanel({ sample }: DetailPanelProps) {
   return (
     <div
       style={{
+        position: "sticky",
+        top: 0,
+        height: "100%",
         width: "260px",
         borderLeft: "1px solid #0f1117",
         background: "#0a0c12",
@@ -92,7 +155,16 @@ export function DetailPanel({ sample }: DetailPanelProps) {
           }}
         >
           <button
-            onClick={() => setPlaying((p) => !p)}
+            onClick={() => {
+              if (!audioRef.current) {
+                return;
+              }
+              if (playing) {
+                audioRef.current.pause();
+              } else {
+                audioRef.current.play();
+              }
+            }}
             style={{
               background: playing ? "#f97316" : "#1f2937",
               border: "none",

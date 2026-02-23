@@ -29,6 +29,7 @@ export function FilterSidebar({
   return (
     <div
       style={{
+        height: "100%",
         width: "180px",
         borderRight: "1px solid #0f1117",
         background: "#0a0c12",

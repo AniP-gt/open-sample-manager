@@ -229,11 +229,12 @@ export function App() {
     <div
       style={{
         background: "#080a0f",
-        minHeight: "100vh",
+        height: "100vh",
         fontFamily: "'Courier New', monospace",
         color: "#e2e8f0",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
       }}
     >
       <Header
@@ -288,7 +289,7 @@ export function App() {
         style={{
           display: "flex",
           flex: 1,
-          overflow: "auto",
+          overflow: "hidden",
           height: "calc(100vh - 57px)",
         }}
       >
@@ -306,7 +307,7 @@ export function App() {
           onFilterChange={handleFilterChange}
           onDeleteSample={(id) => { void handleDeleteSample(id); }}
         />
-        {selected && <DetailPanel sample={selected} />}
+        {selected && <DetailPanel sample={selected} path={samplePaths[selected.id]} />}
       </div>
 
       <SettingsModal
