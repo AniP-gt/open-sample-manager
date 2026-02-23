@@ -63,7 +63,20 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
         console.log("[Audio] Audio element created successfully");
       } catch (err) {
         console.error("[Audio] Failed to load audio:", err);
-        setLoadError(err instanceof Error ? err.message : "Failed to load audio");
+        
+        // Detect file not found errors and show user-friendly message
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const isFileNotFound = 
+          errorMessage.includes("not found") ||
+          errorMessage.includes("No such file") ||
+          errorMessage.includes("ENOENT") ||
+          errorMessage.includes("path does not exist");
+        
+        if (isFileNotFound) {
+          setLoadError("ファイルパスが見つかりません");
+        } else {
+          setLoadError(errorMessage);
+        }
         setLoading(false);
       }
     };
@@ -159,6 +172,28 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
             key={`${sample.id}-${tick}`}
           />
         </div>
+        
+        {/* Error message display */}
+        {loadError && (
+          <div
+            style={{
+              background: "#ef444420",
+              border: "1px solid #ef444450",
+              borderRadius: "3px",
+              padding: "8px",
+              marginBottom: "8px",
+              fontSize: "12px",
+              color: "#fca5a5",
+            }}
+          >
+            <div style={{ fontWeight: "bold", marginBottom: "4px" }}>再生できません</div>
+            <div>{loadError}</div>
+            <div style={{ marginTop: "6px", fontSize: "11px", color: "#9ca3af" }}>
+              外部メディアの場合、Driveが接続されているか確認してください
+            </div>
+          </div>
+        )}
+        
         <div
           style={{
             display: "flex",
@@ -168,18 +203,25 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
         >
           <button
             onClick={() => {
+              console.log("[Audio] Button clicked, playing:", playing, "loading:", loading, "audioRef:", !!audioRef.current);
               // If there's an error, clear it and try again
               if (loadError) {
+                console.log("[Audio] Clearing error and retrying");
                 setLoadError(null);
                 return;
               }
               if (!audioRef.current || loading) {
+                console.log("[Audio] Cannot play: no audio ref or loading");
                 return;
               }
               if (playing) {
+                console.log("[Audio] Pausing");
                 audioRef.current.pause();
               } else {
-                audioRef.current.play().catch((err) => {
+                console.log("[Audio] Playing...");
+                audioRef.current.play().then(() => {
+                  console.log("[Audio] Play started successfully");
+                }).catch((err) => {
                   console.error("[Audio] Play failed:", err);
                   setLoadError(err.message);
                 });

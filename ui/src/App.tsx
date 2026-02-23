@@ -72,6 +72,7 @@ export function App() {
   });
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
+  const [scannedPaths, setScannedPaths] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(
     null,
@@ -168,6 +169,7 @@ export function App() {
       try {
         await invoke<number>("scan_directory", { path: scanPath });
         setScanned(true);
+        setScannedPaths((prev) => [...prev, scanPath]);
         await runSearch(filters.search);
       } catch (e) {
         handleInvokeError(e);
@@ -201,6 +203,7 @@ export function App() {
       setSamplePaths({});
       setSelected(null);
       setScanned(false);
+      setScannedPaths([]);
     } catch (e) {
       handleInvokeError(e);
     }
@@ -296,6 +299,7 @@ export function App() {
         <FilterSidebar
           samples={samples}
           filters={filters}
+          scannedPaths={scannedPaths}
           onFilterChange={handleFilterChange}
         />
 

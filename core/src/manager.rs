@@ -32,6 +32,39 @@ use crate::db::operations::{
 };
 use crate::db::schema::init_database;
 use crate::scanner::scan_directory;
+/// Progress information emitted during scanning.
+#[derive(Debug, Clone)]
+pub struct ScanProgress {
+    /// Current stage of scanning.
+    pub stage: ScanStage,
+    /// Number of files processed so far.
+    pub current: usize,
+    /// Total number of files to process.
+    pub total: usize,
+    /// Currently processing file name.
+    pub current_file: String,
+}
+
+/// Stages of the scanning process.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScanStage {
+    /// Discovering files in the directory.
+    Discovering,
+    /// Analyzing and processing files.
+    Analyzing,
+    /// Scan completed.
+    Complete,
+}
+
+impl std::fmt::Display for ScanStage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScanStage::Discovering => write!(f, "discovering"),
+            ScanStage::Analyzing => write!(f, "analyzing"),
+            ScanStage::Complete => write!(f, "complete"),
+        }
+    }
+}
 
 /// Errors that can occur within [`SampleManager`] operations.
 #[derive(Debug)]
