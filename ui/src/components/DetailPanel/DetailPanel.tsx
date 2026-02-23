@@ -14,11 +14,15 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [tick, setTick] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Reset state when path changes
   useEffect(() => {
     setPlaying(false);
     setTick(0);
+    setLoading(false);
+    setLoadError(null);
   }, [path]);
 
   // Create audio element when path changes
@@ -32,9 +36,13 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
     let currentAudioUrl: string | null = null;
 
     const loadAudio = async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
+        console.log("[Audio] Loading from path:", path);
         // Read file as binary
         const fileData = await readFile(path);
+        console.log("[Audio] File data length:", fileData?.length);
         if (!isMounted) return;
 
         // Create blob URL from binary data
@@ -51,8 +59,12 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
         audio.onpause = () => setPlaying(false);
         audio.onplay = () => setPlaying(true);
         audioRef.current = audio;
+        setLoading(false);
+        console.log("[Audio] Audio element created successfully");
       } catch (err) {
-        console.error("Failed to load audio:", err);
+        console.error("[Audio] Failed to load audio:", err);
+        setLoadError(err instanceof Error ? err.message : "Failed to load audio");
+        setLoading(false);
       }
     };
 
@@ -156,17 +168,25 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
         >
           <button
             onClick={() => {
-              if (!audioRef.current) {
+              // If there's an error, clear it and try again
+              if (loadError) {
+                setLoadError(null);
+                return;
+              }
+              if (!audioRef.current || loading) {
                 return;
               }
               if (playing) {
                 audioRef.current.pause();
               } else {
-                audioRef.current.play();
+                audioRef.current.play().catch((err) => {
+                  console.error("[Audio] Play failed:", err);
+                  setLoadError(err.message);
+                });
               }
             }}
             style={{
-              background: playing ? "#f97316" : "#1f2937",
+              background: playing ? "#f97316" : loading ? "#374151" : "#1f2937",
               border: "none",
               borderRadius: "2px",
               width: "28px",
@@ -176,9 +196,21 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              opacity: loading ? 0.5 : 1,
             }}
           >
-            {playing ? (
+            {loading ? (
+              <div
+                style={{
+                  width: "10px",
+                  height: "10px",
+                  border: "2px solid #fff",
+                  borderTopColor: "transparent",
+                  borderRadius: "50%",
+                  animation: "spin 1s linear infinite",
+                }}
+              />
+            ) : playing ? (
               <svg
                 width="10"
                 height="10"
@@ -406,7 +438,7 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
             lineHeight: 1.6,
           }}
         >
-          ~/Samples/Library/{sample.file_name}
+          {path || "—"}
         </div>
       </div>
     </div>
