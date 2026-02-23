@@ -1,38 +1,35 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { ScanProgress } from "../../types/scan";
 
 interface ScannerOverlayProps {
+  progress: ScanProgress | null;
   onDone: () => void;
 }
 
-const SCAN_FILES = [
-  "Scanning /Samples/Drums/Kicks...",
-  "Analyzing spectral content: Kick_Deep_909.wav",
-  "Computing FFT autocorrelation...",
-  "Detecting onset envelopes...",
-  "Classifying: loop vs one-shot...",
-  "Building FTS5 index...",
-  "Generating embeddings [64-dim]...",
-  "Writing to SQLite cache...",
-  "Scan complete. 12 samples indexed.",
-];
-
-export function ScannerOverlay({ onDone }: ScannerOverlayProps) {
-  const [progress, setProgress] = useState(0);
-  const [currentFile, setCurrentFile] = useState("Initializing scanner...");
+export function ScannerOverlay({ progress, onDone }: ScannerOverlayProps) {
+  const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    let i = 0;
-    const interval = setInterval(() => {
-      i++;
-      setProgress((i / SCAN_FILES.length) * 100);
-      setCurrentFile(SCAN_FILES[Math.min(i, SCAN_FILES.length - 1)]);
-      if (i >= SCAN_FILES.length) {
-        clearInterval(interval);
-        setTimeout(onDone, 600);
-      }
-    }, 300);
-    return () => clearInterval(interval);
-  }, [onDone]);
+    if (progress?.stage === "complete" && !isComplete) {
+      setIsComplete(true);
+      // Small delay before closing to show 100%
+      setTimeout(onDone, 500);
+    }
+  }, [progress, onDone, isComplete]);
+
+  // Calculate percentage from real progress
+  const percentage = progress && progress.total > 0 
+    ? (progress.current / progress.total) * 100 
+    : 0;
+
+  const currentFile = progress?.currentFile ?? "Initializing scanner...";
+
+  // Stage indicator
+  const stageLabel = progress?.stage === "discovering" 
+    ? "DISCOVERING FILES" 
+    : progress?.stage === "analyzing" 
+      ? "ANALYZING SAMPLES" 
+      : "SCANNING LIBRARY";
 
   return (
     <div
@@ -69,9 +66,9 @@ export function ScannerOverlay({ onDone }: ScannerOverlayProps) {
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              background: "#f97316",
-              boxShadow: "0 0 8px #f97316",
-              animation: "pulse 1s infinite",
+              background: isComplete ? "#22c55e" : "#f97316",
+              boxShadow: `0 0 8px ${isComplete ? "#22c55e" : "#f97316"}`,
+              animation: isComplete ? "none" : "pulse 1s infinite",
             }}
           />
           <span
@@ -82,7 +79,7 @@ export function ScannerOverlay({ onDone }: ScannerOverlayProps) {
               letterSpacing: "0.06em",
             }}
           >
-            SCANNING LIBRARY
+            {stageLabel}
           </span>
         </div>
         <div
@@ -107,22 +104,28 @@ export function ScannerOverlay({ onDone }: ScannerOverlayProps) {
           <div
             style={{
               height: "100%",
-              width: `${progress}%`,
+              width: `${percentage}%`,
               background: "linear-gradient(90deg, #f97316, #fb923c)",
               borderRadius: "1px",
-              transition: "width 0.3s ease",
+              transition: "width 0.2s ease",
             }}
           />
         </div>
         <div
           style={{
-            textAlign: "right",
+            display: "flex",
+            justifyContent: "space-between",
             fontFamily: "'Courier New', monospace",
             fontSize: "15px",
             color: "#374151",
           }}
         >
-          {Math.round(progress)}%
+          <span>
+            {progress?.current ?? 0} / {progress?.total ?? 0} files
+          </span>
+          <span>
+            {Math.round(percentage)}%
+          </span>
         </div>
       </div>
     </div>

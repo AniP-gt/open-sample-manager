@@ -24,6 +24,8 @@ pub struct SampleRow {
     pub decay_time: Option<f64>,
     /// Classification label (e.g. "kick", "loop", "oneshot").
     pub sample_type: Option<String>,
+    /// Waveform peaks as JSON array of floats.
+    pub waveform_peaks: Option<String>,
     /// Feature embedding blob.
     pub embedding: Option<Vec<u8>>,
     /// Whether the file is currently accessible.
@@ -45,12 +47,14 @@ pub struct SampleInput {
     pub periodicity: Option<f64>,
     /// Low-band energy ratio.
     pub low_ratio: Option<f64>,
-    /// Attack slope in dB/ms.
+    /// Classification label.
+    pub sample_type: Option<String>,
+    /// Waveform peaks as JSON array of floats.
+    pub waveform_peaks: Option<String>,
+    /// Feature embedding blob.
     pub attack_slope: Option<f64>,
     /// Decay time in ms.
     pub decay_time: Option<f64>,
-    /// Classification label.
-    pub sample_type: Option<String>,
     /// Feature embedding blob.
     pub embedding: Option<Vec<u8>>,
 }
@@ -63,8 +67,8 @@ pub struct SampleInput {
 /// Returns `rusqlite::Error` if the path already exists or any SQL error occurs.
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, low_ratio, attack_slope, decay_time, sample_type, embedding)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
     )?;
     stmt.execute(params![
         input.path,
@@ -76,6 +80,7 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
         input.attack_slope,
         input.decay_time,
         input.sample_type,
+        input.waveform_peaks,
         input.embedding,
     ])?;
     let rowid = conn.last_insert_rowid();
@@ -157,7 +162,7 @@ pub fn get_sample_by_path(
 ) -> Result<Option<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
-                decay_time, sample_type, embedding, is_online
+                decay_time, sample_type, waveform_peaks, embedding, is_online
          FROM samples WHERE path = ?1",
     )?;
 
@@ -200,7 +205,7 @@ pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, 
 fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
-                decay_time, sample_type, embedding, is_online
+                decay_time, sample_type, waveform_peaks, embedding, is_online
          FROM samples
          ORDER BY file_name",
     )?;
@@ -216,7 +221,7 @@ fn run_search_samples_query(
     let mut stmt = conn.prepare_cached(
         "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
                 s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
-                s.embedding, s.is_online
+                s.waveform_peaks, s.embedding, s.is_online
          FROM samples_fts f
          JOIN samples s ON s.id = f.rowid
          WHERE f.file_name MATCH ?1
@@ -318,8 +323,9 @@ fn row_to_sample(row: &rusqlite::Row<'_>) -> Result<SampleRow, rusqlite::Error> 
         attack_slope: row.get(7)?,
         decay_time: row.get(8)?,
         sample_type: row.get(9)?,
-        embedding: row.get(10)?,
-        is_online: row.get::<_, i32>(11)? != 0,
+        waveform_peaks: row.get(10)?,
+        embedding: row.get(11)?,
+        is_online: row.get::<_, i32>(12)? != 0,
     })
 }
 
@@ -363,6 +369,7 @@ mod tests {
             attack_slope: Some(30.0),
             decay_time: Some(150.0),
             sample_type: Some("kick".to_string()),
+            waveform_peaks: None,
             embedding: None,
         }
     }
@@ -399,6 +406,7 @@ mod tests {
             attack_slope: None,
             decay_time: None,
             sample_type: None,
+            waveform_peaks: None,
             embedding: None,
         };
         let id = insert_sample(&conn, &input).expect("insert with nulls failed");
@@ -449,6 +457,7 @@ mod tests {
             attack_slope: Some(35.0),
             decay_time: Some(200.0),
             sample_type: Some("loop".to_string()),
+            waveform_peaks: None,
             embedding: Some(vec![1, 2, 3, 4]),
         };
         let count = update_sample(&conn, &updated_input).expect("update failed");

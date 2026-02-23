@@ -34,6 +34,7 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             attack_slope REAL,
             decay_time REAL,
             sample_type TEXT,
+            waveform_peaks TEXT,
             embedding BLOB,
             is_online INTEGER DEFAULT 1
         );
@@ -63,8 +64,28 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE INDEX IF NOT EXISTS idx_sample_tags_tid ON sample_tags(tag_id);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS samples_fts USING fts5(file_name);
+        
         ",
     )?;
+    run_migrations(conn)?;
+    Ok(())
+}
+
+fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let has_waveform_peaks: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM PRAGMA table_info(samples) WHERE name = 'waveform_peaks'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+
+    if !has_waveform_peaks {
+        let _ = conn.execute(
+            "ALTER TABLE samples ADD COLUMN waveform_peaks TEXT",
+            [],
+        );
+    }
     Ok(())
 }
 

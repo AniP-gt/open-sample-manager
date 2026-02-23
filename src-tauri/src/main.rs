@@ -1,10 +1,35 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use open_sample_manager_core::{healthcheck, SampleManager};
+use open_sample_manager_core::{healthcheck, SampleManager, ScanProgress, ScanStage};
 use serde::Serialize;
 use std::error::Error as _;
-use tauri::Manager;
+use tauri::{AppHandle, Emitter, Manager};
+
+/// Progress event sent to frontend
+#[derive(Debug, Clone, Serialize)]
+struct ScanProgressEvent {
+    stage: String,
+    current: usize,
+    total: usize,
+    current_file: String,
+}
+
+impl From<&ScanProgress> for ScanProgressEvent {
+    fn from(progress: &ScanProgress) -> Self {
+        let stage = match progress.stage {
+            ScanStage::Discovering => "discovering".to_string(),
+            ScanStage::Analyzing => "analyzing".to_string(),
+            ScanStage::Complete => "complete".to_string(),
+        };
+        Self {
+            stage,
+            current: progress.current,
+            total: progress.total,
+            current_file: progress.current_file.clone(),
+        }
+    }
+}
 
 #[tauri::command]
 fn health_check(state: tauri::State<'_, AppState>) -> HealthCheckResponse {
@@ -26,13 +51,20 @@ fn health_check(state: tauri::State<'_, AppState>) -> HealthCheckResponse {
 }
 
 #[tauri::command]
-async fn scan_directory(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
+async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let db_path = state.db_path.clone();
     
     // Run heavy scanning work in a blocking task to avoid freezing the UI
+    // Pass app_handle to emit progress events
     let result = tokio::task::spawn_blocking(move || {
         let manager = open_manager(db_path.as_deref())?;
-        manager.scan_directory(path).map_err(CommandError::from)
+        
+        // Clone app_handle for use in the closure
+        let handle = app_handle.clone();
+        manager.scan_directory_with_progress(path, move |progress| {
+            let event = ScanProgressEvent::from(&progress);
+            let _ = handle.emit("scan-progress", &event);
+        }).map_err(CommandError::from)
     })
     .await
     .map_err(|e| CommandError {

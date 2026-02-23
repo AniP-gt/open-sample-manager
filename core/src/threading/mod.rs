@@ -78,6 +78,7 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         attack_slope: result.kick.map(|k| k.attack_slope),
         decay_time: result.kick.map(|k| k.decay_time_ms),
         sample_type,
+        waveform_peaks: None,
         embedding: None,
     }
 }

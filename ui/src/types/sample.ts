@@ -11,6 +11,7 @@ export interface Sample {
   decay_time: number | null;
   sample_type: SampleType;
   tags: string[];
+  waveform_peaks: number[] | null;
 }
 
 export interface FilterState {

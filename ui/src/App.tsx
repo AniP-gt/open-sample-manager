@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState } from "./types/sample";
+import type { ScanProgress } from "./types/scan";
 import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal } from "./components";
 
 type TauriSampleRow = {
@@ -16,6 +18,7 @@ type TauriSampleRow = {
   attack_slope: number | null;
   decay_time: number | null;
   sample_type: string | null;
+  waveform_peaks: string | null;
 };
 
 const normalizeSampleType = (
@@ -32,18 +35,30 @@ const normalizeSampleType = (
   return "one-shot";
 };
 
-const mapRowToSample = (row: TauriSampleRow): Sample => ({
-  id: row.id,
-  file_name: row.file_name,
-  duration: row.duration ?? 0,
-  bpm: row.bpm,
-  periodicity: row.periodicity ?? 0,
-  low_ratio: row.low_ratio ?? 0,
-  attack_slope: row.attack_slope ?? 0,
-  decay_time: row.decay_time,
-  sample_type: normalizeSampleType(row.sample_type),
-  tags: [],
-});
+const mapRowToSample = (row: TauriSampleRow): Sample => {
+  let waveformPeaks: number[] | null = null;
+  if (row.waveform_peaks) {
+    try {
+      waveformPeaks = JSON.parse(row.waveform_peaks);
+    } catch {
+      waveformPeaks = null;
+    }
+  }
+
+  return {
+    id: row.id,
+    file_name: row.file_name,
+    duration: row.duration ?? 0,
+    bpm: row.bpm,
+    periodicity: row.periodicity ?? 0,
+    low_ratio: row.low_ratio ?? 0,
+    attack_slope: row.attack_slope ?? 0,
+    decay_time: row.decay_time,
+    sample_type: normalizeSampleType(row.sample_type),
+    tags: [],
+    waveform_peaks: waveformPeaks,
+  };
+};
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
@@ -78,6 +93,7 @@ export function App() {
     null,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
 
   const runSearch = async (query: string) => {
     const rows = await invoke<TauriSampleRow[]>("search_samples", { query });
@@ -164,7 +180,12 @@ export function App() {
       const scanPath = typeof selectedPath === "string" ? selectedPath : selectedPath[0];
 
       setScanning(true);
+      setScanProgress(null);
       setError(null);
+
+      const unlisten = await listen<ScanProgress>("scan-progress", (event) => {
+        setScanProgress(event.payload);
+      });
 
       try {
         await invoke<number>("scan_directory", { path: scanPath });
@@ -174,7 +195,9 @@ export function App() {
       } catch (e) {
         handleInvokeError(e);
       } finally {
+        unlisten();
         setScanning(false);
+        setScanProgress(null);
       }
     } catch (e) {
       handleInvokeError(new Error("Dialog not available. Please run the app via 'npm run tauri:dev' instead of 'npm run dev'."));
@@ -285,7 +308,7 @@ export function App() {
       )}
 
       {scanning && (
-        <ScannerOverlay onDone={() => {}} />
+        <ScannerOverlay progress={scanProgress} onDone={() => {}} />
       )}
 
       <div

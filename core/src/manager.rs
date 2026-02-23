@@ -175,12 +175,58 @@ impl SampleManager {
     /// # Errors
     ///
     /// Returns [`ManagerError::Io`] if the directory path is invalid.
+    /// Scan a directory for audio files, analyze each one, and store results.
+    /// This is a convenience method that calls `scan_directory_with_progress` with no progress callback.
     pub fn scan_directory(&self, path: impl AsRef<Path>) -> Result<usize, ManagerError> {
-        let dir = path.as_ref();
-        let files = scan_directory(dir);
-        let mut count = 0;
+        self.scan_directory_with_progress(path, |_| {})
+    }
 
-        for file_path in files {
+    /// Scan a directory with progress reporting.
+    ///
+    /// The `progress` callback is invoked periodically during scanning with progress updates.
+    pub fn scan_directory_with_progress(
+        &self,
+        path: impl AsRef<Path>,
+        mut progress: impl FnMut(ScanProgress),
+    ) -> Result<usize, ManagerError> {
+        let dir = path.as_ref();
+        
+        // Stage 1: Discovering files
+        progress(ScanProgress {
+            stage: ScanStage::Discovering,
+            current: 0,
+            total: 0,
+            current_file: "Scanning directory...".to_string(),
+        });
+        
+        let files = scan_directory(dir);
+        let total_files = files.len();
+        
+        // Emit discovery complete with total count
+        progress(ScanProgress {
+            stage: ScanStage::Discovering,
+            current: 0,
+            total: total_files,
+            current_file: format!("Found {} audio files", total_files),
+        });
+        
+        // Stage 2: Analyzing files
+        let mut count = 0;
+        
+        for (idx, file_path) in files.into_iter().enumerate() {
+            let file_name = file_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            
+            progress(ScanProgress {
+                stage: ScanStage::Analyzing,
+                current: idx + 1,
+                total: total_files,
+                current_file: file_name.clone(),
+            });
+            
             match self.analyze_and_store(&file_path) {
                 Ok(_) => count += 1,
                 Err(ManagerError::Db(rusqlite::Error::SqliteFailure(err, _)))
@@ -194,6 +240,14 @@ impl SampleManager {
                 Err(e) => return Err(e),
             }
         }
+
+        // Complete
+        progress(ScanProgress {
+            stage: ScanStage::Complete,
+            current: total_files,
+            total: total_files,
+            current_file: format!("Indexed {} samples", count),
+        });
 
         Ok(count)
     }
@@ -305,7 +359,7 @@ impl SampleManager {
             .to_string();
 
         let path_str = file_path.to_str().unwrap_or_default().to_string();
-
+        let waveform_peaks = compute_waveform_peaks(&decoded.samples, 64);
         Ok(SampleInput {
             path: path_str,
             file_name,
@@ -316,9 +370,36 @@ impl SampleManager {
             attack_slope: Some(kick_result.attack_slope),
             decay_time: Some(kick_result.decay_time_ms),
             sample_type: Some(sample_type),
+            waveform_peaks: Some(waveform_peaks),
             embedding: None,
         })
     }
+}
+
+fn compute_waveform_peaks(samples: &[f32], num_peaks: usize) -> String {
+    if samples.is_empty() || num_peaks == 0 {
+        return "[]".to_string();
+    }
+
+    let samples_per_peak = (samples.len() + num_peaks - 1) / num_peaks;
+    let mut peaks: Vec<f32> = Vec::with_capacity(num_peaks);
+
+    for i in 0..num_peaks {
+        let start = i * samples_per_peak;
+        let end = (start + samples_per_peak).min(samples.len());
+        if start >= samples.len() {
+            break;
+        }
+
+        let chunk = &samples[start..end];
+        let max_abs = chunk.iter()
+            .map(|&s| s.abs())
+            .fold(0.0f32, |a, b| a.max(b));
+        peaks.push(max_abs);
+    }
+
+    let json: Vec<String> = peaks.iter().map(|p| format!("{:.6}", p)).collect();
+    format!("[{}]", json.join(","))
 }
 
 #[cfg(test)]

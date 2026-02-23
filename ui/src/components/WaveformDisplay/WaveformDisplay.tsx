@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo } from "react";
 import type { Sample } from "../../types/sample";
 
 interface WaveformDisplayProps {
@@ -8,8 +8,13 @@ interface WaveformDisplayProps {
 
 export function WaveformDisplay({ sample, isPlaying }: WaveformDisplayProps) {
   const bars = 64;
-  const waveData = useRef<number[]>(
-    Array.from({ length: bars }, (_, i) => {
+
+  const waveData = useMemo(() => {
+    if (sample.waveform_peaks && sample.waveform_peaks.length > 0) {
+      return sample.waveform_peaks;
+    }
+
+    return Array.from({ length: bars }, (_, i) => {
       const x = i / bars;
       const base =
         sample.sample_type === "kick"
@@ -18,8 +23,8 @@ export function WaveformDisplay({ sample, isPlaying }: WaveformDisplayProps) {
           ? 0.3 + Math.sin(x * Math.PI * 8) * 0.25 + Math.random() * 0.2
           : Math.exp(-x * 3) * (0.5 + Math.random() * 0.4);
       return Math.max(0.04, base);
-    })
-  );
+    });
+  }, [sample.waveform_peaks, sample.sample_type]);
 
   const getBarColor = (index: number) => {
     const isPast = isPlaying && index / bars < (Date.now() / 2000) % 1;
@@ -45,7 +50,7 @@ export function WaveformDisplay({ sample, isPlaying }: WaveformDisplayProps) {
         width: "100%",
       }}
     >
-      {waveData.current.map((h, i) => (
+      {waveData.map((h, i) => (
         <div
           key={i}
           style={{
