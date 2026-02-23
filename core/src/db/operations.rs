@@ -176,9 +176,9 @@ pub fn get_sample_by_path(
 pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let query = query.trim();
     if query.is_empty() {
-        return Ok(Vec::new());
+        // Return all samples when query is empty (e.g., after a fresh scan)
+        return list_all_samples(conn);
     }
-
     match run_search_samples_query(conn, query) {
         Ok(rows) => Ok(rows),
         Err(err) if is_fts5_syntax_error(&err) => {
@@ -186,7 +186,6 @@ pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, 
             if escaped.is_empty() {
                 return Ok(Vec::new());
             }
-
             match run_search_samples_query(conn, &escaped) {
                 Ok(rows) => Ok(rows),
                 Err(escaped_err) if is_fts5_syntax_error(&escaped_err) => Ok(Vec::new()),
@@ -195,6 +194,19 @@ pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, 
         }
         Err(err) => Err(err),
     }
+}
+
+/// List all samples in the database, ordered by file name.
+fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
+                decay_time, sample_type, embedding, is_online
+         FROM samples
+         ORDER BY file_name",
+    )?;
+
+    let rows = stmt.query_map([], row_to_sample)?;
+    rows.collect()
 }
 
 fn run_search_samples_query(
@@ -541,15 +553,18 @@ mod tests {
     }
 
     #[test]
-    fn test_search_samples_empty_query_returns_empty_vec() {
+    fn test_search_samples_empty_query_returns_all_samples() {
         let conn = setup_db();
         insert_sample(&conn, &make_input("/samples/kick.wav", "kick.wav")).expect("insert failed");
+        insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav")).expect("insert failed");
 
+        // Empty query should return all samples
         let empty_results = search_samples(&conn, "").expect("search failed");
-        assert!(empty_results.is_empty());
+        assert_eq!(empty_results.len(), 2);
 
+        // Whitespace-only query should also return all samples
         let whitespace_results = search_samples(&conn, "   \t\n").expect("search failed");
-        assert!(whitespace_results.is_empty());
+        assert_eq!(whitespace_results.len(), 2);
     }
 
     #[test]
