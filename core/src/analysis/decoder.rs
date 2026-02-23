@@ -5,7 +5,9 @@ use std::path::Path;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::DecoderOptions;
 use symphonia::core::errors::Error as SymphoniaError;
-use symphonia::core::io::MediaSourceStream;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
+use symphonia::core::probe::Hint;
 use symphonia::default::{get_codecs, get_probe};
 use thiserror::Error;
 
@@ -49,14 +51,23 @@ pub enum DecodeError {
 /// 3. Decode all packets, converting to interleaved f32 samples.
 /// 4. Convert to mono by averaging all channels.
 /// 5. Downsample to `TARGET_SAMPLE_RATE` using simple decimation.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read, decoded, or contains no audio tracks.
+///
+/// # Panics
+///
+/// Panics if the audio track has no sample rate (calls `unwrap()` on `codec_params.sample_rate`).
 pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
     let file = File::open(path)?;
-    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mss = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
 
+    #[allow(clippy::default_trait_access)]
     let probed = get_probe().format(
-        &Default::default(),
+        &Hint::default(),
         mss,
-        &Default::default(),
+        &FormatOptions::default(),
         &Default::default(),
     )?;
 
@@ -96,24 +107,24 @@ pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
             continue;
         }
 
-        let decoded = match decoder.decode(&pkt) {
+        let audio_buf = match decoder.decode(&pkt) {
             Ok(d) => d,
-            Err(SymphoniaError::IoError(_)) | Err(SymphoniaError::DecodeError(_)) => {
+            Err(SymphoniaError::IoError(_) | SymphoniaError::DecodeError(_)) => {
                 // Non-fatal decode errors: skip this packet.
                 continue;
             }
             Err(e) => return Err(DecodeError::Symphonia(e)),
         };
 
-        let spec = *decoded.spec();
+        let spec = *audio_buf.spec();
         let channels = spec.channels.count();
 
         if channels > 0 && num_channels == 0 {
             num_channels = channels;
         }
 
-        let mut sample_buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, spec);
-        sample_buf.copy_interleaved_ref(decoded);
+        let mut sample_buf = SampleBuffer::<f32>::new(audio_buf.capacity() as u64, spec);
+        sample_buf.copy_interleaved_ref(audio_buf);
         all_interleaved.extend_from_slice(sample_buf.samples());
     }
 
@@ -138,6 +149,7 @@ pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
 /// Average interleaved multi-channel samples into a single mono channel.
 ///
 /// `num_channels` must be >= 1. If samples is empty, returns an empty vec.
+#[allow(clippy::cast_precision_loss)]
 fn interleaved_to_mono(interleaved: &[f32], num_channels: usize) -> Vec<f32> {
     if num_channels <= 1 || interleaved.is_empty() {
         return interleaved.to_vec();
@@ -155,8 +167,9 @@ fn interleaved_to_mono(interleaved: &[f32], num_channels: usize) -> Vec<f32> {
 }
 
 /// Compute integer decimation ratio: round(original / target), at least 1.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn decimation_ratio(original: u32, target: u32) -> usize {
-    let ratio = (original as f64 / target as f64).round() as usize;
+    let ratio = (f64::from(original) / f64::from(target)).round() as usize;
     ratio.max(1)
 }
 

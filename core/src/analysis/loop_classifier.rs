@@ -34,7 +34,8 @@ impl Default for LoopClassificationConfig {
 /// * `periodicity` - Periodicity strength score (0.0 to 1.0)
 ///
 /// # Returns
-/// LoopType indicating whether the audio is a Loop or OneShot.
+/// `LoopType` indicating whether the audio is a Loop or `OneShot`.
+#[must_use]
 pub fn classify_loop(duration: f64, periodicity: f64) -> LoopType {
     classify_loop_with_config(duration, periodicity, LoopClassificationConfig::default())
 }
@@ -47,7 +48,8 @@ pub fn classify_loop(duration: f64, periodicity: f64) -> LoopType {
 /// * `config` - Custom configuration with thresholds
 ///
 /// # Returns
-/// LoopType indicating whether the audio is a Loop or OneShot.
+/// `LoopType` indicating whether the audio is a Loop or `OneShot`.
+#[must_use]
 pub fn classify_loop_with_config(
     duration: f64,
     periodicity: f64,

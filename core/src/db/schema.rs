@@ -3,18 +3,21 @@ use rusqlite::Connection;
 /// Initialize the database schema with all required tables, indices, and FTS5 virtual table.
 ///
 /// This function creates:
-/// - samples table: stores sample metadata and embeddings
-/// - tags table: stores unique tag names
-/// - sample_tags table: junction table for many-to-many sample-tag relationship
-/// - watched_paths table: stores directory paths being monitored
-/// - indices: for efficient querying on bpm, sample_type, and sample_tags relationships
-/// - samples_fts: FTS5 virtual table for full-text search on file_name
+/// - `samples` table: stores sample metadata and embeddings
+/// - `tags` table: stores unique tag names
+/// - `sample_tags` table: junction table for many-to-many sample-tag relationship
+/// - `watched_paths` table: stores directory paths being monitored
+/// - indices: for efficient querying on bpm, `sample_type`, and `sample_tags` relationships
+/// - `samples_fts`: FTS5 virtual table for full-text search on `file_name`
 ///
 /// # Arguments
-/// * `conn` - SQLite connection to initialize
+/// * `conn` - `SQLite` connection to initialize
 ///
 /// # Returns
-/// Ok(()) if successful, Err(rusqlite::Error) if schema creation fails
+/// Ok(()) if successful, `Err(rusqlite::Error)` if schema creation fails
+///
+/// # Errors
+/// Returns `rusqlite::Error` if any SQL statement fails during schema initialization.
 pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
         "

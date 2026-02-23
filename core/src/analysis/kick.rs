@@ -68,6 +68,7 @@ impl KickResult {
 /// Detect kick drums in audio samples using default configuration.
 ///
 /// Uses standard thresholds optimized for typical music production samples.
+#[must_use]
 pub fn detect_kick(samples: &[f32], sample_rate: u32) -> KickResult {
     detect_kick_with_config(samples, sample_rate, KickDetectionConfig::default())
 }
@@ -80,7 +81,8 @@ pub fn detect_kick(samples: &[f32], sample_rate: u32) -> KickResult {
 /// * `config` - Detection configuration with thresholds and parameters
 ///
 /// # Returns
-/// KickResult with detection status and analysis metrics.
+/// `KickResult` with detection status and analysis metrics.
+#[must_use]
 pub fn detect_kick_with_config(
     samples: &[f32],
     sample_rate: u32,
@@ -134,36 +136,41 @@ fn compute_low_band_energy_ratio(
     }
 
     let nyquist_bin = config.fft_size / 2;
-    let bin_width_hz = sample_rate as f64 / config.fft_size as f64;
+    let bin_width_hz =
+        f64::from(sample_rate) / f64::from(u32::try_from(config.fft_size).unwrap_or(1));
     if bin_width_hz <= f64::EPSILON {
         return 0.0;
     }
 
-    let start_bin = ((config.low_band_start_hz / bin_width_hz).ceil() as usize).min(nyquist_bin);
-    let end_bin = ((config.low_band_end_hz / bin_width_hz).floor() as usize).min(nyquist_bin);
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    {
+        let start_bin =
+            ((config.low_band_start_hz / bin_width_hz).ceil() as usize).min(nyquist_bin);
+        let end_bin = ((config.low_band_end_hz / bin_width_hz).floor() as usize).min(nyquist_bin);
 
-    if start_bin > end_bin {
-        return 0.0;
-    }
+        if start_bin > end_bin {
+            return 0.0;
+        }
 
-    let mut low_energy = 0.0;
-    let mut total_energy = 0.0;
+        let mut low_energy = 0.0;
+        let mut total_energy = 0.0;
 
-    for frame in &spectra {
-        for (idx, magnitude) in frame.iter().enumerate() {
-            let energy = (*magnitude as f64).powi(2);
-            total_energy += energy;
+        for frame in &spectra {
+            for (idx, magnitude) in frame.iter().enumerate() {
+                let energy = f64::from(*magnitude).powi(2);
+                total_energy += energy;
 
-            if (start_bin..=end_bin).contains(&idx) {
-                low_energy += energy;
+                if (start_bin..=end_bin).contains(&idx) {
+                    low_energy += energy;
+                }
             }
         }
-    }
 
-    if total_energy <= f64::EPSILON {
-        0.0
-    } else {
-        low_energy / total_energy
+        if total_energy <= f64::EPSILON {
+            0.0
+        } else {
+            low_energy / total_energy
+        }
     }
 }
 
@@ -172,12 +179,15 @@ fn compute_abs_envelope(samples: &[f32], sample_rate: u32, window_ms: f64) -> (V
         return (Vec::new(), 0.0);
     }
 
-    let window_samples = ((sample_rate as f64 * window_ms / 1_000.0).round() as usize).max(1);
-    let frame_duration_seconds = window_samples as f64 / sample_rate as f64;
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let window_samples = ((f64::from(sample_rate) * window_ms / 1_000.0).round() as usize).max(1);
+    #[allow(clippy::cast_precision_loss)]
+    let frame_duration_seconds = window_samples as f64 / f64::from(sample_rate);
     let frame_count = samples.len().div_ceil(window_samples);
     let mut envelope = Vec::with_capacity(frame_count);
 
     for chunk in samples.chunks(window_samples) {
+        #[allow(clippy::cast_precision_loss)]
         let mean_abs = chunk.iter().map(|sample| sample.abs()).sum::<f32>() / chunk.len() as f32;
         envelope.push(mean_abs);
     }
@@ -192,7 +202,7 @@ fn max_attack_slope(envelope: &[f32], frame_duration_seconds: f64) -> f64 {
 
     envelope
         .windows(2)
-        .map(|pair| ((pair[1] - pair[0]) as f64 / frame_duration_seconds).max(0.0))
+        .map(|pair| (f64::from(pair[1] - pair[0]) / frame_duration_seconds).max(0.0))
         .fold(0.0, f64::max)
 }
 
@@ -216,9 +226,10 @@ fn decay_time_to_ratio_ms(
         return f64::INFINITY;
     }
 
-    let target = peak_value as f64 * decay_level_ratio.clamp(0.0, 1.0);
+    let target = f64::from(peak_value) * decay_level_ratio.clamp(0.0, 1.0);
     for (idx, value) in envelope.iter().enumerate().skip(peak_idx + 1) {
-        if *value as f64 <= target {
+        if f64::from(*value) <= target {
+            #[allow(clippy::cast_precision_loss)]
             return (idx - peak_idx) as f64 * frame_duration_seconds * 1_000.0;
         }
     }

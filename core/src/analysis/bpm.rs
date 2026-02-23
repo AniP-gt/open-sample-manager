@@ -39,7 +39,13 @@ impl BpmResult {
 /// * `sample_rate` - Sample rate in Hz (e.g., 44100)
 ///
 /// # Returns
-/// BpmResult with estimated BPM, confidence, and periodicity metrics.
+/// `BpmResult` with estimated BPM, confidence, and periodicity metrics.
+#[must_use]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 pub fn estimate_bpm(samples: &[f32], sample_rate: u32) -> BpmResult {
     if sample_rate == 0 || samples.len() < DEFAULT_FFT_SIZE {
         return BpmResult::empty();
@@ -61,7 +67,8 @@ pub fn estimate_bpm(samples: &[f32], sample_rate: u32) -> BpmResult {
         return BpmResult::empty();
     }
 
-    let frame_rate = sample_rate as f64 / DEFAULT_HOP_SIZE as f64;
+    let frame_rate =
+        f64::from(sample_rate) / f64::from(u32::try_from(DEFAULT_HOP_SIZE).unwrap_or(1));
     let lag_min = ((frame_rate * 60.0 / MAX_BPM).ceil() as usize).max(1);
     let lag_max = (frame_rate * 60.0 / MIN_BPM).floor() as usize;
 
@@ -74,8 +81,8 @@ pub fn estimate_bpm(samples: &[f32], sample_rate: u32) -> BpmResult {
         return BpmResult::empty();
     }
 
-    let zero_lag = autocorrelation[0] as f64;
-    if zero_lag <= f32::EPSILON as f64 {
+    let zero_lag = f64::from(autocorrelation[0]);
+    if zero_lag <= f64::from(f32::EPSILON) {
         return BpmResult::empty();
     }
 
@@ -88,7 +95,7 @@ pub fn estimate_bpm(samples: &[f32], sample_rate: u32) -> BpmResult {
         return BpmResult::empty();
     }
 
-    let periodicity_strength = (best_value as f64 / zero_lag).max(0.0);
+    let periodicity_strength = (f64::from(best_value) / zero_lag).max(0.0);
     let confidence = periodicity_strength.clamp(0.0, 1.0);
     let bpm = 60.0 * frame_rate / best_lag as f64;
 

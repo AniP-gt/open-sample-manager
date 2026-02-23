@@ -18,15 +18,17 @@ pub struct FftProcessor {
 }
 
 impl FftProcessor {
-    /// Create a new FftProcessor with default FFT size (1024).
+    /// Create a new `FftProcessor` with default FFT size (1024).
+    #[must_use]
     pub fn new() -> Self {
         Self::with_size(DEFAULT_FFT_SIZE)
     }
 
-    /// Create a new FftProcessor with a specified FFT size.
+    /// Create a new `FftProcessor` with a specified FFT size.
     ///
     /// # Panics
     /// Panics if `fft_size <= 1`.
+    #[must_use]
     pub fn with_size(fft_size: usize) -> Self {
         assert!(fft_size > 1, "FFT size must be greater than 1");
 
@@ -46,6 +48,7 @@ impl FftProcessor {
     }
 
     /// Get the output length of the FFT (number of frequency bins).
+    #[must_use]
     pub fn output_len(&self) -> usize {
         self.spectrum.len()
     }
@@ -81,9 +84,11 @@ impl FftProcessor {
             .process_with_scratch(&mut self.input, &mut self.spectrum, &mut self.scratch)
             .expect("Failed to process FFT frame");
 
-        let scale = self.fft_size as f32;
         for (idx, bin) in self.spectrum.iter().enumerate() {
-            magnitudes[idx] = bin.norm() / scale;
+            #[allow(clippy::cast_precision_loss)]
+            {
+                magnitudes[idx] = bin.norm() / self.fft_size as f32;
+            }
         }
     }
 }
@@ -98,6 +103,8 @@ impl Default for FftProcessor {
 ///
 /// Returns a vector of window values in [0.0, 1.0] that taper at the edges.
 /// Useful for reducing spectral leakage in FFT analysis.
+#[must_use]
+#[allow(clippy::cast_precision_loss)]
 pub fn hann_window(size: usize) -> Vec<f32> {
     if size == 0 {
         return Vec::new();
@@ -125,6 +132,7 @@ pub fn hann_window(size: usize) -> Vec<f32> {
 ///
 /// # Returns
 /// Vector of magnitude spectra, one per frame. Empty if input is invalid.
+#[must_use]
 pub fn compute_stft(samples: &[f32], frame_size: usize, hop_size: usize) -> Vec<Vec<f32>> {
     if frame_size < 2 || hop_size == 0 || samples.len() < frame_size {
         return Vec::new();

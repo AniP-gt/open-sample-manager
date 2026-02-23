@@ -10,6 +10,7 @@ use super::fft_utils::{compute_stft, DEFAULT_FFT_SIZE, DEFAULT_HOP_SIZE};
 ///
 /// # Returns
 /// Vector of spectral flux values (one per frame).
+#[must_use]
 pub fn compute_spectral_flux(spectra: &[Vec<f32>]) -> Vec<f32> {
     if spectra.is_empty() {
         return Vec::new();
@@ -45,6 +46,8 @@ pub fn compute_spectral_flux(spectra: &[Vec<f32>]) -> Vec<f32> {
 ///
 /// # Returns
 /// Vector of normalized flux values (z-scored).
+#[must_use]
+#[allow(clippy::cast_precision_loss)]
 pub fn normalize_flux(flux: &[f32]) -> Vec<f32> {
     if flux.is_empty() {
         return Vec::new();
@@ -80,6 +83,7 @@ pub fn normalize_flux(flux: &[f32]) -> Vec<f32> {
 ///
 /// # Returns
 /// Vector of onset times in seconds.
+#[must_use]
 pub fn detect_onsets(samples: &[f32], sample_rate: u32, threshold: f32) -> Vec<f64> {
     if sample_rate == 0 {
         return Vec::new();
@@ -104,7 +108,9 @@ pub fn detect_onsets(samples: &[f32], sample_rate: u32, threshold: f32) -> Vec<f
             frame_idx + 1 == normalized_flux.len() || *value > normalized_flux[frame_idx + 1];
 
         if left_ok && right_ok {
-            let time_seconds = (frame_idx * DEFAULT_HOP_SIZE) as f64 / sample_rate as f64;
+            let time_seconds = (f64::from(u32::try_from(frame_idx).unwrap_or(0))
+                * f64::from(u32::try_from(DEFAULT_HOP_SIZE).unwrap_or(1)))
+                / f64::from(sample_rate);
             onsets.push(time_seconds);
         }
     }

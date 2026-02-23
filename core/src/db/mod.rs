@@ -1,3 +1,5 @@
+/// CRUD operations for sample records and FTS5 search.
+pub mod operations;
 /// Database schema initialization and management.
 pub mod schema;
 
