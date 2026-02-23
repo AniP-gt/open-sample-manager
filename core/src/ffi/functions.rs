@@ -1,8 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
 
-use crate::ffi::handle::SMHandle;
-use crate::scanner::scan_directory;
+use crate::ffi::handle::{inner_ref, SMHandle};
 
 /// Scan a directory path for audio files.
 ///
@@ -21,18 +20,19 @@ pub unsafe extern "C" fn sm_scan(handle: *mut SMHandle, path: *const c_char) -> 
         }
 
         let path_str = unsafe { CStr::from_ptr(path) }.to_str().unwrap_or("");
+        let inner = unsafe { inner_ref(handle) };
 
-        let dir_path = std::path::Path::new(path_str);
-        let _found = scan_directory(dir_path);
-
-        0
+        match inner.manager.scan_directory(path_str) {
+            Ok(_) => 0,
+            Err(_) => -1,
+        }
     });
     result.unwrap_or(-1)
 }
 
 /// Search for samples matching a query string.
 ///
-/// Returns a JSON string (array of file paths matching the query prefix).
+/// Returns a JSON string with query and results array.
 /// The caller is responsible for freeing the returned string using `sm_string_free`.
 ///
 /// # Safety
@@ -50,11 +50,14 @@ pub unsafe extern "C" fn sm_search(handle: *mut SMHandle, query: *const c_char) 
         }
 
         let query_str = unsafe { CStr::from_ptr(query) }.to_str().unwrap_or("");
+        let inner = unsafe { inner_ref(handle) };
 
-        // Build a simple search result: return query string and empty results as JSON
+        let results: Vec<crate::db::operations::SampleRow> =
+            inner.manager.search(query_str).unwrap_or_default();
+
         let json = serde_json::json!({
             "query": query_str,
-            "results": []
+            "results": results,
         });
 
         let json_string = serde_json::to_string(&json).unwrap_or_else(|_| "{}".to_string());
@@ -69,7 +72,8 @@ pub unsafe extern "C" fn sm_search(handle: *mut SMHandle, query: *const c_char) 
 
 /// Retrieve metadata for a sample at the given path.
 ///
-/// Returns a JSON string with sample metadata.
+/// Returns a JSON string with sample metadata, or `{"path": ..., "file_name": ..., "found": false}`
+/// if the sample is not in the database.
 /// The caller is responsible for freeing the returned string using `sm_string_free`.
 ///
 /// # Safety
@@ -87,16 +91,23 @@ pub unsafe extern "C" fn sm_get_sample(handle: *mut SMHandle, path: *const c_cha
         }
 
         let path_str = unsafe { CStr::from_ptr(path) }.to_str().unwrap_or("");
+        let inner = unsafe { inner_ref(handle) };
 
-        let file_name = std::path::Path::new(path_str)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
-
-        let json = serde_json::json!({
-            "path": path_str,
-            "file_name": file_name,
-        });
+        let json = match inner.manager.get_sample(path_str) {
+            Ok(Some(row)) => serde_json::to_value(&row).unwrap_or_else(|_| serde_json::json!({})),
+            Ok(None) => {
+                let file_name = std::path::Path::new(path_str)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("");
+                serde_json::json!({
+                    "path": path_str,
+                    "file_name": file_name,
+                    "found": false,
+                })
+            }
+            Err(_) => return std::ptr::null_mut(),
+        };
 
         let json_string = serde_json::to_string(&json).unwrap_or_else(|_| "{}".to_string());
 
@@ -118,11 +129,8 @@ pub unsafe extern "C" fn sm_string_free(ptr: *mut c_char) {
     if ptr.is_null() {
         return;
     }
-    let _ = std::panic::catch_unwind(|| {
-        // SAFETY: ptr was created by CString::into_raw in this module.
-        unsafe {
-            drop(CString::from_raw(ptr));
-        }
+    let _ = std::panic::catch_unwind(|| unsafe {
+        drop(CString::from_raw(ptr));
     });
 }
 

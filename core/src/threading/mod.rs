@@ -4,9 +4,12 @@ use std::thread;
 
 use crossbeam_channel::{unbounded, Sender};
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use rusqlite::Connection;
 use thiserror::Error;
 
 use crate::analysis::AnalysisResult;
+use crate::db::operations::{insert_sample, SampleInput};
+use crate::db::schema::init_database;
 
 /// Errors that can occur during threading and analysis operations.
 #[derive(Debug, Error)]
@@ -30,6 +33,10 @@ pub enum ThreadingError {
     /// Database writer thread is no longer running.
     #[error("DB writer thread is no longer running")]
     WriterDead,
+
+    /// Database error in the writer thread.
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
 }
 
 impl<T> From<crossbeam_channel::SendError<T>> for ThreadingError {
@@ -39,10 +46,40 @@ impl<T> From<crossbeam_channel::SendError<T>> for ThreadingError {
 }
 
 enum DbMessage {
-    /// A completed analysis result to persist.
     Write(AnalysisResult),
-    /// Signal the DB writer to shut down cleanly.
-    Shutdown,
+}
+
+fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
+    let path_str = result.path.to_string_lossy().to_string();
+    let file_name = result
+        .path
+        .file_name()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let sample_type = match result.loop_type {
+        crate::analysis::loop_classifier::LoopType::Loop => Some("loop".to_string()),
+        crate::analysis::loop_classifier::LoopType::OneShot => {
+            if result.kick.as_ref().is_some_and(|k| k.is_kick) {
+                Some("kick".to_string())
+            } else {
+                Some("oneshot".to_string())
+            }
+        }
+    };
+
+    SampleInput {
+        path: path_str,
+        file_name,
+        duration: Some(f64::from(result.duration_seconds)),
+        bpm: result.bpm.map(|b| b.bpm),
+        periodicity: result.bpm.map(|b| b.periodicity_strength),
+        low_ratio: result.kick.map(|k| k.low_ratio),
+        attack_slope: result.kick.map(|k| k.attack_slope),
+        decay_time: result.kick.map(|k| k.decay_time_ms),
+        sample_type,
+        embedding: None,
+    }
 }
 
 /// Thread pool for parallel audio analysis with database persistence.
@@ -51,38 +88,62 @@ pub struct AnalysisPool {
     pub worker_count: usize,
     pool: Arc<ThreadPool>,
     db_tx: Sender<DbMessage>,
-    /// `Some` while the writer thread is alive; taken on `shutdown()`.
     writer_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl AnalysisPool {
-    /// Create a new `AnalysisPool`.
+    /// Create a new `AnalysisPool` with database persistence.
     ///
-    /// Spawns `worker_count` analysis threads and one database writer thread.
+    /// The writer thread opens its own `Connection` at `db_path` and persists
+    /// each `AnalysisResult` via `insert_sample`. Duplicate paths are silently
+    /// skipped.
     ///
-    /// # Arguments
-    /// * `worker_count` - Number of parallel analysis workers to spawn
-    ///
-    /// # Returns
-    /// AnalysisPool ready to accept analysis tasks or an error if pool creation fails.
-    pub fn new(worker_count: usize) -> Result<Self, ThreadingError> {
+    /// # Errors
+    /// Returns `ThreadingError::InvalidWorkerCount` if `worker_count` is 0,
+    /// or `ThreadingError::ThreadPool` if thread pool creation fails.
+    pub fn new(worker_count: usize, db_path: &Path) -> Result<Self, ThreadingError> {
         if worker_count == 0 {
             return Err(ThreadingError::InvalidWorkerCount);
         }
 
         let pool = Arc::new(ThreadPoolBuilder::new().num_threads(worker_count).build()?);
-
         let (db_tx, db_rx) = unbounded::<DbMessage>();
 
+        let db_path_owned = db_path.to_path_buf();
         let writer_handle = std::thread::spawn(move || {
+            let conn = match Connection::open(&db_path_owned) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("DB writer: failed to open database: {e}");
+                    return;
+                }
+            };
+            if let Err(e) = init_database(&conn) {
+                eprintln!("DB writer: failed to init schema: {e}");
+                return;
+            }
+
             while let Ok(message) = db_rx.recv() {
                 match message {
-                    DbMessage::Shutdown => break,
-                    DbMessage::Write(_result) => {
-                        // TODO: persist to database
+                    DbMessage::Write(result) => {
+                        let input = analysis_result_to_sample_input(&result);
+                        match insert_sample(&conn, &input) {
+                            Ok(_id) => {}
+                            Err(e) => {
+                                // Duplicate path (UNIQUE constraint) → skip silently
+                                if !e.to_string().contains("UNIQUE constraint") {
+                                    eprintln!(
+                                        "DB writer: failed to insert {}: {e}",
+                                        result.path.display()
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
             }
+            // Checkpoint WAL before closing so readers see committed data
+            let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
         });
 
         Ok(AnalysisPool {
@@ -101,6 +162,9 @@ impl AnalysisPool {
     ///
     /// # Returns
     /// Error if the writer thread is dead or channel send fails.
+    ///
+    /// # Errors
+    /// Returns `ThreadingError::SendError` if the writer thread is dead or channel send fails.
     pub fn queue<F>(&self, path: PathBuf, callback: F) -> Result<(), ThreadingError>
     where
         F: Fn() -> AnalysisResult + Send + 'static,
@@ -123,7 +187,11 @@ impl AnalysisPool {
 
     /// Gracefully shut down the analysis pool and wait for all tasks to complete.
     pub fn shutdown(mut self) {
-        self.db_tx.send(DbMessage::Shutdown).ok();
+        // 1. Drop our sender so the channel can close once rayon tasks finish.
+        drop(self.db_tx);
+        // 2. Drop the pool — rayon tasks already in flight run to completion.
+        drop(self.pool);
+        // 3. Writer thread exits when all senders are dropped (recv returns Err).
         if let Some(handle) = self.writer_handle.take() {
             handle.join().ok();
         }
@@ -136,22 +204,89 @@ where
 {
     let path_str = path.to_string_lossy().to_string();
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(callback))
-        .map_err(|_| format!("Analysis panicked for {}", path_str))
+        .map_err(|_| format!("Analysis panicked for {path_str}"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analysis::loop_classifier::LoopType;
+
+    fn test_db_path() -> PathBuf {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        // Leak the TempDir so it isn't cleaned up before the test finishes.
+        // This is fine in tests.
+        let path = dir.path().join("test.db");
+        std::mem::forget(dir);
+        path
+    }
+
+    fn make_result(path: &str) -> AnalysisResult {
+        AnalysisResult {
+            path: PathBuf::from(path),
+            bpm: None,
+            kick: None,
+            loop_type: LoopType::OneShot,
+            duration_seconds: 1.5,
+        }
+    }
 
     #[test]
     fn analysis_pool_creation_succeeds() {
-        let pool = AnalysisPool::new(2);
+        let db = test_db_path();
+        let pool = AnalysisPool::new(2, &db);
         assert!(pool.is_ok());
+        pool.unwrap().shutdown();
     }
 
     #[test]
     fn analysis_pool_creation_with_zero_threads_fails() {
-        let pool = AnalysisPool::new(0);
+        let db = test_db_path();
+        let pool = AnalysisPool::new(0, &db);
         assert!(pool.is_err());
+    }
+
+    #[test]
+    fn analysis_pool_persists_results_after_shutdown() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("persist_test.db");
+
+        {
+            let pool = AnalysisPool::new(2, &db_path).expect("pool creation");
+            pool.queue(PathBuf::from("/samples/kick_808.wav"), || {
+                make_result("/samples/kick_808.wav")
+            })
+            .expect("queue");
+            pool.shutdown();
+        }
+
+        let conn = Connection::open(&db_path).expect("reopen db");
+        let row = crate::db::operations::get_sample_by_path(&conn, "/samples/kick_808.wav")
+            .expect("query")
+            .expect("row should exist after shutdown");
+        assert_eq!(row.file_name, "kick_808.wav");
+        assert_eq!(row.duration, Some(1.5));
+        assert_eq!(row.sample_type, Some("oneshot".to_string()));
+    }
+
+    #[test]
+    fn analysis_pool_handles_duplicate_paths() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("dup_test.db");
+
+        {
+            let pool = AnalysisPool::new(1, &db_path).expect("pool creation");
+            pool.queue(PathBuf::from("/dup.wav"), || make_result("/dup.wav"))
+                .expect("queue 1");
+            pool.queue(PathBuf::from("/dup.wav"), || make_result("/dup.wav"))
+                .expect("queue 2");
+            pool.shutdown();
+        }
+
+        let conn = Connection::open(&db_path).expect("reopen db");
+        let row = crate::db::operations::get_sample_by_path(&conn, "/dup.wav")
+            .expect("query")
+            .expect("row should exist for duplicate path");
+        assert_eq!(row.file_name, "dup.wav");
     }
 }

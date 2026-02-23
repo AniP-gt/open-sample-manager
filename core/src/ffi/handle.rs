@@ -1,3 +1,7 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use crate::manager::SampleManager;
+
 /// Opaque C-compatible handle for Open Sample Manager instances.
 ///
 /// This is a zero-sized marker type for FFI safety. The actual handle
@@ -7,20 +11,41 @@ pub struct SMHandle {
     _private: [u8; 0],
 }
 
-struct SMHandleInner {
-    _pad: u8,
+pub(crate) struct SMHandleInner {
+    pub(crate) manager: SampleManager,
+    freed: AtomicBool,
 }
 
 impl SMHandleInner {
-    fn new() -> Self {
-        SMHandleInner { _pad: 0 }
+    fn new(manager: SampleManager) -> Self {
+        SMHandleInner {
+            manager,
+            freed: AtomicBool::new(false),
+        }
     }
+
+    /// Mark as freed. Returns `true` if this is the first call (safe to drop),
+    /// `false` if already freed (double-free detected).
+    pub(crate) fn mark_freed(&self) -> bool {
+        self.freed
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    }
+}
+
+/// Recover a reference to the inner handle from a raw `SMHandle` pointer.
+///
+/// # Safety
+/// `handle` must be a valid, non-null pointer created by `sm_init` that has
+/// not yet been freed.
+pub(crate) unsafe fn inner_ref<'a>(handle: *mut SMHandle) -> &'a SMHandleInner {
+    unsafe { &*(handle.cast::<SMHandleInner>()) }
 }
 
 /// Initialize a new Open Sample Manager handle.
 ///
-/// Allocates and initializes a new manager instance. The handle must be
-/// freed later using `sm_free()` to avoid memory leaks.
+/// Allocates and initializes a new manager instance with an in-memory database.
+/// The handle must be freed later using `sm_free()` to avoid memory leaks.
 ///
 /// # Returns
 /// A non-null opaque handle pointer, or null on allocation failure.
@@ -30,8 +55,11 @@ impl SMHandleInner {
 #[no_mangle]
 pub extern "C" fn sm_init() -> *mut SMHandle {
     let result = std::panic::catch_unwind(|| {
-        let inner = Box::new(SMHandleInner::new());
-        Box::into_raw(inner) as *mut SMHandle
+        let Ok(manager) = SampleManager::new(None) else {
+            return std::ptr::null_mut();
+        };
+        let inner = Box::new(SMHandleInner::new(manager));
+        Box::into_raw(inner).cast::<SMHandle>()
     });
     result.unwrap_or(std::ptr::null_mut())
 }
@@ -40,12 +68,13 @@ pub extern "C" fn sm_init() -> *mut SMHandle {
 ///
 /// Deallocates the manager instance and invalidates the handle.
 /// It is safe to pass null or a handle created by `sm_init()`.
+/// Double-free is detected and safely ignored.
 ///
 /// # Arguments
 /// * `handle` - Handle to free (can be null)
 ///
 /// # Safety
-/// Do not call this with a handle from other sources or after it has been freed.
+/// Do not call this with a handle from other sources.
 #[no_mangle]
 pub unsafe extern "C" fn sm_free(handle: *mut SMHandle) {
     if handle.is_null() {
@@ -53,9 +82,16 @@ pub unsafe extern "C" fn sm_free(handle: *mut SMHandle) {
     }
     let _ = std::panic::catch_unwind(|| {
         // SAFETY: non-null pointer created by sm_init via Box::into_raw.
-        unsafe {
-            drop(Box::from_raw(handle as *mut SMHandleInner));
+        // Check the AtomicBool flag before dropping to prevent double-free.
+        let inner_ptr = handle.cast::<SMHandleInner>();
+        let inner_ref = unsafe { &*inner_ptr };
+        if inner_ref.mark_freed() {
+            // First free — safe to drop.
+            unsafe {
+                drop(Box::from_raw(inner_ptr));
+            }
         }
+        // else: double-free detected — silently ignore.
     });
 }
 
@@ -96,5 +132,15 @@ mod tests {
         assert_ne!(h1, h2, "each call to sm_init must return a unique pointer");
         unsafe { sm_free(h1) };
         unsafe { sm_free(h2) };
+    }
+
+    #[test]
+    fn double_free_flag_detected() {
+        let inner = SMHandleInner::new(SampleManager::new(None).expect("create manager"));
+        assert!(inner.mark_freed(), "first mark_freed should return true");
+        assert!(
+            !inner.mark_freed(),
+            "second mark_freed should return false (double-free detected)"
+        );
     }
 }

@@ -17,7 +17,7 @@
 //!
 //! ```rust,no_run
 //! use open_sample_manager_core::{Scanner, AnalysisPool};
-//! use std::path::PathBuf;
+//! use std::path::{Path, PathBuf};
 //!
 //! // Scan a directory for audio samples
 //! let mut scanner = Scanner::new();
@@ -25,7 +25,8 @@
 //! let samples = scanner.scan_all();
 //!
 //! // Analyze samples in parallel
-//! let pool = AnalysisPool::new(4).expect("Failed to create pool");
+//! let db_path = Path::new("/path/to/samples.db");
+//! let pool = AnalysisPool::new(4, db_path).expect("Failed to create pool");
 //! for sample_path in samples {
 //!     let _ = pool.queue(sample_path, || {
 //!         unimplemented!("analysis implementation")
@@ -44,12 +45,14 @@
 //! - [`DecodedAudio`] — Decoded audio samples
 //! - [`Scanner`] — Directory scanner for audio files
 //! - [`AnalysisPool`] — Parallel analysis thread pool
+//! - [`SampleManager`] — High-level entry point composing scanner, analysis, and DB
 //! - [`SMHandle`] — FFI opaque handle type
 //!
 //! ## Module Structure
 //!
 //! - [`analysis`] — Audio analysis algorithms (BPM, kick detection, loop classification)
 //! - [`db`] — Database schema and initialization
+//! - [`manager`] — High-level sample management API
 //! - [`scanner`] — Directory scanning and file discovery
 //! - [`threading`] — Parallel processing with thread pools
 //! - [`ffi`] — C-compatible interface for external integration
@@ -70,6 +73,8 @@ pub mod db;
 pub mod embedding;
 /// C-compatible interface for external integration.
 pub mod ffi;
+/// High-level sample management entry point.
+pub mod manager;
 /// Directory scanning and file discovery.
 pub mod scanner;
 /// Sample search and query functionality.
@@ -84,6 +89,7 @@ pub use analysis::kick::KickResult;
 pub use analysis::loop_classifier::LoopType;
 pub use db::schema::init_database;
 pub use ffi::handle::SMHandle;
+pub use manager::{ManagerError, SampleManager};
 pub use scanner::Scanner;
 pub use threading::AnalysisPool;
 
@@ -108,6 +114,7 @@ pub struct SampleSummary {
 /// let status = healthcheck();
 /// assert!(!status.is_empty());
 /// ```
+#[must_use]
 pub fn healthcheck() -> &'static str {
     "open-sample-manager-core-ready"
 }
