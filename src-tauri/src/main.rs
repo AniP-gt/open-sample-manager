@@ -26,9 +26,22 @@ fn health_check(state: tauri::State<'_, AppState>) -> HealthCheckResponse {
 }
 
 #[tauri::command]
-fn scan_directory(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
-    manager.scan_directory(path).map_err(CommandError::from)
+async fn scan_directory(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
+    let db_path = state.db_path.clone();
+    
+    // Run heavy scanning work in a blocking task to avoid freezing the UI
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = open_manager(db_path.as_deref())?;
+        manager.scan_directory(path).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+    
+    result
 }
 
 #[tauri::command]
@@ -103,6 +116,7 @@ fn open_manager(db_path: Option<&std::path::Path>) -> Result<SampleManager, Comm
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let db_path = match app.path().app_data_dir() {
                 Ok(dir) => {

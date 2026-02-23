@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState } from "./types/sample";
-import { Header, FilterSidebar, SampleList, DetailPanel } from "./components";
+import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay } from "./components";
 
 type TauriSampleRow = {
   id: number;
@@ -17,7 +18,7 @@ type TauriSampleRow = {
   sample_type: string | null;
 };
 
-const DEFAULT_SCAN_PATH = "/path";
+// Path is now selected via folder picker dialog
 
 const normalizeSampleType = (
   sampleType: string | null,
@@ -149,24 +150,41 @@ export function App() {
   };
 
   const handleScanClick = async () => {
-    const action = async () => {
-      setScanning(true);
-      await invoke<number>("scan_directory", { path: DEFAULT_SCAN_PATH });
-      setScanned(true);
-      await runSearch(filters.search);
-    };
-
-    setRetryAction(() => action);
-
     try {
-      await action();
+      // Open folder picker dialog
+      const selectedPath = await open({
+        directory: true,
+        multiple: false,
+        title: "Select Sample Library Folder",
+      });
+
+      // User cancelled the dialog
+      if (!selectedPath) {
+        return;
+      }
+
+      // selectedPath is a string when multiple: false
+      const scanPath = typeof selectedPath === "string" ? selectedPath : selectedPath[0];
+
+      // Set scanning state BEFORE async operation to ensure UI updates
+      setScanning(true);
       setError(null);
+
+      try {
+        await invoke<number>("scan_directory", { path: scanPath });
+        setScanned(true);
+        await runSearch(filters.search);
+      } catch (e) {
+        handleInvokeError(e);
+      } finally {
+        setScanning(false);
+      }
     } catch (e) {
-      handleInvokeError(e);
-    } finally {
-      setScanning(false);
+      // Dialog open failed (e.g., not running in Tauri context)
+      handleInvokeError(new Error("Dialog not available. Please run the app via 'npm run tauri:dev' instead of 'npm run dev'."));
     }
   };
+
 
   const handleRetry = async () => {
     if (!retryAction) {
@@ -242,17 +260,7 @@ export function App() {
       )}
 
       {scanning && (
-        <div
-          style={{
-            margin: "10px 16px 0",
-            padding: "8px 12px",
-            border: "1px solid #22d3ee40",
-            background: "#082f4920",
-            color: "#67e8f9",
-          }}
-        >
-          Scanning sample library...
-        </div>
+        <ScannerOverlay onDone={() => {}} />
       )}
 
       <div
