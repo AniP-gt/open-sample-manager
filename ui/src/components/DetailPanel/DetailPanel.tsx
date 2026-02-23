@@ -150,7 +150,7 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
                 letterSpacing: "0.1em",
               }}
             >
-              {sample.bpm} BPM
+              {Math.floor(sample.bpm)} BPM
             </span>
           )}
         </div>
@@ -413,7 +413,7 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>BPM (FFT-ACF)</span>
-              <span style={{ color: "#22d3ee" }}>{sample.bpm}</span>
+              <span style={{ color: "#22d3ee" }}>{sample.bpm ? Math.floor(sample.bpm) : '—'}</span>
             </div>
           </div>
         </div>

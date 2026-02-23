@@ -166,7 +166,7 @@ export function SampleList({
                 fontWeight: s.bpm ? 700 : 400,
               }}
             >
-              {s.bpm ? `${s.bpm}` : "-"}
+              {s.bpm ? `${Math.floor(s.bpm)}` : "-"}
             </div>
             <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
