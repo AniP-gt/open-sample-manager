@@ -7,5 +7,6 @@
 /ui/vite.config.js
 /ui/vite.config.d.ts
 /plugin/build/
+/src-tauri/gen/
 
 .sisyphus/
