@@ -174,6 +174,33 @@ pub fn get_sample_by_path(
 /// # Errors
 /// Returns `rusqlite::Error` on any SQL error (including malformed FTS5 queries).
 pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let query = query.trim();
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    match run_search_samples_query(conn, query) {
+        Ok(rows) => Ok(rows),
+        Err(err) if is_fts5_syntax_error(&err) => {
+            let escaped = escape_fts5_query(query);
+            if escaped.is_empty() {
+                return Ok(Vec::new());
+            }
+
+            match run_search_samples_query(conn, &escaped) {
+                Ok(rows) => Ok(rows),
+                Err(escaped_err) if is_fts5_syntax_error(&escaped_err) => Ok(Vec::new()),
+                Err(escaped_err) => Err(escaped_err),
+            }
+        }
+        Err(err) => Err(err),
+    }
+}
+
+fn run_search_samples_query(
+    conn: &Connection,
+    query: &str,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
                 s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
@@ -186,6 +213,51 @@ pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, 
 
     let rows = stmt.query_map(params![query], row_to_sample)?;
     rows.collect()
+}
+
+fn is_fts5_syntax_error(err: &rusqlite::Error) -> bool {
+    matches!(
+        err,
+        rusqlite::Error::SqliteFailure(_, Some(message))
+            if message.contains("fts5: syntax error")
+                || message.contains("unterminated string")
+    )
+}
+
+fn escape_fts5_query(query: &str) -> String {
+    query
+        .split_whitespace()
+        .filter_map(|token| {
+            if matches!(token, "AND" | "OR" | "NOT" | "NEAR") {
+                return Some(token.to_string());
+            }
+
+            let (core, is_prefix) = if token.len() > 1 && token.ends_with('*') {
+                (&token[..token.len() - 1], true)
+            } else {
+                (token, false)
+            };
+
+            if core.is_empty() {
+                return None;
+            }
+
+            if core.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                let mut escaped = core.to_string();
+                if is_prefix {
+                    escaped.push('*');
+                }
+                return Some(escaped);
+            }
+
+            let mut escaped = String::with_capacity(core.len() + 2);
+            escaped.push('"');
+            escaped.push_str(&core.replace('"', "\"\""));
+            escaped.push('"');
+            Some(escaped)
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Delete a sample by its file path. Also removes the corresponding FTS5 entry.
@@ -466,6 +538,30 @@ mod tests {
         let results = search_samples(&conn, "kick 808").expect("search failed");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file_name, "kick_808.wav");
+    }
+
+    #[test]
+    fn test_search_samples_empty_query_returns_empty_vec() {
+        let conn = setup_db();
+        insert_sample(&conn, &make_input("/samples/kick.wav", "kick.wav")).expect("insert failed");
+
+        let empty_results = search_samples(&conn, "").expect("search failed");
+        assert!(empty_results.is_empty());
+
+        let whitespace_results = search_samples(&conn, "   \t\n").expect("search failed");
+        assert!(whitespace_results.is_empty());
+    }
+
+    #[test]
+    fn test_search_samples_special_chars_do_not_error() {
+        let conn = setup_db();
+        insert_sample(&conn, &make_input("/samples/kick.wav", "kick.wav")).expect("insert failed");
+
+        let paren_results = search_samples(&conn, "(").expect("search failed");
+        assert!(paren_results.is_empty());
+
+        let unterminated_quote_results = search_samples(&conn, "\"").expect("search failed");
+        assert!(unterminated_quote_results.is_empty());
     }
 
     // ---- delete_sample tests ----
