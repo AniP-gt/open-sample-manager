@@ -6,9 +6,10 @@ interface WaveformDisplayProps {
   isPlaying: boolean;
   currentTime?: number;
   duration?: number;
+  onSeek?: (time: number) => void;
 }
 
-export function WaveformDisplay({ sample, isPlaying, currentTime = 0, duration = 1 }: WaveformDisplayProps) {
+export function WaveformDisplay({ sample, isPlaying, currentTime = 0, duration = 1, onSeek }: WaveformDisplayProps) {
   const bars = 64;
 
   const waveData = useMemo(() => {
@@ -43,14 +44,25 @@ export function WaveformDisplay({ sample, isPlaying, currentTime = 0, duration =
     }
   };
 
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek || duration <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, x / rect.width));
+    const seekTime = ratio * duration;
+    onSeek(seekTime);
+  };
+
   return (
     <div
+      onClick={handleClick}
       style={{
         display: "flex",
         alignItems: "center",
         gap: "1px",
         height: "48px",
         width: "100%",
+        cursor: onSeek ? "pointer" : "default",
       }}
     >
       {waveData.map((h, i) => (

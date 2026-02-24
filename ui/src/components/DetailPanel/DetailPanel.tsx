@@ -168,6 +168,12 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
             isPlaying={playing}
             currentTime={currentTime}
             duration={duration}
+            onSeek={(time) => {
+              if (audioRef.current) {
+                audioRef.current.currentTime = time;
+                setCurrentTime(time);
+              }
+            }}
           />
         </div>
         
