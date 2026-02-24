@@ -482,9 +482,9 @@ export function App() {
         </div>
       )}
 
-      {scanning && (
-        <ScannerOverlay progress={scanProgress} onDone={() => {}} />
-      )}
+        {scanning && (
+          <ScannerOverlay progress={scanProgress} onDone={() => {}} />
+        )}
 
       <div
         style={{
@@ -541,6 +541,10 @@ export function App() {
             onSelect={(s) => {
               void handleSampleSelect(s);
             }}
+            // Provide moved filter controls data + handler so DetailPanel can render them
+            samples={samples}
+            filters={filters}
+            onFilterChange={handleFilterChange}
             onError={(message) => {
               setError(message);
             }}

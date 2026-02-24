@@ -1,4 +1,4 @@
-import type { Sample } from "../../types/sample";
+import type { Sample, FilterState } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
 import { useState } from "react";
@@ -18,21 +18,30 @@ interface DetailPanelProps {
   // rows returned by the backend. Parent can choose to replace the main list
   // with these rows (apply a 'similar items' view) or ignore.
   onError?: (message: string) => void;
+
+  // New props: moved filter controls (sample type, BPM, tags) now render here.
+  samples?: Sample[];
+  filters?: FilterState;
+  onFilterChange?: (filters: Partial<FilterState>) => void;
 }
 
-export function DetailPanel({ sample, path, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
+export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
   const [resultsOpen, setResultsOpen] = useState(false);
   const [results, setResults] = useState<any[]>([]);
+
+  const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
+
+  const typeFilters: Array<Sample["sample_type"] | "all"> = ["all", "loop", "one-shot"];
+
+  const getTypeCount = (type: Sample["sample_type"] | "all") => {
+    return type === "all" ? samples.length : samples.filter((s) => s.sample_type === type).length;
+  };
 
   const handleRunEmbeddingSearch = async () => {
     if (!path) return;
     try {
       const rows: any[] = await invoke("search_by_embedding", { path, k: 8 });
       setResults(rows);
-      // Let parent decide whether to apply these results to the main list
-      if (typeof propsOnApplyResults === "function") {
-        propsOnApplyResults(rows);
-      }
       setResultsOpen(true);
     } catch (e) {
       // eslint-disable-next-line no-console
@@ -71,6 +80,66 @@ export function DetailPanel({ sample, path, onSelect: propsOnSelect, onError: pr
       }}
     >
       
+
+      {/* Moved filter controls from left sidebar into the right detail panel */}
+      <div>
+        <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.12em", marginBottom: "8px" }}>FILTERS</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "8px" }}>
+          <div>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>SAMPLE TYPE</div>
+            {typeFilters.map((t) => (
+              <button
+                key={t}
+                onClick={() => onFilterChange && onFilterChange({ filterType: t as any })}
+                style={{
+                  display: "inline-block",
+                  marginRight: "6px",
+                  background: filters?.filterType === t ? "#111827" : "transparent",
+                  border: "1px solid #1f2937",
+                  padding: "6px 8px",
+                  fontSize: "13px",
+                  color: "#e2e8f0",
+                  cursor: onFilterChange ? "pointer" : "default",
+                  borderRadius: "4px",
+                }}
+              >
+                {t.toUpperCase()}
+                <span style={{ marginLeft: "6px", color: "#374151" }}>{getTypeCount(t as any)}</span>
+              </button>
+            ))}
+          </div>
+
+          <div>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>BPM RANGE</div>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <input
+                type="number"
+                placeholder="MIN"
+                value={filters?.filterBpmMin ?? ""}
+                onChange={(e) => onFilterChange && onFilterChange({ filterBpmMin: e.target.value })}
+                style={{ padding: "6px", borderRadius: "4px", border: "1px solid #1f2937", background: "transparent", color: "#9ca3af" }}
+              />
+              <span style={{ color: "#374151" }}>—</span>
+              <input
+                type="number"
+                placeholder="MAX"
+                value={filters?.filterBpmMax ?? ""}
+                onChange={(e) => onFilterChange && onFilterChange({ filterBpmMax: e.target.value })}
+                style={{ padding: "6px", borderRadius: "4px", border: "1px solid #1f2937", background: "transparent", color: "#9ca3af" }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>TAGS</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {allTags.map((tag) => (
+                <button key={tag} onClick={() => onFilterChange && onFilterChange({ search: tag })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: "transparent", color: "#6b7280", cursor: onFilterChange ? "pointer" : "default" }}>{tag}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div>
         <div

@@ -166,56 +166,9 @@ export function FilterSidebar({
   onFilterChange,
   width = 180,
 }: FilterSidebarProps) {
-  // Height (px) of the top section (file tree). Default to 55% of sidebar height.
-  const [topHeight, setTopHeight] = useState<number | null>(null);
-  const [isDraggingHorizontal, setIsDraggingHorizontal] = useState(false);
+  // Sidebar is now a simple file tree container; no top/bottom split or resizer.
 
-  // On mount, calculate default topHeight based on container; fallback to 260px
-  useEffect(() => {
-    // Defer until DOM available
-    const defaultHeight = 260;
-    setTopHeight((prev) => prev ?? defaultHeight);
-  }, []);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!isDraggingHorizontal) return;
-      // Calculate mouse Y relative to sidebar top
-      const sidebarEl = document.querySelector(".filter-sidebar-root") as HTMLElement | null;
-      if (!sidebarEl) return;
-      const rect = sidebarEl.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const minTop = 80;
-      const maxTop = rect.height - 120; // leave room for controls
-      setTopHeight(Math.max(minTop, Math.min(maxTop, y)));
-    };
-
-    const onUp = () => setIsDraggingHorizontal(false);
-
-    if (isDraggingHorizontal) {
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [isDraggingHorizontal]);
-
-  const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
-
-  const typeFilters: Array<SampleType | "all"> = [
-    "all",
-    "loop",
-    "one-shot",
-  ];
-
-  const getTypeCount = (type: SampleType | "all") => {
-    return type === "all"
-      ? samples.length
-      : samples.filter((s) => s.sample_type === type).length;
-  };
+  // No filter controls here anymore; counts and tags are rendered in the DetailPanel
 
   const tree = useMemo(() => buildTree(scannedPaths), [scannedPaths]);
   
@@ -285,8 +238,8 @@ export function FilterSidebar({
       }}
       className="filter-sidebar-root"
     >
-      {/* Top: file tree (resizable height) */}
-      <div style={{ height: topHeight ? `${topHeight}px` : "260px", overflowY: "auto", padding: "12px 0", borderBottom: "1px solid #1f2937" }}>
+      {/* Top: file tree only — controls were moved to the right/detail panel */}
+      <div style={{ height: "100%", overflowY: "auto", padding: "12px 0" }}>
         {scannedPaths.length > 0 ? (
           <>
             <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>
@@ -308,162 +261,6 @@ export function FilterSidebar({
             No folders scanned
           </div>
         )}
-      </div>
-
-      {/* Horizontal resizer between tree and controls */}
-      <div
-        onMouseDown={() => setIsDraggingHorizontal(true)}
-        style={{ height: "6px", cursor: "row-resize", background: isDraggingHorizontal ? "#f97316" : "transparent" }}
-        onMouseEnter={(e) => { if (!isDraggingHorizontal) (e.currentTarget as HTMLDivElement).style.background = "#111827"; }}
-        onMouseLeave={(e) => { if (!isDraggingHorizontal) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
-      />
-
-      {/* Bottom: controls (scrollable) */}
-      <div style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto" }}>
-        <div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#374151",
-              letterSpacing: "0.14em",
-              marginBottom: "8px",
-            }}
-          >
-            SAMPLE TYPE
-          </div>
-          {typeFilters.map((t) => (
-            <button
-              key={t}
-              onClick={() => onFilterChange({ filterType: t })}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                background: filters.filterType === t ? "#111827" : "transparent",
-                border: "none",
-                borderLeft:
-                  filters.filterType === t
-                    ? "2px solid #f97316"
-                    : "2px solid transparent",
-                padding: "4px 8px",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "14px",
-                color: filters.filterType === t ? "#f1f5f9" : "#6b7280",
-                cursor: "pointer",
-                letterSpacing: "0.08em",
-                marginBottom: "2px",
-                borderRadius: "0 2px 2px 0",
-              }}
-            >
-              {t.toUpperCase()}
-              <span
-                style={{ float: "right", color: "#374151", fontSize: "13px" }}
-              >
-                {getTypeCount(t)}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#374151",
-              letterSpacing: "0.14em",
-              marginBottom: "8px",
-            }}
-          >
-            BPM RANGE
-          </div>
-          <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-            <div
-              style={{
-                flex: 1,
-                border: "1px solid #1f2937",
-                borderRadius: "2px",
-                padding: "4px 6px",
-              }}
-            >
-              <input
-                type="number"
-                placeholder="MIN"
-                value={filters.filterBpmMin}
-                onChange={(e) =>
-                  onFilterChange({ filterBpmMin: e.target.value })
-                }
-                style={{
-                  width: "100%",
-                  fontSize: "13px",
-                  color: "#9ca3af",
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                }}
-              />
-            </div>
-            <span style={{ color: "#374151", fontSize: "13px" }}>—</span>
-            <div
-              style={{
-                flex: 1,
-                border: "1px solid #1f2937",
-                borderRadius: "2px",
-                padding: "4px 6px",
-              }}
-            >
-              <input
-                type="number"
-                placeholder="MAX"
-                value={filters.filterBpmMax}
-                onChange={(e) =>
-                  onFilterChange({ filterBpmMax: e.target.value })
-                }
-                style={{
-                  width: "100%",
-                  fontSize: "13px",
-                  color: "#9ca3af",
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#374151",
-              letterSpacing: "0.14em",
-              marginBottom: "8px",
-            }}
-          >
-            TAGS
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-            {allTags.map((tag) => (
-              <span
-                key={tag}
-                className="tag-chip"
-                onClick={() => onFilterChange({ search: tag })}
-                style={{
-                  fontSize: "12px",
-                  padding: "2px 6px",
-                  background: "#0f1117",
-                  border: "1px solid #1f2937",
-                  borderRadius: "2px",
-                  color: "#6b7280",
-                  letterSpacing: "0.06em",
-                  cursor: "pointer",
-                }}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
