@@ -323,11 +323,13 @@ export function App() {
           samples={samples}
           filters={filters}
           scannedPaths={scannedPaths}
+          selectedPath={selected ? samplePaths[selected.id] : null}
           onFilterChange={handleFilterChange}
         />
 
         <SampleList
           samples={samples}
+          samplePaths={samplePaths}
           filters={filters}
           selectedSample={selected}
           onSampleSelect={handleSampleSelect}

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { Sample, SampleType, FilterState } from "../../types/sample";
 
 interface FilterSidebarProps {
   samples: Sample[];
   filters: FilterState;
   scannedPaths: string[];
+  selectedPath: string | null;
   onFilterChange: (filters: Partial<FilterState>) => void;
 }
 
@@ -46,16 +48,64 @@ function buildTree(paths: string[]): TreeNode[] {
   return root;
 }
 
+// Get all ancestor paths for a given path
+function getAncestorPaths(path: string): Set<string> {
+  const ancestors = new Set<string>();
+  const parts = path.split("/").filter(Boolean);
+  
+  for (let i = 0; i < parts.length; i++) {
+    const ancestorPath = "/" + parts.slice(0, i + 1).join("/");
+    ancestors.add(ancestorPath);
+  }
+  
+  return ancestors;
+}
+
+interface FileTreeItemProps {
+  node: TreeNode;
+  depth?: number;
+  expandedPaths: Set<string>;
+  selectedPath: string | null;
+  onToggleExpand: (path: string) => void;
+  onMoveSample: (oldPath: string, newPath: string) => void;
+}
+
 function FileTreeItem({
   node,
   depth = 0,
-}: {
-  node: TreeNode;
-  depth?: number;
-}) {
-  const [expanded, setExpanded] = useState(depth < 2);
-
+  expandedPaths,
+  selectedPath,
+  onToggleExpand,
+  onMoveSample,
+}: FileTreeItemProps) {
+  const isExpanded = expandedPaths.has(node.path);
   const hasChildren = node.children.length > 0;
+  const isSelected = selectedPath === node.path;
+  const isAncestorOfSelected = selectedPath ? selectedPath.startsWith(node.path + "/") : false;
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (node.isFolder || hasChildren) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    if ((node.isFolder || hasChildren) && e.dataTransfer) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const draggedPath = e.dataTransfer.getData("text/plain");
+      if (draggedPath) {
+        const fileName = draggedPath.split("/").pop() || "sample.wav";
+        const newPath = `${node.path}/${fileName}`;
+        
+        if (draggedPath !== newPath) {
+          onMoveSample(draggedPath, newPath);
+        }
+      }
+    }
+  };
 
   return (
     <div>
@@ -66,20 +116,23 @@ function FileTreeItem({
           padding: "4px 8px",
           paddingLeft: `${depth * 12 + 8}px`,
           cursor: node.isFolder ? "pointer" : "default",
-          color: node.isFolder ? "#9ca3af" : "#6b7280",
+          color: isSelected ? "#f97316" : isAncestorOfSelected ? "#9ca3af" : "#6b7280",
           fontSize: "13px",
           fontFamily: "'Courier New', monospace",
           borderRadius: "2px",
+          background: isSelected ? "#1f2937" : "transparent",
         }}
         onClick={() => {
           if (hasChildren) {
-            setExpanded(!expanded);
+            onToggleExpand(node.path);
           }
         }}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
         {hasChildren ? (
           <span style={{ marginRight: "4px", color: "#4b5563" }}>
-            {expanded ? "▼" : "▶"}
+            {isExpanded ? "▼" : "▶"}
           </span>
         ) : (
           <span style={{ marginRight: "4px", width: "12px", display: "inline-block" }}>♪</span>
@@ -88,9 +141,17 @@ function FileTreeItem({
           {node.name}
         </span>
       </div>
-      {expanded &&
+      {isExpanded &&
         node.children.map((child) => (
-          <FileTreeItem key={child.path} node={child} depth={depth + 1} />
+          <FileTreeItem
+            key={child.path}
+            node={child}
+            depth={depth + 1}
+            expandedPaths={expandedPaths}
+            selectedPath={selectedPath}
+            onToggleExpand={onToggleExpand}
+            onMoveSample={onMoveSample}
+          />
         ))}
     </div>
   );
@@ -100,6 +161,7 @@ export function FilterSidebar({
   samples,
   filters,
   scannedPaths,
+  selectedPath,
   onFilterChange,
 }: FilterSidebarProps) {
   const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
@@ -117,7 +179,60 @@ export function FilterSidebar({
       : samples.filter((s) => s.sample_type === type).length;
   };
 
-  const tree = buildTree(scannedPaths);
+  const tree = useMemo(() => buildTree(scannedPaths), [scannedPaths]);
+  
+  // Track expanded paths
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    // Initially expand first 2 levels
+    tree.forEach((node) => {
+      initial.add(node.path);
+      node.children.forEach((child) => {
+        initial.add(child.path);
+      });
+    });
+    return initial;
+  });
+
+  // Auto-expand tree when a sample is selected
+  useEffect(() => {
+    if (selectedPath) {
+      const ancestors = getAncestorPaths(selectedPath);
+      setExpandedPaths((prev) => {
+        const newSet = new Set(prev);
+        let changed = false;
+        ancestors.forEach((path) => {
+          if (!newSet.has(path)) {
+            newSet.add(path);
+            changed = true;
+          }
+        });
+        return changed ? newSet : prev;
+      });
+    }
+  }, [selectedPath]);
+
+  const handleToggleExpand = (path: string) => {
+    setExpandedPaths((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(path)) {
+        newSet.delete(path);
+      } else {
+        newSet.add(path);
+      }
+      return newSet;
+    });
+  };
+
+  const handleMoveSample = async (oldPath: string, newPath: string) => {
+    try {
+      await invoke<string>("move_sample", { oldPath, newPath });
+      // Refresh the list after move
+      onFilterChange({}); // Trigger a refresh
+    } catch (error) {
+      console.error("Failed to move sample:", error);
+    }
+  };
 
   return (
     <div
@@ -152,7 +267,14 @@ export function FilterSidebar({
               SCANNED FOLDERS
             </div>
             {tree.map((node) => (
-              <FileTreeItem key={node.path} node={node} />
+              <FileTreeItem
+                key={node.path}
+                node={node}
+                expandedPaths={expandedPaths}
+                selectedPath={selectedPath}
+                onToggleExpand={handleToggleExpand}
+                onMoveSample={handleMoveSample}
+              />
             ))}
           </>
         ) : (

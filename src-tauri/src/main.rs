@@ -109,6 +109,28 @@ fn clear_all_samples(state: tauri::State<'_, AppState>) -> Result<usize, Command
     let manager = open_manager(state.db_path.as_deref())?;
     manager.clear_all_samples().map_err(CommandError::from)
 }
+
+#[tauri::command]
+async fn move_sample(
+    old_path: String,
+    new_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, CommandError> {
+    let db_path = state.db_path.clone();
+    
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = open_manager(db_path.as_deref())?;
+        manager.move_sample(&old_path, &new_path).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+    
+    result
+}
 #[derive(Debug, Clone)]
 struct AppState {
     db_path: Option<std::path::PathBuf>,
@@ -183,7 +205,8 @@ fn main() {
             search_samples,
             get_sample,
             delete_sample,
-            clear_all_samples
+            clear_all_samples,
+            move_sample
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

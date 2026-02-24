@@ -704,3 +704,45 @@ pub fn clear_all_samples(conn: &Connection) -> Result<usize, rusqlite::Error> {
     
     Ok(count)
 }
+
+/// Move a sample's path in the database.
+///
+/// Updates the path and file_name fields when a file is moved on disk.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn move_sample_path(conn: &Connection, old_path: &str, new_path: &str) -> Result<usize, rusqlite::Error> {
+    // Extract new file name from new path
+    let new_file_name = std::path::Path::new(new_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    // Get old file name for FTS update
+    let old_file_name: String = conn.query_row(
+        "SELECT file_name FROM samples WHERE path = ?1",
+        params![old_path],
+        |row| row.get(0),
+    )?;
+
+    // Update the sample record
+    let updated = conn.execute(
+        "UPDATE samples SET path = ?1, file_name = ?2 WHERE path = ?3",
+        params![new_path, new_file_name, old_path],
+    )?;
+
+    // Update FTS index
+    if updated > 0 {
+        conn.execute(
+            "DELETE FROM samples_fts WHERE rowid = (SELECT id FROM samples WHERE path = ?1) AND file_name = ?2",
+            params![new_path, old_file_name],
+        )?;
+        conn.execute(
+            "INSERT INTO samples_fts (rowid, file_name) VALUES ((SELECT id FROM samples WHERE path = ?1), ?2)",
+            params![new_path, new_file_name],
+        )?;
+    }
+
+    Ok(updated)
+}

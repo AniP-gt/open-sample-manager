@@ -1,8 +1,11 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
+
 import type { FilterState, Sample } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 
 interface SampleListProps {
   samples: Sample[];
+  samplePaths: Record<number, string>;
   filters: FilterState;
   selectedSample: Sample | null;
   onSampleSelect: (sample: Sample) => void;
@@ -12,6 +15,7 @@ interface SampleListProps {
 
 export function SampleList({
   samples,
+  samplePaths,
   filters,
   selectedSample,
   onSampleSelect,
@@ -110,6 +114,17 @@ export function SampleList({
           <div
             key={s.id}
             className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
+            draggable={!!samplePaths[s.id]}
+            onDragStart={(e) => {
+              const path = samplePaths[s.id];
+              if (path) {
+                // Convert local path to file:// URL for DAW compatibility
+                const fileUrl = convertFileSrc(path);
+                e.dataTransfer.setData("text/uri-list", fileUrl);
+                e.dataTransfer.setData("text/plain", path);
+                e.dataTransfer.effectAllowed = "copy";
+              }
+            }}
             onClick={() => onSampleSelect(s)}
             style={{
               display: "grid",
@@ -124,6 +139,7 @@ export function SampleList({
               alignItems: "center",
               animation: `fadeIn 0.2s ease ${idx * 0.03}s both`,
               transition: "background 0.1s",
+              cursor: samplePaths[s.id] ? "grab" : "default",
             }}
           >
             <div style={{ fontSize: "14px", color: "#374151" }}>{s.id}</div>

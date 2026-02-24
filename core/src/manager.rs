@@ -325,6 +325,27 @@ impl SampleManager {
         Ok(count)
     }
 
+    /// Move a sample file to a new location.
+    ///
+    /// Moves the physical file on disk and updates the database record.
+    /// Returns the new path on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Io`] if the file cannot be moved.
+    /// Returns [`ManagerError::Db`] if the database cannot be updated.
+    pub fn move_sample(&self, old_path: &str, new_path: &str) -> Result<String, ManagerError> {
+        use std::fs;
+
+        // Move the physical file
+        fs::rename(old_path, new_path)?;
+
+        // Update database
+        crate::db::operations::move_sample_path(&self.conn, old_path, new_path)?;
+
+        Ok(new_path.to_string())
+    }
+
     /// Analyze a file and store the result in the database.
     fn analyze_and_store(&self, file_path: &Path) -> Result<i64, ManagerError> {
         let input = Self::analyze(file_path)?;
