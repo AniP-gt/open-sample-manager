@@ -16,6 +16,8 @@ pub struct SampleRow {
     pub bpm: Option<f64>,
     /// Periodicity strength (0.0–1.0).
     pub periodicity: Option<f64>,
+    /// Sample rate in Hz.
+    pub sample_rate: Option<i64>,
     /// Low-band energy ratio.
     pub low_ratio: Option<f64>,
     /// Attack slope in dB/ms.
@@ -36,6 +38,13 @@ pub struct SampleRow {
     pub instrument_type: String,
 }
 
+/// Result of an embedding search: similarity score + sample row.
+#[derive(Debug, Clone, Serialize)]
+pub struct EmbeddingSearchResult {
+    pub similarity: f32,
+    pub row: SampleRow,
+}
+
 /// Parameters for inserting or updating a sample (no `id` field).
 #[derive(Debug, Clone)]
 pub struct SampleInput {
@@ -49,6 +58,8 @@ pub struct SampleInput {
     pub bpm: Option<f64>,
     /// Periodicity strength.
     pub periodicity: Option<f64>,
+    /// Sample rate in Hz.
+    pub sample_rate: Option<i64>,
     /// Low-band energy ratio.
     pub low_ratio: Option<f64>,
     /// Classification label.
@@ -74,9 +85,11 @@ pub struct SampleInput {
 /// # Errors
 /// Returns `rusqlite::Error` if the path already exists or any SQL error occurs.
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
+    // Use COALESCE for playback_type/instrument_type so that when input provides NULL
+    // the database default values ('oneshot' / 'other') are used instead of inserting NULL
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, COALESCE(?13, 'oneshot'), COALESCE(?14, 'other'))",
     )?;
     stmt.execute(params![
         input.path,
@@ -84,6 +97,7 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
         input.duration,
         input.bpm,
         input.periodicity,
+        input.sample_rate,
         input.low_ratio,
         input.attack_slope,
         input.decay_time,
@@ -125,17 +139,20 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         }
     };
 
+    // When updating, only override playback_type/instrument_type when provided; otherwise
+    // keep existing values by using COALESCE(?param, column)
     let mut stmt = conn.prepare_cached(
         "UPDATE samples SET file_name = ?1, duration = ?2, bpm = ?3, periodicity = ?4,
-         low_ratio = ?5, attack_slope = ?6, decay_time = ?7, sample_type = ?8, embedding = ?9,
-         playback_type = ?10, instrument_type = ?11
-         WHERE path = ?12",
+         sample_rate = ?5, low_ratio = ?6, attack_slope = ?7, decay_time = ?8, sample_type = ?9, embedding = ?10,
+         playback_type = COALESCE(?11, playback_type), instrument_type = COALESCE(?12, instrument_type)
+         WHERE path = ?13",
     )?;
     let updated = stmt.execute(params![
         input.file_name,
         input.duration,
         input.bpm,
         input.periodicity,
+        input.sample_rate,
         input.low_ratio,
         input.attack_slope,
         input.decay_time,
@@ -174,7 +191,7 @@ pub fn get_sample_by_path(
     path: &str,
 ) -> Result<Option<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope,
                 decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
          FROM samples WHERE path = ?1",
     )?;
@@ -214,10 +231,94 @@ pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, 
     }
 }
 
+/// Semantic search by embedding using cosine similarity (brute-force).
+///
+/// This function reads all samples with non-null embedding blobs from the DB,
+/// deserializes each 64-f32 vector, computes cosine similarity against `query`,
+/// and returns the top-`k` SampleRow results ordered by descending similarity.
+///
+/// Note: This is a simple, CPU-bound, O(N) implementation intended as a
+/// fallback/initial implementation. The design document mentions HNSW for
+/// acceleration; integrate an ANN index later for performance at scale.
+pub fn search_by_embedding(
+    conn: &Connection,
+    query: &[f32],
+    k: usize,
+) -> Result<Vec<EmbeddingSearchResult>, rusqlite::Error> {
+    // Validate query dimension
+    if query.len() == 0 {
+        return Ok(Vec::new());
+    }
+
+    // helper: compute cosine similarity between two equal-length slices
+    fn cos_sim(a: &[f32], b: &[f32]) -> f32 {
+        let mut dot = 0.0f32;
+        let mut na = 0.0f32;
+        let mut nb = 0.0f32;
+        for i in 0..a.len() {
+            dot += a[i] * b[i];
+            na += a[i] * a[i];
+            nb += b[i] * b[i];
+        }
+        let denom = (na.sqrt() * nb.sqrt()).max(1e-8);
+        dot / denom
+    }
+
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples WHERE embedding IS NOT NULL",
+    )?;
+
+    let rows = stmt.query_map([], |row| row_to_sample(row))?;
+
+    // accumulate (similarity, SampleRow)
+    let mut scored: Vec<(f32, SampleRow)> = Vec::new();
+    for r in rows {
+        if let Ok(sample) = r {
+            if let Some(ref emb_blob) = sample.embedding {
+                // expect emb_blob length multiple of 4
+                if emb_blob.len() % 4 != 0 {
+                    continue;
+                }
+                let dim = emb_blob.len() / 4;
+                // quick check: dim == query.len()
+                if dim != query.len() {
+                    continue;
+                }
+                // deserialize little-endian f32s
+                let mut other: Vec<f32> = Vec::with_capacity(dim);
+                for i in 0..dim {
+                    let off = i * 4;
+                    let bytes: [u8; 4] = [
+                        emb_blob[off],
+                        emb_blob[off + 1],
+                        emb_blob[off + 2],
+                        emb_blob[off + 3],
+                    ];
+                    other.push(f32::from_le_bytes(bytes));
+                }
+                let sim = cos_sim(query, &other);
+                scored.push((sim, sample));
+            }
+        }
+    }
+
+    // sort descending by similarity
+    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(scored
+        .into_iter()
+        .take(k)
+        .map(|(sim, s)| EmbeddingSearchResult {
+            similarity: sim,
+            row: s,
+        })
+        .collect())
+}
+
 /// List all samples in the database, ordered by file name.
 fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope,
                 decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
          FROM samples
          ORDER BY id",
@@ -233,7 +334,7 @@ fn run_search_samples_query(
 ) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
-                s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
+                s.sample_rate, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
                 s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type
          FROM samples_fts f
          JOIN samples s ON s.id = f.rowid
@@ -332,15 +433,16 @@ fn row_to_sample(row: &rusqlite::Row<'_>) -> Result<SampleRow, rusqlite::Error> 
         duration: row.get(3)?,
         bpm: row.get(4)?,
         periodicity: row.get(5)?,
-        low_ratio: row.get(6)?,
-        attack_slope: row.get(7)?,
-        decay_time: row.get(8)?,
-        sample_type: row.get(9)?,
-        waveform_peaks: row.get(10)?,
-        embedding: row.get(11)?,
-        is_online: row.get::<_, i32>(12)? != 0,
-        playback_type: row.get(13)?,
-        instrument_type: row.get(14)?,
+        sample_rate: row.get(6)?,
+        low_ratio: row.get(7)?,
+        attack_slope: row.get(8)?,
+        decay_time: row.get(9)?,
+        sample_type: row.get(10)?,
+        waveform_peaks: row.get(11)?,
+        embedding: row.get(12)?,
+        is_online: row.get::<_, i32>(13)? != 0,
+        playback_type: row.get(14)?,
+        instrument_type: row.get(15)?,
     })
 }
 
@@ -380,6 +482,7 @@ mod tests {
             duration: Some(2.5),
             bpm: Some(120.0),
             periodicity: Some(0.85),
+            sample_rate: Some(44100),
             low_ratio: Some(0.65),
             attack_slope: Some(30.0),
             decay_time: Some(150.0),
@@ -491,6 +594,30 @@ mod tests {
         assert_eq!(sample.bpm, Some(140.0));
         assert_eq!(sample.sample_type, Some("loop".to_string()));
         assert_eq!(sample.embedding, Some(vec![1, 2, 3, 4]));
+    }
+
+    #[test]
+    fn test_update_sample_updates_playback_and_instrument() {
+        let conn = setup_db();
+        let input = make_input("/samples/test.wav", "test.wav");
+        // Insert initial sample with defaults
+        insert_sample(&conn, &input).expect("insert failed");
+
+        // Prepare updated input that changes playback_type and instrument_type
+        let updated = SampleInput {
+            playback_type: Some("loop".to_string()),
+            instrument_type: Some("snare".to_string()),
+            ..input.clone()
+        };
+
+        let count = update_sample(&conn, &updated).expect("update failed");
+        assert_eq!(count, 1);
+
+        let sample = get_sample_by_path(&conn, "/samples/test.wav")
+            .expect("query failed")
+            .expect("sample not found after update");
+        assert_eq!(sample.playback_type, "loop");
+        assert_eq!(sample.instrument_type, "snare");
     }
 
     #[test]

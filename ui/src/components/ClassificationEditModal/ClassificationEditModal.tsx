@@ -1,17 +1,18 @@
-import type { PlaybackType, InstrumentType, Sample } from "../../types/sample";
+import type { InstrumentType, SampleType, Sample } from "../../types/sample";
+import { TypeBadge } from "../TypeBadge/TypeBadge";
 
 interface ClassificationEditModalProps {
   isOpen: boolean;
   sample: Sample | null;
-  editPlaybackType: string;
   editInstrumentType: string;
-  onPlaybackTypeChange: (value: string) => void;
+  editSampleType: SampleType;
   onInstrumentTypeChange: (value: string) => void;
+  onSampleTypeChange: (value: SampleType) => void;
   onSave: () => void;
   onClose: () => void;
 }
 
-const PLAYBACK_OPTIONS: PlaybackType[] = ["loop", "oneshot"];
+const SAMPLE_TYPE_OPTIONS: SampleType[] = ["loop", "one-shot"];
 
 const INSTRUMENT_OPTIONS: InstrumentType[] = [
   "kick",
@@ -28,10 +29,10 @@ const INSTRUMENT_OPTIONS: InstrumentType[] = [
 export function ClassificationEditModal({
   isOpen,
   sample,
-  editPlaybackType,
   editInstrumentType,
-  onPlaybackTypeChange,
+  editSampleType,
   onInstrumentTypeChange,
+  onSampleTypeChange,
   onSave,
   onClose,
 }: ClassificationEditModalProps) {
@@ -115,7 +116,6 @@ export function ClassificationEditModal({
           {sample.file_name}
         </div>
 
-        {/* Playback Type Section */}
         <div style={{ marginBottom: "24px" }}>
           <h3
             style={{
@@ -125,31 +125,26 @@ export function ClassificationEditModal({
               marginBottom: "12px",
             }}
           >
-            PLAYBACK TYPE
+            CLASS TYPE
           </h3>
           <div style={{ display: "flex", gap: "8px" }}>
-            {PLAYBACK_OPTIONS.map((option) => (
+            {SAMPLE_TYPE_OPTIONS.map((option) => (
               <button
                 key={option}
-                onClick={() => onPlaybackTypeChange(option)}
+                onClick={() => onSampleTypeChange(option)}
                 style={{
                   flex: 1,
-                  fontSize: "14px",
-                  fontFamily: "'Courier New', monospace",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  padding: "12px 16px",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "10px",
                   borderRadius: "2px",
+                  border: `1px solid ${editSampleType === option ? "#f97316" : "#1f2937"}`,
+                  background: editSampleType === option ? "rgba(249, 115, 22, 0.08)" : "#080a0f",
                   cursor: "pointer",
-                  background: editPlaybackType === option ? "#22d3ee20" : "#080a0f",
-                  color: editPlaybackType === option ? "#22d3ee" : "#6b7280",
-                  border: `1px solid ${
-                    editPlaybackType === option ? "#22d3ee50" : "#1f2937"
-                  }`,
-                  transition: "all 0.15s ease",
                 }}
               >
-                {option.toUpperCase()}
+                <TypeBadge type={option} />
               </button>
             ))}
           </div>

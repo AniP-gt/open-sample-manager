@@ -346,6 +346,15 @@ impl SampleManager {
         Ok(new_path.to_string())
     }
 
+    /// Semantic search by embedding: return top-k samples similar to `query`.
+    pub fn search_by_embedding(
+        &self,
+        query: &[f32],
+        k: usize,
+    ) -> Result<Vec<crate::db::operations::EmbeddingSearchResult>, ManagerError> {
+        crate::db::operations::search_by_embedding(&self.conn, query, k).map_err(ManagerError::Db)
+    }
+
     /// Update the classification of a sample by its path.
     ///
     /// This allows manual overriding of the auto-detected playback_type and instrument_type.
@@ -387,6 +396,7 @@ impl SampleManager {
                     duration: row.duration,
                     bpm: row.bpm,
                     periodicity: row.periodicity,
+                    sample_rate: row.sample_rate,
                     low_ratio: row.low_ratio,
                     attack_slope: row.attack_slope,
                     decay_time: row.decay_time,
@@ -451,18 +461,30 @@ impl SampleManager {
 
         let path_str = file_path.to_str().unwrap_or_default().to_string();
         let waveform_peaks = compute_waveform_peaks(&decoded.samples, 64);
+        // sample_rate from decoded file
+        let sample_rate = decoded.sample_rate as i64;
+
+        // Generate 64-dim embedding from audio samples
+        let emb_vec = crate::embedding::generate_embedding(&decoded.samples, decoded.sample_rate);
+        // serialize f32 vec to bytes (little-endian)
+        let mut emb_bytes: Vec<u8> = Vec::with_capacity(emb_vec.len() * 4);
+        for v in &emb_vec {
+            emb_bytes.extend_from_slice(&v.to_le_bytes());
+        }
+
         Ok(SampleInput {
             path: path_str,
             file_name,
             duration: Some(duration),
             bpm: Some(bpm_result.bpm),
             periodicity: Some(bpm_result.periodicity_strength),
+            sample_rate: Some(sample_rate),
             low_ratio: Some(kick_result.low_ratio),
             attack_slope: Some(kick_result.attack_slope),
             decay_time: Some(kick_result.decay_time_ms),
             sample_type: Some(sample_type),
             waveform_peaks: Some(waveform_peaks),
-            embedding: None,
+            embedding: Some(emb_bytes),
             playback_type: Some(playback_type.to_string()),
             instrument_type: Some(instrument_type.to_string()),
         })

@@ -1,7 +1,20 @@
-export type SampleType = "kick" | "loop" | "one-shot";
+// Historically some records used "kick" in the sample_type field; keep it
+// in the union for backward compatibility with older DB rows and UI
+// components that may still check for it.
+export type SampleType = "loop" | "one-shot" | "kick";
 
 export type PlaybackType = "loop" | "oneshot";
-export type InstrumentType = "kick" | "snare" | "hihat" | "bass" | "synth" | "fx" | "vocal" | "percussion" | "other";
+
+export type InstrumentType =
+  | "kick"
+  | "snare"
+  | "hihat"
+  | "bass"
+  | "synth"
+  | "fx"
+  | "vocal"
+  | "percussion"
+  | "other";
 
 export interface Sample {
   id: number;
@@ -10,6 +23,7 @@ export interface Sample {
   bpm: number | null;
   periodicity: number;
   low_ratio: number;
+  sample_rate?: number; // new: sample rate in Hz
   attack_slope: number;
   decay_time: number | null;
   sample_type: SampleType;
@@ -26,7 +40,7 @@ export interface FilterState {
   filterBpmMax: string;
 }
 
-export type SortField = "id" | "file_name" | "sample_type" | "bpm" | "duration" | "low_ratio";
+export type SortField = "id" | "file_name" | "sample_type" | "bpm" | "duration" | "sample_rate";
 export type SortDirection = "asc" | "desc";
 
 export interface SortState {

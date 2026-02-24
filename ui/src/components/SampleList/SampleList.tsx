@@ -83,9 +83,9 @@ export function SampleList({
     return matchSearch && matchType && matchBpmMin && matchBpmMax;
   });
 
-  const sorted = [...filtered].sort((a, b) => {
-    const dir = sort.direction === "asc" ? 1 : -1;
-    switch (sort.field) {
+      const sorted = [...filtered].sort((a, b) => {
+        const dir = sort.direction === "asc" ? 1 : -1;
+        switch (sort.field) {
       case "id":
         return (a.id - b.id) * dir;
       case "file_name":
@@ -96,8 +96,8 @@ export function SampleList({
         return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
       case "duration":
         return (a.duration - b.duration) * dir;
-      case "low_ratio":
-        return (a.low_ratio - b.low_ratio) * dir;
+      case "sample_rate":
+        return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
       default:
         return 0;
     }
@@ -171,7 +171,7 @@ export function SampleList({
         <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange}>TYPE / INST</SortHeader>
         <SortHeader field="bpm" currentSort={sort} onSort={onSortChange}>BPM</SortHeader>
         <SortHeader field="duration" currentSort={sort} onSort={onSortChange}>DUR</SortHeader>
-        <SortHeader field="low_ratio" currentSort={sort} onSort={onSortChange}>LOW RATIO</SortHeader>
+          <SortHeader field="sample_rate" currentSort={sort} onSort={onSortChange}>SAMPLE RATE</SortHeader>
         <div />
       </div>
 
@@ -278,27 +278,8 @@ export function SampleList({
             <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div
-                style={{
-                  flex: 1,
-                  height: "3px",
-                  background: "#1f2937",
-                  borderRadius: "1px",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${s.low_ratio * 100}%`,
-                    background: s.low_ratio > 0.6 ? "#f97316" : "#4b5563",
-                    borderRadius: "1px",
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: "14px", color: "#4b5563", width: "32px" }}>
-                {(s.low_ratio * 100).toFixed(0)}%
-              </span>
+            <div style={{ fontSize: "14px", color: "#4b5563" }}>
+              {s.sample_rate ? `${s.sample_rate} Hz` : '—'}
             </div>
             <button
               onClick={(e) => {

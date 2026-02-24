@@ -1,13 +1,56 @@
 import type { Sample } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
+import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface DetailPanelProps {
   sample: Sample;
   path?: string;
-  onUpdateClassification?: (playbackType: string | null, instrumentType: string | null) => void;
+  // kept for backwards compatibility with App.tsx which previously passed
+  // an onUpdateClassification handler. It's optional and unused here.
+  onUpdateClassification?: (playbackType: string, instrumentType: string) => void;
+  // Called when a user selects a sample from the embedding results modal.
+  // If provided, DetailPanel will forward modal selections to this handler
+  // so the parent (App) can update the global selection state.
+  onSelect?: (sample: Sample, path?: string) => void;
+  // If provided, called after embedding search completes with the raw result
+  // rows returned by the backend. Parent can choose to replace the main list
+  // with these rows (apply a 'similar items' view) or ignore.
+  onApplyResults?: (rows: any[]) => void;
 }
 
-export function DetailPanel({ sample, path, onUpdateClassification }: DetailPanelProps) {
+export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResults: propsOnApplyResults }: DetailPanelProps) {
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const [results, setResults] = useState<any[]>([]);
+
+  const handleRunEmbeddingSearch = async () => {
+    if (!path) return;
+    try {
+      const rows: any[] = await invoke("search_by_embedding", { path, k: 8 });
+      setResults(rows);
+      // Let parent decide whether to apply these results to the main list
+      if (typeof propsOnApplyResults === "function") {
+        propsOnApplyResults(rows);
+      }
+      setResultsOpen(true);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("embedding search failed", e);
+      alert("Embedding search failed: " + String(e));
+    }
+  };
+
+  const handleSelectResult = (s: Sample, p?: string) => {
+    // If parent provided an onSelect handler, forward the selection so App
+    // can update the global selected sample and focus the list. Otherwise
+    // fallback to closing the modal only.
+    if (typeof propsOnSelect === "function") {
+      propsOnSelect(s, p);
+    }
+    setResultsOpen(false);
+  };
+
   return (
     <div
       style={{
@@ -25,79 +68,7 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
         overflowY: "auto",
       }}
     >
-      {/* Classification Edit Section */}
-      {onUpdateClassification && (
-        <div
-          style={{
-            background: "#080a0f",
-            border: "1px solid #1a1f2e",
-            borderRadius: "3px",
-            padding: "10px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "12px",
-              color: "#6b7280",
-              letterSpacing: "0.1em",
-              marginBottom: "8px",
-            }}
-          >
-            CLASSIFICATION
-          </div>
-          
-          {/* Playback Type */}
-          <div style={{ marginBottom: "8px" }}>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "4px" }}>PLAYBACK</div>
-            <select
-              value={sample.playback_type}
-              onChange={(e) => onUpdateClassification(e.target.value, null)}
-              style={{
-                width: "100%",
-                padding: "4px 6px",
-                fontSize: "12px",
-                background: "#1f2937",
-                color: "#e2e8f0",
-                border: "1px solid #374151",
-                borderRadius: "2px",
-                cursor: "pointer",
-              }}
-            >
-              <option value="loop">Loop</option>
-              <option value="oneshot">One-shot</option>
-            </select>
-          </div>
-
-          {/* Instrument Type */}
-          <div>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "4px" }}>INSTRUMENT</div>
-            <select
-              value={sample.instrument_type}
-              onChange={(e) => onUpdateClassification(null, e.target.value)}
-              style={{
-                width: "100%",
-                padding: "4px 6px",
-                fontSize: "12px",
-                background: "#1f2937",
-                color: "#e2e8f0",
-                border: "1px solid #374151",
-                borderRadius: "2px",
-                cursor: "pointer",
-              }}
-            >
-              <option value="kick">Kick</option>
-              <option value="snare">Snare</option>
-              <option value="hihat">Hi-hat</option>
-              <option value="bass">Bass</option>
-              <option value="synth">Synth</option>
-              <option value="fx">FX</option>
-              <option value="vocal">Vocal</option>
-              <option value="percussion">Percussion</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-        </div>
-      )}
+      
 
       <div>
         <div
@@ -111,12 +82,11 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
           SPECTRAL ANALYSIS
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <AnalysisBar
-            label="LOW RATIO"
-            value={sample.low_ratio}
-            max={1}
-            color="#f97316"
-          />
+          {/* sample_rate replaces low-ratio display in the UI */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>SAMPLE RATE</div>
+            <div style={{ fontSize: "13px", color: "#4b5563" }}>{sample.sample_rate ? `${sample.sample_rate} Hz` : '—'}</div>
+          </div>
           <AnalysisBar
             label="PERIODICITY"
             value={sample.periodicity}
@@ -141,7 +111,7 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
       </div>
 
       
-      {sample.sample_type === "kick" && (
+      {sample.instrument_type === "kick" && (
         <div
           style={{
             background: "#f9731610",
@@ -270,11 +240,35 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
             />
           ))}
         </div>
-        <div
-          style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}
-        >
+        <div style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}>
           cos-sim search · HNSW ready
         </div>
+        <div style={{ marginTop: "8px", display: "flex", gap: "8px", alignItems: "center" }}>
+          <button onClick={handleRunEmbeddingSearch} style={{
+            marginTop: "8px",
+            padding: "6px 8px",
+            background: "#111827",
+            color: "#e2e8f0",
+            border: "1px solid #0f172a",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}>
+            Find similar samples
+          </button>
+          <button onClick={() => { if (typeof propsOnApplyResults === 'function') propsOnApplyResults(results); }}
+            style={{
+              marginTop: "8px",
+              padding: "6px 8px",
+              background: "transparent",
+              color: "#9ca3af",
+              border: "1px solid #1f2937",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}>
+            Apply to list
+          </button>
+        </div>
+        <EmbeddingResultsModal isOpen={resultsOpen} results={results} onClose={() => setResultsOpen(false)} onSelect={handleSelectResult} />
       </div>
 
       

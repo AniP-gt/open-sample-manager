@@ -74,6 +74,7 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         duration: Some(f64::from(result.duration_seconds)),
         bpm: result.bpm.map(|b| b.bpm),
         periodicity: result.bpm.map(|b| b.periodicity_strength),
+        sample_rate: Some(result.sample_rate as i64),
         low_ratio: result.kick.map(|k| k.low_ratio),
         attack_slope: result.kick.map(|k| k.attack_slope),
         decay_time: result.kick.map(|k| k.decay_time_ms),
@@ -231,6 +232,7 @@ mod tests {
             kick: None,
             loop_type: LoopType::OneShot,
             duration_seconds: 1.5,
+            sample_rate: 11_025u32,
         }
     }
 

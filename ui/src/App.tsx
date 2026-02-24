@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
-import type { Sample, FilterState, SortState } from "./types/sample";
+import type { Sample, FilterState, SortState, SampleType } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
 import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal } from "./components";
 
@@ -26,12 +26,11 @@ type TauriSampleRow = {
 const normalizeSampleType = (
   sampleType: string | null,
 ): Sample["sample_type"] => {
-  if (sampleType === "kick" || sampleType === "loop") {
-    return sampleType;
-  }
-
-  if (sampleType === "oneshot" || sampleType === "one-shot") {
-    return "one-shot";
+  // Top-level sample type is only loop or one-shot. If the backend sent
+  // "kick" as a sample_type historically, treat it as a one-shot at the
+  // playback level and rely on instrument_type for the actual instrument tag.
+  if (sampleType === "loop") {
+    return "loop";
   }
 
   return "one-shot";
@@ -51,10 +50,28 @@ const mapRowToSample = (row: TauriSampleRow): Sample => {
   const playbackType = row.playback_type === "loop" ? "loop" : "oneshot";
 
   // Normalize instrument_type
-  const validInstrumentTypes = ["kick", "snare", "hihat", "bass", "synth", "fx", "vocal", "percussion", "other"];
-  const instrumentType = validInstrumentTypes.includes(row.instrument_type) 
-    ? row.instrument_type as Sample["instrument_type"] 
+  const validInstrumentTypes = [
+    "kick",
+    "snare",
+    "hihat",
+    "bass",
+    "synth",
+    "fx",
+    "vocal",
+    "percussion",
+    "other",
+  ];
+
+  // Prefer explicit instrument_type from the row. If missing but the
+  // backend stored "kick" in sample_type historically, map it to the
+  // instrument_type so the UI preserves the previous classification.
+  let instrumentType = validInstrumentTypes.includes(row.instrument_type)
+    ? (row.instrument_type as Sample["instrument_type"])
     : "other";
+
+  if (instrumentType === "other" && row.sample_type === "kick") {
+    instrumentType = "kick";
+  }
 
   return {
     id: row.id,
@@ -102,6 +119,14 @@ export function App() {
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);
+  // Embedding filter state: when the user applies similarity results to the
+  // main list we keep a backup of the previous samples + samplePaths so the
+  // user can reset/unapply the filter and return to the original list.
+  const [embeddingPrevSamples, setEmbeddingPrevSamples] = useState<Sample[] | null>(null);
+  const [embeddingPrevSamplePaths, setEmbeddingPrevSamplePaths] = useState<Record<number, string> | null>(null);
+  // `embeddingFilterActive` is used by future UI affordances (badge/reset UI).
+  // Keep the variable readable by the linter until the reset control is wired.
+  const [embeddingFilterActive, setEmbeddingFilterActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(
     null,
@@ -114,8 +139,8 @@ export function App() {
   // Classification modal state
   const [classificationModalOpen, setClassificationModalOpen] = useState(false);
   const [classificationSample, setClassificationSample] = useState<Sample | null>(null);
-  const [editPlaybackType, setEditPlaybackType] = useState<string>("");
   const [editInstrumentType, setEditInstrumentType] = useState<string>("");
+  const [editSampleType, setEditSampleType] = useState<SampleType>("one-shot");
 
   // Resize handler for sidebar
   const handleMouseDown = () => {
@@ -178,14 +203,62 @@ export function App() {
 
       return nextSamples.find((sample) => sample.id === prev.id) ?? null;
     });
+    return nextSamples;
   };
+
+  // Apply embedding results to replace the main list. Kept exported internally
+  // so future UI actions can reuse it; currently not invoked from elsewhere.
+  // Keep this function available for future wiring (called from DetailPanel modal)
+  // Currently it's not invoked by other modules but preserved for UX parity.
+  const applyEmbeddingResults = (rows: any[]) => {
+    if (!rows || rows.length === 0) return;
+    // Backup current samples and paths so we can restore later
+    setEmbeddingPrevSamples(samples);
+    setEmbeddingPrevSamplePaths(samplePaths);
+    setEmbeddingFilterActive(true);
+    // Map returned rows to Sample objects using existing mapRowToSample logic
+    const mapped: Sample[] = rows
+      .map((r) => {
+        try {
+          const row: TauriSampleRow = r.row ?? r;
+          return mapRowToSample(row);
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter((s): s is Sample => s !== null);
+
+    const nextPaths: Record<number, string> = {};
+    rows.forEach((r) => {
+      const row = r.row ?? r;
+      if (row && row.id) nextPaths[row.id] = row.path;
+    });
+
+    setSamplePaths(nextPaths);
+    setSamples(mapped);
+  };
+
+  const resetEmbeddingFilter = () => {
+    if (!embeddingPrevSamples) return;
+    setSamples(embeddingPrevSamples);
+    setSamplePaths(embeddingPrevSamplePaths ?? {});
+    setEmbeddingPrevSamples(null);
+    setEmbeddingPrevSamplePaths(null);
+    setEmbeddingFilterActive(false);
+  };
+
+  // resetEmbeddingFilter removed: use embeddingPrevSamples directly to restore previous state when needed
 
   const handleInvokeError = (e: unknown) => {
     setError(getErrorMessage(e));
   };
 
   const handleSearch = async (query: string) => {
-    const action = () => runSearch(query);
+    // Wrap runSearch in a void-returning wrapper for retryAction to satisfy
+    // the expected type `() => Promise<void>` used by the retry mechanism.
+    const action = async () => {
+      await runSearch(query);
+    };
     setRetryAction(() => action);
 
     try {
@@ -315,11 +388,25 @@ export function App() {
     // Log incoming sample values to help debug modal default issues
     // (helps verify whether the sample.playback_type/instrument_type are correct when opening)
     // eslint-disable-next-line no-console
-    console.log("handleTypeClick - sample playback/instrument:", sample.playback_type, sample.instrument_type);
+    console.log(
+      "handleTypeClick - sample summary:",
+      sample.sample_type,
+      sample.playback_type,
+      sample.instrument_type,
+    );
     setClassificationSample(sample);
-    setEditPlaybackType(sample.playback_type);
+    setEditSampleType(sample.sample_type);
     setEditInstrumentType(sample.instrument_type);
     setClassificationModalOpen(true);
+  };
+
+  const handleSampleTypeSelect = (type: SampleType) => {
+    setEditSampleType(type);
+    // If the currently selected instrument was previously 'kick' but the
+    // user changed the top-level sample type, avoid leaving instrument as
+    // kick (kick is now an instrument tag). Convert it to 'other' so the
+    // user consciously selects a proper instrument if desired.
+    setEditInstrumentType((prev) => (prev === "kick" ? "other" : prev));
   };
 
   const handleClassificationSave = async () => {
@@ -329,29 +416,45 @@ export function App() {
     if (!path) return;
 
     try {
-      // Log the payload we are sending to the backend for easier tracing
+      // Build payload: send null for empty strings so Rust receives Option::None
+      // Also normalize values to allowed backend strings to avoid accidental mismatches.
+      const allowedInstruments = [
+        "kick",
+        "snare",
+        "hihat",
+        "bass",
+        "synth",
+        "fx",
+        "vocal",
+        "percussion",
+        "other",
+      ];
+      // Always send explicit values to backend. If the editing state is empty or
+      // invalid, fall back to the currently opened sample's values so backend
+      // receives a concrete value rather than `null`.
+      const payloadPlayback = editSampleType === "loop" ? "loop" : "oneshot";
+      const payloadInstrument =
+        allowedInstruments.includes(editInstrumentType)
+          ? editInstrumentType
+          : classificationSample.instrument_type;
+
+      // Debug log for the update call
       // eslint-disable-next-line no-console
-      console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: editPlaybackType, instrument_type: editInstrumentType });
+      console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: payloadPlayback, instrument_type: payloadInstrument });
 
       // Tauri command expects snake_case parameter names (playback_type, instrument_type)
-      // (was previously sending camelCase keys which do not map to the Tauri command's parameters)
       await invoke<number>("update_sample_classification", {
         path,
-        playback_type: editPlaybackType,
-        instrument_type: editInstrumentType,
+        playback_type: payloadPlayback,
+        instrument_type: payloadInstrument,
       });
-      
-      // Refresh the sample data
-      const row = await invoke<TauriSampleRow | null>("get_sample", { path });
-      if (row) {
-        const updatedSample = mapRowToSample(row);
-        setSamples((prev) =>
-          prev.map((s) => (s.id === classificationSample.id ? updatedSample : s))
-        );
-        setSelected((prev) =>
-          prev?.id === classificationSample.id ? updatedSample : prev
-        );
-      }
+
+      const refreshedList = await runSearch(filters.search);
+      const refreshedSample = refreshedList.find((s) => s.id === classificationSample.id) ?? null;
+      setSelected((prev) =>
+        prev?.id === classificationSample.id ? refreshedSample : prev
+      );
+
       setClassificationModalOpen(false);
     } catch (e) {
       handleInvokeError(e);
@@ -385,6 +488,18 @@ export function App() {
           void handleSearch(filters.search);
         }}
       />
+
+      {embeddingFilterActive && (
+        <div style={{ margin: "8px 16px", display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ color: "#c7f9ff", background: "#042f37", padding: "4px 8px", borderRadius: 4, fontSize: 12 }}>Embedding filter active</div>
+          <button
+            onClick={() => resetEmbeddingFilter()}
+            style={{ background: "#ef4444", border: "none", color: "#fff", padding: "6px 10px", borderRadius: 4, cursor: "pointer" }}
+          >
+            Reset
+          </button>
+        </div>
+      )}
 
       {error && (
         <div
@@ -473,10 +588,20 @@ export function App() {
           onDeleteSample={(id) => { void handleDeleteSample(id); }}
           onTypeClick={handleTypeClick}
         />
-        {selected && <DetailPanel 
-          sample={selected} 
-          path={samplePaths[selected.id]}
-        />}
+        {selected && (
+          <DetailPanel
+            sample={selected}
+            path={samplePaths[selected.id]}
+            onSelect={(s) => {
+              void handleSampleSelect(s);
+            }}
+            onApplyResults={(rows) => {
+               // Forward apply action to App-level handler which will backup
+               // the existing list and replace it with the similarity results.
+               applyEmbeddingResults(rows);
+             }}
+          />
+        )}
       </div>
 
       {selected && <PlayerBar sample={selected} path={samplePaths[selected.id]} />}
@@ -491,10 +616,10 @@ export function App() {
       <ClassificationEditModal
         isOpen={classificationModalOpen}
         sample={classificationSample}
-        editPlaybackType={editPlaybackType}
         editInstrumentType={editInstrumentType}
-        onPlaybackTypeChange={setEditPlaybackType}
+        editSampleType={editSampleType}
         onInstrumentTypeChange={setEditInstrumentType}
+        onSampleTypeChange={handleSampleTypeSelect}
         onSave={handleClassificationSave}
         onClose={() => setClassificationModalOpen(false)}
       />

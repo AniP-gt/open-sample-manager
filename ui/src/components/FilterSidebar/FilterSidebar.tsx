@@ -207,7 +207,6 @@ export function FilterSidebar({
 
   const typeFilters: Array<SampleType | "all"> = [
     "all",
-    "kick",
     "loop",
     "one-shot",
   ];
