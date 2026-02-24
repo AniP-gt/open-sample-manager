@@ -198,49 +198,6 @@ export function App() {
     return nextSamples;
   };
 
-  // Apply embedding results to replace the main list. Kept exported internally
-  // so future UI actions can reuse it; currently not invoked from elsewhere.
-  // Keep this function available for future wiring (called from DetailPanel modal)
-  // Currently it's not invoked by other modules but preserved for UX parity.
-  const applyEmbeddingResults = (rows: any[]) => {
-    if (!rows || rows.length === 0) return;
-    // Backup current samples and paths so we can restore later
-    setEmbeddingPrevSamples(samples);
-    setEmbeddingPrevSamplePaths(samplePaths);
-    setEmbeddingFilterActive(true);
-    // Map returned rows to Sample objects using existing mapRowToSample logic
-    const mapped: Sample[] = rows
-      .map((r) => {
-        try {
-          const row: TauriSampleRow = r.row ?? r;
-          return mapRowToSample(row);
-        } catch (e) {
-          return null;
-        }
-      })
-      .filter((s): s is Sample => s !== null);
-
-    const nextPaths: Record<number, string> = {};
-    rows.forEach((r) => {
-      const row = r.row ?? r;
-      if (row && row.id) nextPaths[row.id] = row.path;
-    });
-
-    setSamplePaths(nextPaths);
-    setSamples(mapped);
-  };
-
-  const resetEmbeddingFilter = () => {
-    if (!embeddingPrevSamples) return;
-    setSamples(embeddingPrevSamples);
-    setSamplePaths(embeddingPrevSamplePaths ?? {});
-    setEmbeddingPrevSamples(null);
-    setEmbeddingPrevSamplePaths(null);
-    setEmbeddingFilterActive(false);
-  };
-
-  // resetEmbeddingFilter removed: use embeddingPrevSamples directly to restore previous state when needed
-
   const handleInvokeError = (e: unknown) => {
     setError(getErrorMessage(e));
   };
@@ -490,18 +447,6 @@ export function App() {
         }}
       />
 
-      {embeddingFilterActive && (
-        <div style={{ margin: "8px 16px", display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ color: "#c7f9ff", background: "#042f37", padding: "4px 8px", borderRadius: 4, fontSize: 12 }}>Embedding filter active</div>
-          <button
-            onClick={() => resetEmbeddingFilter()}
-            style={{ background: "#ef4444", border: "none", color: "#fff", padding: "6px 10px", borderRadius: 4, cursor: "pointer" }}
-          >
-            Reset
-          </button>
-        </div>
-      )}
-
       {error && (
         <div
           style={{
@@ -599,11 +544,6 @@ export function App() {
             onError={(message) => {
               setError(message);
             }}
-            onApplyResults={(rows) => {
-               // Forward apply action to App-level handler which will backup
-               // the existing list and replace it with the similarity results.
-               applyEmbeddingResults(rows);
-             }}
           />
         )}
       </div>
