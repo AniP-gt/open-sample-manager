@@ -190,7 +190,7 @@ impl SampleManager {
         mut progress: impl FnMut(ScanProgress),
     ) -> Result<usize, ManagerError> {
         let dir = path.as_ref();
-        
+
         // Stage 1: Discovering files
         progress(ScanProgress {
             stage: ScanStage::Discovering,
@@ -198,10 +198,10 @@ impl SampleManager {
             total: 0,
             current_file: "Scanning directory...".to_string(),
         });
-        
+
         let files = scan_directory(dir);
         let total_files = files.len();
-        
+
         // Emit discovery complete with total count
         progress(ScanProgress {
             stage: ScanStage::Discovering,
@@ -209,24 +209,24 @@ impl SampleManager {
             total: total_files,
             current_file: format!("Found {} audio files", total_files),
         });
-        
+
         // Stage 2: Analyzing files
         let mut count = 0;
-        
+
         for (idx, file_path) in files.into_iter().enumerate() {
             let file_name = file_path
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown")
                 .to_string();
-            
+
             progress(ScanProgress {
                 stage: ScanStage::Analyzing,
                 current: idx + 1,
                 total: total_files,
                 current_file: file_name.clone(),
             });
-            
+
             match self.analyze_and_store(&file_path) {
                 Ok(_) => count += 1,
                 Err(ManagerError::Db(rusqlite::Error::SqliteFailure(err, _)))
@@ -369,7 +369,7 @@ impl SampleManager {
                 // Use provided values or fall back to existing
                 let pt = playback_type.unwrap_or_else(|| row.playback_type.clone());
                 let it = instrument_type.unwrap_or_else(|| row.instrument_type.clone());
-                
+
                 // Derive sample_type from playback_type and instrument_type
                 // If instrument_type is "kick", use "kick"
                 // Otherwise use playback_type ("loop" or "oneshot")
@@ -432,7 +432,9 @@ impl SampleManager {
 
         // Derive playback_type and instrument_type for the 2-layer classification
         // Kicks are always one-shot (playback_type = oneshot), other samples derive from loop_type
-        let playback_type = if kick_result.is_kick { "oneshot" } else {
+        let playback_type = if kick_result.is_kick {
+            "oneshot"
+        } else {
             match loop_type {
                 LoopType::Loop => "loop",
                 LoopType::OneShot => "oneshot",
@@ -483,9 +485,7 @@ fn compute_waveform_peaks(samples: &[f32], num_peaks: usize) -> String {
         }
 
         let chunk = &samples[start..end];
-        let max_abs = chunk.iter()
-            .map(|&s| s.abs())
-            .fold(0.0f32, |a, b| a.max(b));
+        let max_abs = chunk.iter().map(|&s| s.abs()).fold(0.0f32, |a, b| a.max(b));
         peaks.push(max_abs);
     }
 

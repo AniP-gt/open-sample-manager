@@ -75,8 +75,8 @@ pub struct SampleInput {
 /// Returns `rusqlite::Error` if the path already exists or any SQL error occurs.
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
     )?;
     stmt.execute(params![
         input.path,
@@ -90,6 +90,8 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
         input.sample_type,
         input.waveform_peaks,
         input.embedding,
+        input.playback_type,
+        input.instrument_type,
     ])?;
     let rowid = conn.last_insert_rowid();
 
@@ -125,8 +127,9 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
 
     let mut stmt = conn.prepare_cached(
         "UPDATE samples SET file_name = ?1, duration = ?2, bpm = ?3, periodicity = ?4,
-         low_ratio = ?5, attack_slope = ?6, decay_time = ?7, sample_type = ?8, embedding = ?9
-         WHERE path = ?10",
+         low_ratio = ?5, attack_slope = ?6, decay_time = ?7, sample_type = ?8, embedding = ?9,
+         playback_type = ?10, instrument_type = ?11
+         WHERE path = ?12",
     )?;
     let updated = stmt.execute(params![
         input.file_name,
@@ -138,6 +141,8 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         input.decay_time,
         input.sample_type,
         input.embedding,
+        input.playback_type,
+        input.instrument_type,
         input.path,
     ])?;
 
@@ -170,7 +175,7 @@ pub fn get_sample_by_path(
 ) -> Result<Option<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
          FROM samples WHERE path = ?1",
     )?;
 
@@ -213,7 +218,7 @@ pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, 
 fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
          FROM samples
          ORDER BY id",
     )?;
@@ -229,7 +234,7 @@ fn run_search_samples_query(
     let mut stmt = conn.prepare_cached(
         "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
                 s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
-                s.waveform_peaks, s.embedding, s.is_online
+                s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type
          FROM samples_fts f
          JOIN samples s ON s.id = f.rowid
          WHERE f.file_name MATCH ?1
@@ -334,6 +339,8 @@ fn row_to_sample(row: &rusqlite::Row<'_>) -> Result<SampleRow, rusqlite::Error> 
         waveform_peaks: row.get(10)?,
         embedding: row.get(11)?,
         is_online: row.get::<_, i32>(12)? != 0,
+        playback_type: row.get(13)?,
+        instrument_type: row.get(14)?,
     })
 }
 
@@ -379,6 +386,8 @@ mod tests {
             sample_type: Some("kick".to_string()),
             waveform_peaks: None,
             embedding: None,
+            playback_type: None,
+            instrument_type: None,
         }
     }
 
@@ -416,6 +425,8 @@ mod tests {
             sample_type: None,
             waveform_peaks: None,
             embedding: None,
+            playback_type: None,
+            instrument_type: None,
         };
         let id = insert_sample(&conn, &input).expect("insert with nulls failed");
         assert!(id > 0);
@@ -467,6 +478,8 @@ mod tests {
             sample_type: Some("loop".to_string()),
             waveform_peaks: None,
             embedding: Some(vec![1, 2, 3, 4]),
+            playback_type: None,
+            instrument_type: None,
         };
         let count = update_sample(&conn, &updated_input).expect("update failed");
         assert_eq!(count, 1);
