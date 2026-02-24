@@ -5,7 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
-import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal } from "./components";
+import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal } from "./components";
 
 type TauriSampleRow = {
   id: number;
@@ -19,6 +19,8 @@ type TauriSampleRow = {
   decay_time: number | null;
   sample_type: string | null;
   waveform_peaks: string | null;
+  playback_type: string;
+  instrument_type: string;
 };
 
 const normalizeSampleType = (
@@ -45,6 +47,15 @@ const mapRowToSample = (row: TauriSampleRow): Sample => {
     }
   }
 
+  // Normalize playback_type
+  const playbackType = row.playback_type === "loop" ? "loop" : "oneshot";
+
+  // Normalize instrument_type
+  const validInstrumentTypes = ["kick", "snare", "hihat", "bass", "synth", "fx", "vocal", "percussion", "other"];
+  const instrumentType = validInstrumentTypes.includes(row.instrument_type) 
+    ? row.instrument_type as Sample["instrument_type"] 
+    : "other";
+
   return {
     id: row.id,
     file_name: row.file_name,
@@ -57,6 +68,8 @@ const mapRowToSample = (row: TauriSampleRow): Sample => {
     sample_type: normalizeSampleType(row.sample_type),
     tags: [],
     waveform_peaks: waveformPeaks,
+    playback_type: playbackType,
+    instrument_type: instrumentType,
   };
 };
 
@@ -94,6 +107,14 @@ export function App() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(180);
+  const [isResizing, setIsResizing] = useState(false);
+  
+  // Classification modal state
+  const [classificationModalOpen, setClassificationModalOpen] = useState(false);
+  const [classificationSample, setClassificationSample] = useState<Sample | null>(null);
+  const [editPlaybackType, setEditPlaybackType] = useState<string>("");
+  const [editInstrumentType, setEditInstrumentType] = useState<string>("");
 
   const runSearch = async (query: string) => {
     const rows = await invoke<TauriSampleRow[]>("search_samples", { query });
@@ -106,6 +127,22 @@ export function App() {
 
     setSamplePaths(nextPaths);
     setSamples(nextSamples);
+    
+    // Extract unique parent directories from sample paths for file tree
+    const uniqueDirs = new Set<string>();
+    rows.forEach((row) => {
+      const pathParts = row.path.split("/");
+      if (pathParts.length > 1) {
+        // Get all parent directory paths
+        let currentPath = "";
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          currentPath += "/" + pathParts[i];
+          uniqueDirs.add(currentPath);
+        }
+      }
+    });
+    setScannedPaths(Array.from(uniqueDirs).sort());
+    
     setSelected((prev) => {
       if (!prev) {
         return null;
@@ -190,7 +227,6 @@ export function App() {
       try {
         await invoke<number>("scan_directory", { path: scanPath });
         setScanned(true);
-        setScannedPaths((prev) => [...prev, scanPath]);
         await runSearch(filters.search);
       } catch (e) {
         handleInvokeError(e);
@@ -247,6 +283,43 @@ export function App() {
     }
   };
 
+  const handleTypeClick = (sample: Sample) => {
+    setClassificationSample(sample);
+    setEditPlaybackType(sample.playback_type);
+    setEditInstrumentType(sample.instrument_type);
+    setClassificationModalOpen(true);
+  };
+
+  const handleClassificationSave = async () => {
+    if (!classificationSample) return;
+    
+    const path = samplePaths[classificationSample.id];
+    if (!path) return;
+
+    try {
+      await invoke<number>("update_sample_classification", {
+        path,
+        playbackType: editPlaybackType,
+        instrumentType: editInstrumentType,
+      });
+      
+      // Refresh the sample data
+      const row = await invoke<TauriSampleRow | null>("get_sample", { path });
+      if (row) {
+        const updatedSample = mapRowToSample(row);
+        setSamples((prev) =>
+          prev.map((s) => (s.id === classificationSample.id ? updatedSample : s))
+        );
+        setSelected((prev) =>
+          prev?.id === classificationSample.id ? updatedSample : prev
+        );
+      }
+      setClassificationModalOpen(false);
+    } catch (e) {
+      handleInvokeError(e);
+    }
+  };
+
   useEffect(() => {
     void handleSearch(filters.search);
   }, [filters.search]);
@@ -270,6 +343,9 @@ export function App() {
           void handleScanClick();
         }}
         onSettingsClick={() => setSettingsOpen(true)}
+        onReload={() => {
+          void handleSearch(filters.search);
+        }}
       />
 
       {error && (
@@ -316,7 +392,8 @@ export function App() {
           display: "flex",
           flex: 1,
           overflow: "hidden",
-          height: "calc(100vh - 57px)",
+          height: selected ? "calc(100vh - 57px - 160px)" : "calc(100vh - 57px)",
+          transition: "height 0.3s ease",
         }}
       >
         <FilterSidebar
@@ -335,9 +412,15 @@ export function App() {
           onSampleSelect={handleSampleSelect}
           onFilterChange={handleFilterChange}
           onDeleteSample={(id) => { void handleDeleteSample(id); }}
+          onTypeClick={handleTypeClick}
         />
-        {selected && <DetailPanel sample={selected} path={samplePaths[selected.id]} />}
+        {selected && <DetailPanel 
+          sample={selected} 
+          path={samplePaths[selected.id]}
+        />}
       </div>
+
+      {selected && <PlayerBar sample={selected} path={samplePaths[selected.id]} />}
 
       <SettingsModal
         isOpen={settingsOpen}
@@ -345,6 +428,18 @@ export function App() {
         onClearAllSamples={handleClearAllSamples}
         sampleCount={samples.length}
       />
+
+      <ClassificationEditModal
+        isOpen={classificationModalOpen}
+        sample={classificationSample}
+        editPlaybackType={editPlaybackType}
+        editInstrumentType={editInstrumentType}
+        onPlaybackTypeChange={setEditPlaybackType}
+        onInstrumentTypeChange={setEditInstrumentType}
+        onSave={handleClassificationSave}
+        onClose={() => setClassificationModalOpen(false)}
+      />
+
     </div>
   );
 }
