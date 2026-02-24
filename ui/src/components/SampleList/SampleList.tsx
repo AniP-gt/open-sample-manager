@@ -175,7 +175,18 @@ export function SampleList({
         <div />
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          // Add bottom padding when a player/waveform is visible so the
+          // last list item can be scrolled fully into view instead of
+          // being clipped by the fixed-position PlayerBar at the bottom.
+          // PlayerBar uses a fixed height of 160px; match that here.
+          paddingBottom: selectedSample ? "160px" : undefined,
+          boxSizing: "border-box",
+        }}
+      >
         {sorted.map((s, idx) => (
           <div
             key={s.id}
