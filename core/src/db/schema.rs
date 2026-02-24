@@ -74,6 +74,21 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 }
 
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
+    // Ensure legacy databases receive new columns added over time.
+    // Add `sample_rate` if missing (older DBs created before this column existed).
+    let has_sample_rate: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM PRAGMA table_info(samples) WHERE name = 'sample_rate'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+
+    if !has_sample_rate {
+        // best-effort: ignore error when column already exists or other issues
+        let _ = conn.execute("ALTER TABLE samples ADD COLUMN sample_rate INTEGER", []);
+    }
+
     let has_waveform_peaks: bool = conn
         .query_row(
             "SELECT COUNT(*) > 0 FROM PRAGMA table_info(samples) WHERE name = 'waveform_peaks'",

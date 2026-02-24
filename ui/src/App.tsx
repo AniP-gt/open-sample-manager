@@ -119,14 +119,6 @@ export function App() {
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);
-  // Embedding filter state: when the user applies similarity results to the
-  // main list we keep a backup of the previous samples + samplePaths so the
-  // user can reset/unapply the filter and return to the original list.
-  const [embeddingPrevSamples, setEmbeddingPrevSamples] = useState<Sample[] | null>(null);
-  const [embeddingPrevSamplePaths, setEmbeddingPrevSamplePaths] = useState<Record<number, string> | null>(null);
-  // `embeddingFilterActive` is used by future UI affordances (badge/reset UI).
-  // Keep the variable readable by the linter until the reset control is wired.
-  const [embeddingFilterActive, setEmbeddingFilterActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(
     null,
