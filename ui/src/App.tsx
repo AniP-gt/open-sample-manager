@@ -312,6 +312,10 @@ export function App() {
   };
 
   const handleTypeClick = (sample: Sample) => {
+    // Log incoming sample values to help debug modal default issues
+    // (helps verify whether the sample.playback_type/instrument_type are correct when opening)
+    // eslint-disable-next-line no-console
+    console.log("handleTypeClick - sample playback/instrument:", sample.playback_type, sample.instrument_type);
     setClassificationSample(sample);
     setEditPlaybackType(sample.playback_type);
     setEditInstrumentType(sample.instrument_type);
@@ -325,10 +329,16 @@ export function App() {
     if (!path) return;
 
     try {
+      // Log the payload we are sending to the backend for easier tracing
+      // eslint-disable-next-line no-console
+      console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: editPlaybackType, instrument_type: editInstrumentType });
+
+      // Tauri command expects snake_case parameter names (playback_type, instrument_type)
+      // (was previously sending camelCase keys which do not map to the Tauri command's parameters)
       await invoke<number>("update_sample_classification", {
         path,
-        playbackType: editPlaybackType,
-        instrumentType: editInstrumentType,
+        playback_type: editPlaybackType,
+        instrument_type: editInstrumentType,
       });
       
       // Refresh the sample data
@@ -433,7 +443,7 @@ export function App() {
           width={sidebarWidth}
         />
 
-        {/* Resize handle */}
+        {/* Resize handle - simple inline handle kept for now */}
         <div
           onMouseDown={handleMouseDown}
           style={{

@@ -166,6 +166,43 @@ export function FilterSidebar({
   onFilterChange,
   width = 180,
 }: FilterSidebarProps) {
+  // Height (px) of the top section (file tree). Default to 55% of sidebar height.
+  const [topHeight, setTopHeight] = useState<number | null>(null);
+  const [isDraggingHorizontal, setIsDraggingHorizontal] = useState(false);
+
+  // On mount, calculate default topHeight based on container; fallback to 260px
+  useEffect(() => {
+    // Defer until DOM available
+    const defaultHeight = 260;
+    setTopHeight((prev) => prev ?? defaultHeight);
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isDraggingHorizontal) return;
+      // Calculate mouse Y relative to sidebar top
+      const sidebarEl = document.querySelector(".filter-sidebar-root") as HTMLElement | null;
+      if (!sidebarEl) return;
+      const rect = sidebarEl.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const minTop = 80;
+      const maxTop = rect.height - 120; // leave room for controls
+      setTopHeight(Math.max(minTop, Math.min(maxTop, y)));
+    };
+
+    const onUp = () => setIsDraggingHorizontal(false);
+
+    if (isDraggingHorizontal) {
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [isDraggingHorizontal]);
+
   const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
 
   const typeFilters: Array<SampleType | "all"> = [
@@ -247,25 +284,13 @@ export function FilterSidebar({
         flexDirection: "column",
         flexShrink: 0,
       }}
+      className="filter-sidebar-root"
     >
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "12px 0",
-          borderBottom: "1px solid #1f2937",
-        }}
-      >
+      {/* Top: file tree (resizable height) */}
+      <div style={{ height: topHeight ? `${topHeight}px` : "260px", overflowY: "auto", padding: "12px 0", borderBottom: "1px solid #1f2937" }}>
         {scannedPaths.length > 0 ? (
           <>
-            <div
-              style={{
-                fontSize: "11px",
-                color: "#374151",
-                letterSpacing: "0.14em",
-                padding: "0 12px 8px",
-              }}
-            >
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>
               SCANNED FOLDERS
             </div>
             {tree.map((node) => (
@@ -280,28 +305,22 @@ export function FilterSidebar({
             ))}
           </>
         ) : (
-          <div
-            style={{
-              padding: "16px 12px",
-              fontSize: "12px",
-              color: "#4b5563",
-              fontFamily: "'Courier New', monospace",
-            }}
-          >
+          <div style={{ padding: "16px 12px", fontSize: "12px", color: "#4b5563", fontFamily: "'Courier New', monospace" }}>
             No folders scanned
           </div>
         )}
       </div>
 
+      {/* Horizontal resizer between tree and controls */}
       <div
-        style={{
-          padding: "16px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          overflowY: "auto",
-        }}
-      >
+        onMouseDown={() => setIsDraggingHorizontal(true)}
+        style={{ height: "6px", cursor: "row-resize", background: isDraggingHorizontal ? "#f97316" : "transparent" }}
+        onMouseEnter={(e) => { if (!isDraggingHorizontal) (e.currentTarget as HTMLDivElement).style.background = "#111827"; }}
+        onMouseLeave={(e) => { if (!isDraggingHorizontal) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+      />
+
+      {/* Bottom: controls (scrollable) */}
+      <div style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto" }}>
         <div>
           <div
             style={{
