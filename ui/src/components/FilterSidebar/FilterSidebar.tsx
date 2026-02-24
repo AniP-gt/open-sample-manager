@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { Sample, SampleType, FilterState } from "../../types/sample";
+import type { FilterState } from "../../types/sample";
 
 interface FilterSidebarProps {
-  samples: Sample[];
-  filters: FilterState;
   scannedPaths: string[];
   selectedPath: string | null;
   onFilterChange: (filters: Partial<FilterState>) => void;
@@ -159,8 +157,6 @@ function FileTreeItem({
 }
 
 export function FilterSidebar({
-  samples,
-  filters,
   scannedPaths,
   selectedPath,
   onFilterChange,

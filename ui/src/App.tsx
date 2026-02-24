@@ -496,8 +496,6 @@ export function App() {
         }}
       >
         <FilterSidebar
-          samples={samples}
-          filters={filters}
           scannedPaths={scannedPaths}
           selectedPath={selected ? samplePaths[selected.id] : null}
           onFilterChange={handleFilterChange}
