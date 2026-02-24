@@ -17,11 +17,10 @@ interface DetailPanelProps {
   // If provided, called after embedding search completes with the raw result
   // rows returned by the backend. Parent can choose to replace the main list
   // with these rows (apply a 'similar items' view) or ignore.
-  onApplyResults?: (rows: any[]) => void;
   onError?: (message: string) => void;
 }
 
-export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResults: propsOnApplyResults, onError: propsOnError }: DetailPanelProps) {
+export function DetailPanel({ sample, path, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
   const [resultsOpen, setResultsOpen] = useState(false);
   const [results, setResults] = useState<any[]>([]);
 
