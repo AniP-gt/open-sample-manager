@@ -1,105 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { readFile } from "@tauri-apps/plugin-fs";
 import type { Sample } from "../../types/sample";
-import { TypeBadge } from "../TypeBadge/TypeBadge";
-import { WaveformDisplay } from "../WaveformDisplay/WaveformDisplay";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 
 interface DetailPanelProps {
   sample: Sample;
   path?: string;
+  onUpdateClassification?: (playbackType: string | null, instrumentType: string | null) => void;
 }
 
-export function DetailPanel({ sample, path }: DetailPanelProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Reset state when path changes
-  useEffect(() => {
-    setPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setLoading(false);
-    setLoadError(null);
-  }, [path]);
-
-  // Create audio element when path changes
-  useEffect(() => {
-    if (!path) {
-      audioRef.current = null;
-      return;
-    }
-
-    let isMounted = true;
-    let currentAudioUrl: string | null = null;
-
-    const loadAudio = async () => {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        console.log("[Audio] Loading from path:", path);
-        // Read file as binary
-        const fileData = await readFile(path);
-        console.log("[Audio] File data length:", fileData?.length);
-        if (!isMounted) return;
-
-        // Create blob URL from binary data
-        const blob = new Blob([fileData], { type: "audio/wav" });
-        const audioUrl = URL.createObjectURL(blob);
-        currentAudioUrl = audioUrl;
-        if (!isMounted) {
-          URL.revokeObjectURL(audioUrl);
-          return;
-        }
-
-        const audio = new Audio(audioUrl);
-        audio.onended = () => setPlaying(false);
-        audio.onpause = () => setPlaying(false);
-        audio.onplay = () => setPlaying(true);
-        audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
-        audio.onloadedmetadata = () => setDuration(audio.duration);
-        audioRef.current = audio;
-        setLoading(false);
-        console.log("[Audio] Audio element created successfully");
-      } catch (err) {
-        console.error("[Audio] Failed to load audio:", err);
-        
-        // Detect file not found errors and show user-friendly message
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        const isFileNotFound = 
-          errorMessage.includes("not found") ||
-          errorMessage.includes("No such file") ||
-          errorMessage.includes("ENOENT") ||
-          errorMessage.includes("path does not exist");
-        
-        if (isFileNotFound) {
-          setLoadError("ファイルパスが見つかりません");
-        } else {
-          setLoadError(errorMessage);
-        }
-        setLoading(false);
-      }
-    };
-
-    loadAudio();
-
-    return () => {
-      isMounted = false;
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current = null;
-      }
-      if (currentAudioUrl) {
-        URL.revokeObjectURL(currentAudioUrl);
-      }
-    };
-  }, [path]);
-
+export function DetailPanel({ sample, path, onUpdateClassification }: DetailPanelProps) {
   return (
     <div
       style={{
@@ -117,173 +25,80 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
         overflowY: "auto",
       }}
     >
-      
-      <div>
+      {/* Classification Edit Section */}
+      {onUpdateClassification && (
         <div
           style={{
-            fontSize: "16px",
-            color: "#f1f5f9",
-            letterSpacing: "0.06em",
-            marginBottom: "4px",
-            lineHeight: 1.4,
+            background: "#080a0f",
+            border: "1px solid #1a1f2e",
+            borderRadius: "3px",
+            padding: "10px",
           }}
         >
-          {sample.file_name}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: "6px",
-            alignItems: "center",
-            marginBottom: "12px",
-          }}
-        >
-          <TypeBadge type={sample.sample_type} />
-          {sample.bpm && (
-            <span
-              style={{
-                fontSize: "14px",
-                color: "#22d3ee",
-                letterSpacing: "0.1em",
-              }}
-            >
-              {Math.floor(sample.bpm)} BPM
-            </span>
-          )}
-        </div>
-      </div>
-
-      
-      <div
-        style={{
-          background: "#080a0f",
-          border: "1px solid #1a1f2e",
-          borderRadius: "3px",
-          padding: "10px",
-        }}
-      >
-        <div style={{ marginBottom: "8px" }}>
-          <WaveformDisplay
-            sample={sample}
-            isPlaying={playing}
-            currentTime={currentTime}
-            duration={duration}
-            onSeek={(time) => {
-              if (audioRef.current) {
-                audioRef.current.currentTime = time;
-                setCurrentTime(time);
-              }
-            }}
-          />
-        </div>
-        
-        {/* Error message display */}
-        {loadError && (
           <div
             style={{
-              background: "#ef444420",
-              border: "1px solid #ef444450",
-              borderRadius: "3px",
-              padding: "8px",
-              marginBottom: "8px",
               fontSize: "12px",
-              color: "#fca5a5",
+              color: "#6b7280",
+              letterSpacing: "0.1em",
+              marginBottom: "8px",
             }}
           >
-            <div style={{ fontWeight: "bold", marginBottom: "4px" }}>再生できません</div>
-            <div>{loadError}</div>
-            <div style={{ marginTop: "6px", fontSize: "11px", color: "#9ca3af" }}>
-              外部メディアの場合、Driveが接続されているか確認してください
-            </div>
+            CLASSIFICATION
           </div>
-        )}
-        
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <button
-            onClick={() => {
-              console.log("[Audio] Button clicked, playing:", playing, "loading:", loading, "audioRef:", !!audioRef.current);
-              // If there's an error, clear it and try again
-              if (loadError) {
-                console.log("[Audio] Clearing error and retrying");
-                setLoadError(null);
-                return;
-              }
-              if (!audioRef.current || loading) {
-                console.log("[Audio] Cannot play: no audio ref or loading");
-                return;
-              }
-              if (playing) {
-                console.log("[Audio] Pausing");
-                audioRef.current.pause();
-              } else {
-                console.log("[Audio] Playing...");
-                audioRef.current.play().then(() => {
-                  console.log("[Audio] Play started successfully");
-                }).catch((err) => {
-                  console.error("[Audio] Play failed:", err);
-                  setLoadError(err.message);
-                });
-              }
-            }}
-            style={{
-              background: playing ? "#f97316" : loading ? "#374151" : "#1f2937",
-              border: "none",
-              borderRadius: "2px",
-              width: "28px",
-              height: "28px",
-              cursor: "pointer",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: loading ? 0.5 : 1,
-            }}
-          >
-            {loading ? (
-              <div
-                style={{
-                  width: "10px",
-                  height: "10px",
-                  border: "2px solid #fff",
-                  borderTopColor: "transparent",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite",
-                }}
-              />
-            ) : playing ? (
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <rect x="6" y="4" width="4" height="16" />
-                <rect x="14" y="4" width="4" height="16" />
-              </svg>
-            ) : (
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            )}
-          </button>
-          <span style={{ fontSize: "14px", color: "#374151" }}>
-            {sample.duration.toFixed(3)}s
-          </span>
-        </div>
-      </div>
+          
+          {/* Playback Type */}
+          <div style={{ marginBottom: "8px" }}>
+            <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "4px" }}>PLAYBACK</div>
+            <select
+              value={sample.playback_type}
+              onChange={(e) => onUpdateClassification(e.target.value, null)}
+              style={{
+                width: "100%",
+                padding: "4px 6px",
+                fontSize: "12px",
+                background: "#1f2937",
+                color: "#e2e8f0",
+                border: "1px solid #374151",
+                borderRadius: "2px",
+                cursor: "pointer",
+              }}
+            >
+              <option value="loop">Loop</option>
+              <option value="oneshot">One-shot</option>
+            </select>
+          </div>
 
-      
+          {/* Instrument Type */}
+          <div>
+            <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "4px" }}>INSTRUMENT</div>
+            <select
+              value={sample.instrument_type}
+              onChange={(e) => onUpdateClassification(null, e.target.value)}
+              style={{
+                width: "100%",
+                padding: "4px 6px",
+                fontSize: "12px",
+                background: "#1f2937",
+                color: "#e2e8f0",
+                border: "1px solid #374151",
+                borderRadius: "2px",
+                cursor: "pointer",
+              }}
+            >
+              <option value="kick">Kick</option>
+              <option value="snare">Snare</option>
+              <option value="hihat">Hi-hat</option>
+              <option value="bass">Bass</option>
+              <option value="synth">Synth</option>
+              <option value="fx">FX</option>
+              <option value="vocal">Vocal</option>
+              <option value="percussion">Percussion</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       <div>
         <div
           style={{

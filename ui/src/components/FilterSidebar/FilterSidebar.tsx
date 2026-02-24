@@ -8,6 +8,7 @@ interface FilterSidebarProps {
   scannedPaths: string[];
   selectedPath: string | null;
   onFilterChange: (filters: Partial<FilterState>) => void;
+  width?: number;
 }
 
 interface TreeNode {
@@ -163,6 +164,7 @@ export function FilterSidebar({
   scannedPaths,
   selectedPath,
   onFilterChange,
+  width = 180,
 }: FilterSidebarProps) {
   const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
 
@@ -238,7 +240,7 @@ export function FilterSidebar({
     <div
       style={{
         height: "100%",
-        width: "180px",
+        width: `${width}px`,
         borderRight: "1px solid #0f1117",
         background: "#0a0c12",
         display: "flex",

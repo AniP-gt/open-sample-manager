@@ -3,8 +3,9 @@ interface HeaderProps {
   scanned: boolean;
   onScanClick: () => void;
   onSettingsClick: () => void;
+  onReload?: () => void;
 }
-export function Header({ sampleCount, scanned, onScanClick, onSettingsClick }: HeaderProps) {
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload }: HeaderProps) {
   return (
     <div
       style={{
@@ -88,6 +89,24 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick }: H
         >
           ⚙
         </button>
+        {onReload && (
+          <button
+            onClick={onReload}
+            title="Reload file tree"
+            style={{
+              background: "transparent",
+              border: "1px solid #374151",
+              color: "#6b7280",
+              padding: "6px 10px",
+              borderRadius: "2px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontFamily: "'Courier New', monospace",
+            }}
+          >
+            ↻
+          </button>
+        )}
         <button
           onClick={onScanClick}
           style={{

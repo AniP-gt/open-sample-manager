@@ -7,7 +7,7 @@ use rusqlite::Connection;
 /// - `tags` table: stores unique tag names
 /// - `sample_tags` table: junction table for many-to-many sample-tag relationship
 /// - `watched_paths` table: stores directory paths being monitored
-/// - indices: for efficient querying on bpm, `sample_type`, and `sample_tags` relationships
+/// - indices: for efficient querying on bpm, `sample_type`, `playback_type`, `instrument_type`
 /// - `samples_fts`: FTS5 virtual table for full-text search on `file_name`
 ///
 /// # Arguments
@@ -60,6 +60,7 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
+
         CREATE INDEX IF NOT EXISTS idx_sample_tags_sid ON sample_tags(sample_id);
         CREATE INDEX IF NOT EXISTS idx_sample_tags_tid ON sample_tags(tag_id);
 
@@ -81,11 +82,30 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         .unwrap_or(false);
 
     if !has_waveform_peaks {
-        let _ = conn.execute(
-            "ALTER TABLE samples ADD COLUMN waveform_peaks TEXT",
-            [],
-        );
+        let _ = conn.execute("ALTER TABLE samples ADD COLUMN waveform_peaks TEXT", []);
     }
+    // Migration for 2-layer classification: add playback_type and instrument_type columns
+    // Use result ignore pattern to handle cases where column already exists
+    let _ = conn.execute(
+        "ALTER TABLE samples ADD COLUMN playback_type TEXT NOT NULL DEFAULT 'oneshot'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE samples ADD COLUMN instrument_type TEXT NOT NULL DEFAULT 'other'",
+        [],
+    );
+
+    // Create indices for 2-layer classification columns
+    // Use IF NOT EXISTS to handle both fresh and existing databases
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_playback_type ON samples(playback_type)",
+        [],
+    )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_instrument_type ON samples(instrument_type)",
+        [],
+    )?;
+
     Ok(())
 }
 
@@ -147,6 +167,14 @@ mod tests {
         assert!(
             indices.contains(&"idx_type".to_string()),
             "idx_type index not found"
+        );
+        assert!(
+            indices.contains(&"idx_playback_type".to_string()),
+            "idx_playback_type index not found"
+        );
+        assert!(
+            indices.contains(&"idx_instrument_type".to_string()),
+            "idx_instrument_type index not found"
         );
         assert!(
             indices.contains(&"idx_sample_tags_sid".to_string()),
@@ -256,6 +284,8 @@ mod tests {
             "attack_slope",
             "decay_time",
             "sample_type",
+            "playback_type",
+            "instrument_type",
             "embedding",
             "is_online",
         ];

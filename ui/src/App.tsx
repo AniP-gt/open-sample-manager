@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
-import type { Sample, FilterState } from "./types/sample";
+import type { Sample, FilterState, SortState } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
 import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal } from "./components";
 
@@ -98,6 +98,7 @@ export function App() {
     filterBpmMin: "",
     filterBpmMax: "",
   });
+  const [sort, setSort] = useState<SortState>({ field: "id", direction: "asc" });
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);
@@ -115,6 +116,33 @@ export function App() {
   const [classificationSample, setClassificationSample] = useState<Sample | null>(null);
   const [editPlaybackType, setEditPlaybackType] = useState<string>("");
   const [editInstrumentType, setEditInstrumentType] = useState<string>("");
+
+  // Resize handler for sidebar
+  const handleMouseDown = () => {
+    setIsResizing(true);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizing) return;
+    const newWidth = Math.max(100, Math.min(400, e.clientX));
+    setSidebarWidth(newWidth);
+  };
+
+  const handleMouseUp = () => {
+    setIsResizing(false);
+  };
+
+  // Add global event listeners for resize
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   const runSearch = async (query: string) => {
     const rows = await invoke<TauriSampleRow[]>("search_samples", { query });
@@ -402,15 +430,36 @@ export function App() {
           scannedPaths={scannedPaths}
           selectedPath={selected ? samplePaths[selected.id] : null}
           onFilterChange={handleFilterChange}
+          width={sidebarWidth}
+        />
+
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          style={{
+            width: "4px",
+            background: isResizing ? "#f97316" : "#1f2937",
+            cursor: "col-resize",
+            transition: "background 0.2s",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizing) e.currentTarget.style.background = "#374151";
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizing) e.currentTarget.style.background = "#1f2937";
+          }}
         />
 
         <SampleList
           samples={samples}
           samplePaths={samplePaths}
           filters={filters}
+          sort={sort}
           selectedSample={selected}
           onSampleSelect={handleSampleSelect}
           onFilterChange={handleFilterChange}
+          onSortChange={setSort}
           onDeleteSample={(id) => { void handleDeleteSample(id); }}
           onTypeClick={handleTypeClick}
         />

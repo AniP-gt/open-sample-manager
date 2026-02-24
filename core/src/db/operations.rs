@@ -30,6 +30,10 @@ pub struct SampleRow {
     pub embedding: Option<Vec<u8>>,
     /// Whether the file is currently accessible.
     pub is_online: bool,
+    /// Playback type: "loop" or "oneshot".
+    pub playback_type: String,
+    /// Instrument type: "kick", "snare", "hihat", "bass", "synth", "fx", "vocal", "percussion", "other".
+    pub instrument_type: String,
 }
 
 /// Parameters for inserting or updating a sample (no `id` field).
@@ -57,6 +61,10 @@ pub struct SampleInput {
     pub decay_time: Option<f64>,
     /// Feature embedding blob.
     pub embedding: Option<Vec<u8>>,
+    /// Playback type: "loop" or "oneshot".
+    pub playback_type: Option<String>,
+    /// Instrument type: "kick", "snare", etc.
+    pub instrument_type: Option<String>,
 }
 
 /// Insert a new sample into the database. Also inserts into the FTS5 index.
@@ -207,7 +215,7 @@ fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error
         "SELECT id, path, file_name, duration, bpm, periodicity, low_ratio, attack_slope,
                 decay_time, sample_type, waveform_peaks, embedding, is_online
          FROM samples
-         ORDER BY file_name",
+         ORDER BY id",
     )?;
 
     let rows = stmt.query_map([], row_to_sample)?;
@@ -565,7 +573,8 @@ mod tests {
     fn test_search_samples_empty_query_returns_all_samples() {
         let conn = setup_db();
         insert_sample(&conn, &make_input("/samples/kick.wav", "kick.wav")).expect("insert failed");
-        insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav")).expect("insert failed");
+        insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav"))
+            .expect("insert failed");
 
         // Empty query should return all samples
         let empty_results = search_samples(&conn, "").expect("search failed");
@@ -685,7 +694,6 @@ mod tests {
     }
 }
 
-
 /// Delete all samples from the database.
 ///
 /// Removes all rows from `samples`, `samples_fts`, and `sample_tags` tables.
@@ -695,13 +703,13 @@ mod tests {
 pub fn clear_all_samples(conn: &Connection) -> Result<usize, rusqlite::Error> {
     // Clear FTS index
     conn.execute("DELETE FROM samples_fts", [])?;
-    
+
     // Clear tag associations
     conn.execute("DELETE FROM sample_tags", [])?;
-    
+
     // Clear samples and get count
     let count = conn.execute("DELETE FROM samples", [])?;
-    
+
     Ok(count)
 }
 
@@ -711,7 +719,11 @@ pub fn clear_all_samples(conn: &Connection) -> Result<usize, rusqlite::Error> {
 ///
 /// # Errors
 /// Returns `rusqlite::Error` on any SQL error.
-pub fn move_sample_path(conn: &Connection, old_path: &str, new_path: &str) -> Result<usize, rusqlite::Error> {
+pub fn move_sample_path(
+    conn: &Connection,
+    old_path: &str,
+    new_path: &str,
+) -> Result<usize, rusqlite::Error> {
     // Extract new file name from new path
     let new_file_name = std::path::Path::new(new_path)
         .file_name()

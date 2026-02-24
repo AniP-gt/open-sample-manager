@@ -2,6 +2,7 @@ import type { SampleType, TypeBadgeStyle } from "../../types/sample";
 
 interface TypeBadgeProps {
   type: SampleType;
+  onClick?: () => void;
 }
 
 const TYPE_STYLES: Record<SampleType, TypeBadgeStyle> = {
@@ -10,11 +11,12 @@ const TYPE_STYLES: Record<SampleType, TypeBadgeStyle> = {
   "one-shot": { bg: "#a78bfa20", color: "#a78bfa", border: "#a78bfa50" },
 };
 
-export function TypeBadge({ type }: TypeBadgeProps) {
+export function TypeBadge({ type, onClick }: TypeBadgeProps) {
   const style = TYPE_STYLES[type] || TYPE_STYLES["one-shot"];
 
   return (
     <span
+      onClick={onClick}
       style={{
         fontSize: "14px",
         fontFamily: "'Courier New', monospace",
@@ -26,6 +28,7 @@ export function TypeBadge({ type }: TypeBadgeProps) {
         background: style.bg,
         color: style.color,
         border: `1px solid ${style.border}`,
+        cursor: onClick ? "pointer" : "default",
       }}
     >
       {type}

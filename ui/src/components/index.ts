@@ -6,5 +6,7 @@ export { Header } from "./Header/Header";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { SampleList } from "./SampleList/SampleList";
 export { DetailPanel } from "./DetailPanel/DetailPanel";
+export { PlayerBar } from "./PlayerBar/PlayerBar";
 
 export { SettingsModal } from "./SettingsModal/SettingsModal";
+export { ClassificationEditModal } from "./ClassificationEditModal/ClassificationEditModal";

@@ -1,26 +1,72 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 
-import type { FilterState, Sample } from "../../types/sample";
+import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 
 interface SampleListProps {
   samples: Sample[];
   samplePaths: Record<number, string>;
   filters: FilterState;
+  sort: SortState;
   selectedSample: Sample | null;
   onSampleSelect: (sample: Sample) => void;
   onFilterChange: (filters: Partial<FilterState>) => void;
+  onSortChange: (sort: SortState) => void;
   onDeleteSample: (id: number) => void;
+  onTypeClick?: (sample: Sample) => void;
+}
+
+function SortHeader({
+  field,
+  currentSort,
+  onSort,
+  children,
+}: {
+  field: SortField;
+  currentSort: SortState;
+  onSort: (sort: SortState) => void;
+  children: React.ReactNode;
+}) {
+  const isActive = currentSort.field === field;
+  const direction = isActive ? currentSort.direction : "asc";
+
+  return (
+    <div
+      onClick={() =>
+        onSort({
+          field,
+          direction: isActive && direction === "asc" ? "desc" : "asc",
+        })
+      }
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      {children}
+      {isActive && (
+        <span style={{ color: "#f97316", fontSize: "10px" }}>
+          {direction === "asc" ? "▲" : "▼"}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function SampleList({
   samples,
   samplePaths,
   filters,
+  sort,
   selectedSample,
   onSampleSelect,
   onFilterChange,
+  onSortChange,
   onDeleteSample,
+  onTypeClick,
 }: SampleListProps) {
   const filtered = samples.filter((s) => {
     const matchSearch =
@@ -35,6 +81,26 @@ export function SampleList({
       filters.filterBpmMax === "" ||
       (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
     return matchSearch && matchType && matchBpmMin && matchBpmMax;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    const dir = sort.direction === "asc" ? 1 : -1;
+    switch (sort.field) {
+      case "id":
+        return (a.id - b.id) * dir;
+      case "file_name":
+        return a.file_name.localeCompare(b.file_name) * dir;
+      case "sample_type":
+        return a.sample_type.localeCompare(b.sample_type) * dir;
+      case "bpm":
+        return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
+      case "duration":
+        return (a.duration - b.duration) * dir;
+      case "low_ratio":
+        return (a.low_ratio - b.low_ratio) * dir;
+      default:
+        return 0;
+    }
   });
 
   return (
@@ -85,14 +151,14 @@ export function SampleList({
             letterSpacing: "0.1em",
           }}
         >
-          {filtered.length}/{samples.length} RESULTS
+          {sorted.length}/{samples.length} RESULTS
         </span>
       </div>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "28px 1fr 80px 60px 60px 80px 40px",
+          gridTemplateColumns: "28px 1fr 100px 60px 60px 80px 40px",
           padding: "6px 16px",
           borderBottom: "1px solid #0f1117",
           fontSize: "13px",
@@ -100,17 +166,17 @@ export function SampleList({
           color: "#374151",
         }}
       >
-        <div />
-        <div>FILENAME</div>
-        <div>TYPE</div>
-        <div>BPM</div>
-        <div>DUR</div>
-        <div>LOW RATIO</div>
+        <SortHeader field="id" currentSort={sort} onSort={onSortChange}>#</SortHeader>
+        <SortHeader field="file_name" currentSort={sort} onSort={onSortChange}>FILENAME</SortHeader>
+        <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange}>TYPE / INST</SortHeader>
+        <SortHeader field="bpm" currentSort={sort} onSort={onSortChange}>BPM</SortHeader>
+        <SortHeader field="duration" currentSort={sort} onSort={onSortChange}>DUR</SortHeader>
+        <SortHeader field="low_ratio" currentSort={sort} onSort={onSortChange}>LOW RATIO</SortHeader>
         <div />
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {filtered.map((s, idx) => (
+        {sorted.map((s, idx) => (
           <div
             key={s.id}
             className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
@@ -128,7 +194,7 @@ export function SampleList({
             onClick={() => onSampleSelect(s)}
             style={{
               display: "grid",
-              gridTemplateColumns: "28px 1fr 80px 60px 60px 80px 40px",
+              gridTemplateColumns: "28px 1fr 100px 60px 60px 80px 40px",
               padding: "8px 16px",
               borderBottom: "1px solid #0d0f16",
               borderLeft:
@@ -172,8 +238,22 @@ export function SampleList({
                 ))}
               </div>
             </div>
-            <div>
-              <TypeBadge type={s.sample_type} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <TypeBadge type={s.sample_type} onClick={() => onTypeClick?.(s)} />
+              <span
+                onClick={() => onTypeClick?.(s)}
+                style={{
+                  fontSize: "10px",
+                  fontFamily: "'Courier New', monospace",
+                  fontWeight: 600,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "#f97316",
+                  cursor: "pointer",
+                }}
+              >
+                {s.instrument_type}
+              </span>
             </div>
             <div
               style={{

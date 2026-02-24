@@ -131,6 +131,19 @@ async fn move_sample(
     
     result
 }
+
+#[tauri::command]
+fn update_sample_classification(
+    path: String,
+    playback_type: Option<String>,
+    instrument_type: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager
+        .update_sample_classification(&path, playback_type, instrument_type)
+        .map_err(CommandError::from)
+}
 #[derive(Debug, Clone)]
 struct AppState {
     db_path: Option<std::path::PathBuf>,
@@ -206,7 +219,8 @@ fn main() {
             get_sample,
             delete_sample,
             clear_all_samples,
-            move_sample
+            move_sample,
+            update_sample_classification
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

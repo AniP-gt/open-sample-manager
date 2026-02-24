@@ -1,5 +1,8 @@
 export type SampleType = "kick" | "loop" | "one-shot";
 
+export type PlaybackType = "loop" | "oneshot";
+export type InstrumentType = "kick" | "snare" | "hihat" | "bass" | "synth" | "fx" | "vocal" | "percussion" | "other";
+
 export interface Sample {
   id: number;
   file_name: string;
@@ -12,6 +15,8 @@ export interface Sample {
   sample_type: SampleType;
   tags: string[];
   waveform_peaks: number[] | null;
+  playback_type: PlaybackType;
+  instrument_type: InstrumentType;
 }
 
 export interface FilterState {
@@ -19,6 +24,14 @@ export interface FilterState {
   filterType: SampleType | "all";
   filterBpmMin: string;
   filterBpmMax: string;
+}
+
+export type SortField = "id" | "file_name" | "sample_type" | "bpm" | "duration" | "low_ratio";
+export type SortDirection = "asc" | "desc";
+
+export interface SortState {
+  field: SortField;
+  direction: SortDirection;
 }
 
 export interface TypeBadgeStyle {

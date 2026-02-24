@@ -80,6 +80,8 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         sample_type,
         waveform_peaks: None,
         embedding: None,
+        playback_type: None,
+        instrument_type: None,
     }
 }
 
