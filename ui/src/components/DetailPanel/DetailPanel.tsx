@@ -175,41 +175,7 @@ export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResu
       )}
 
       
-      {sample.sample_type === "loop" && (
-        <div
-          style={{
-            background: "#22d3ee10",
-            border: "1px solid #22d3ee30",
-            borderRadius: "3px",
-            padding: "10px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "14px",
-              color: "#22d3ee",
-              letterSpacing: "0.12em",
-              marginBottom: "8px",
-            }}
-          >
-            LOOP CLASSIFIER
-          </div>
-          <div style={{ fontSize: "14px", color: "#6b7280", lineHeight: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>duration &gt; 1.0s</span>
-              <span style={{ color: "#22d3ee" }}>✓ {sample.duration.toFixed(2)}s</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>periodicity &gt; 0.3</span>
-              <span style={{ color: "#22d3ee" }}>✓ {sample.periodicity.toFixed(2)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>BPM (FFT-ACF)</span>
-              <span style={{ color: "#22d3ee" }}>{sample.bpm ? Math.floor(sample.bpm) : '—'}</span>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       
       <div>
@@ -257,18 +223,6 @@ export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResu
             cursor: "pointer",
           }}>
             Find similar samples
-          </button>
-          <button onClick={() => { if (typeof propsOnApplyResults === 'function') propsOnApplyResults(results); }}
-            style={{
-              marginTop: "8px",
-              padding: "6px 8px",
-              background: "transparent",
-              color: "#9ca3af",
-              border: "1px solid #1f2937",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}>
-            Apply to list
           </button>
         </div>
         <EmbeddingResultsModal isOpen={resultsOpen} results={results} onClose={() => setResultsOpen(false)} onSelect={handleSelectResult} />
