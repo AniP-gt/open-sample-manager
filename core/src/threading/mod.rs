@@ -7,6 +7,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use rusqlite::Connection;
 use thiserror::Error;
 
+use crate::analysis::loop_classifier::LoopType;
 use crate::analysis::AnalysisResult;
 use crate::db::operations::{insert_sample, SampleInput};
 use crate::db::schema::init_database;
@@ -58,14 +59,8 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         .unwrap_or_default();
 
     let sample_type = match result.loop_type {
-        crate::analysis::loop_classifier::LoopType::Loop => Some("loop".to_string()),
-        crate::analysis::loop_classifier::LoopType::OneShot => {
-            if result.kick.as_ref().is_some_and(|k| k.is_kick) {
-                Some("kick".to_string())
-            } else {
-                Some("oneshot".to_string())
-            }
-        }
+        LoopType::Loop => Some("loop".to_string()),
+        LoopType::OneShot => Some("oneshot".to_string()),
     };
 
     SampleInput {

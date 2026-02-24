@@ -5,17 +5,13 @@ interface TypeBadgeProps {
   onClick?: () => void;
 }
 
-const TYPE_STYLES: Record<Exclude<SampleType, "kick">, TypeBadgeStyle> & { kick?: TypeBadgeStyle } = {
+const TYPE_STYLES: Record<SampleType, TypeBadgeStyle> = {
   loop: { bg: "#22d3ee20", color: "#22d3ee", border: "#22d3ee50" },
   "one-shot": { bg: "#a78bfa20", color: "#a78bfa", border: "#a78bfa50" },
 };
 
-// Provide a runtime-safe accessor that falls back to one-shot style for unknowns
 function styleFor(type: SampleType): TypeBadgeStyle {
-  if (type === "kick") {
-    return TYPE_STYLES["one-shot"];
-  }
-  return TYPE_STYLES[type as Exclude<SampleType, "kick">];
+  return TYPE_STYLES[type] ?? TYPE_STYLES["one-shot"];
 }
 
 export function TypeBadge({ type, onClick }: TypeBadgeProps) {

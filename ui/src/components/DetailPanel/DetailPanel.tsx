@@ -18,9 +18,10 @@ interface DetailPanelProps {
   // rows returned by the backend. Parent can choose to replace the main list
   // with these rows (apply a 'similar items' view) or ignore.
   onApplyResults?: (rows: any[]) => void;
+  onError?: (message: string) => void;
 }
 
-export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResults: propsOnApplyResults }: DetailPanelProps) {
+export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResults: propsOnApplyResults, onError: propsOnError }: DetailPanelProps) {
   const [resultsOpen, setResultsOpen] = useState(false);
   const [results, setResults] = useState<any[]>([]);
 
@@ -37,7 +38,9 @@ export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResu
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error("embedding search failed", e);
-      alert("Embedding search failed: " + String(e));
+      if (typeof propsOnError === "function") {
+        propsOnError("Embedding search failed: " + String(e));
+      }
     }
   };
 
@@ -114,8 +117,8 @@ export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResu
       {sample.instrument_type === "kick" && (
         <div
           style={{
-            background: "#f9731610",
-            border: "1px solid #f9731630",
+            background: "#a78bfa15",
+            border: "1px solid #a78bfa40",
             borderRadius: "3px",
             padding: "10px",
           }}
@@ -123,7 +126,7 @@ export function DetailPanel({ sample, path, onSelect: propsOnSelect, onApplyResu
           <div
             style={{
               fontSize: "14px",
-              color: "#f97316",
+              color: "#a78bfa",
               letterSpacing: "0.12em",
               marginBottom: "8px",
             }}

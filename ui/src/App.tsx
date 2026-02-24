@@ -14,6 +14,7 @@ type TauriSampleRow = {
   duration: number | null;
   bpm: number | null;
   periodicity: number | null;
+  sample_rate: number | null;
   low_ratio: number | null;
   attack_slope: number | null;
   decay_time: number | null;
@@ -24,12 +25,10 @@ type TauriSampleRow = {
 };
 
 const normalizeSampleType = (
+  playbackType: string | null,
   sampleType: string | null,
 ): Sample["sample_type"] => {
-  // Top-level sample type is only loop or one-shot. If the backend sent
-  // "kick" as a sample_type historically, treat it as a one-shot at the
-  // playback level and rely on instrument_type for the actual instrument tag.
-  if (sampleType === "loop") {
+  if (playbackType === "loop" || sampleType === "loop") {
     return "loop";
   }
 
@@ -79,10 +78,11 @@ const mapRowToSample = (row: TauriSampleRow): Sample => {
     duration: row.duration ?? 0,
     bpm: row.bpm,
     periodicity: row.periodicity ?? 0,
+    sample_rate: row.sample_rate ?? undefined,
     low_ratio: row.low_ratio ?? 0,
     attack_slope: row.attack_slope ?? 0,
     decay_time: row.decay_time,
-    sample_type: normalizeSampleType(row.sample_type),
+    sample_type: normalizeSampleType(row.playback_type, row.sample_type),
     tags: [],
     waveform_peaks: waveformPeaks,
     playback_type: playbackType,
@@ -411,9 +411,8 @@ export function App() {
 
   const handleClassificationSave = async () => {
     if (!classificationSample) return;
-    
+
     const path = samplePaths[classificationSample.id];
-    if (!path) return;
 
     try {
       // Build payload: send null for empty strings so Rust receives Option::None
@@ -442,12 +441,22 @@ export function App() {
       // eslint-disable-next-line no-console
       console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: payloadPlayback, instrument_type: payloadInstrument });
 
-      // Tauri command expects snake_case parameter names (playback_type, instrument_type)
-      await invoke<number>("update_sample_classification", {
+      // Tauri command expects: path (String), playback_type, instrument_type
+      if (!path) {
+        setError("Sample path not available for update");
+        return;
+      }
+      const updateResult = await invoke<number>("update_sample_classification", {
         path,
         playback_type: payloadPlayback,
         instrument_type: payloadInstrument,
       });
+      // Debug output: make it obvious in renderer console and optionally alert if no rows changed.
+      // eslint-disable-next-line no-console
+      console.log("update_sample_classification result:", updateResult);
+      if (updateResult === 0) {
+        setError("Update did not apply: backend reported 0 rows changed. Check backend logs for details.");
+      }
 
       const refreshedList = await runSearch(filters.search);
       const refreshedSample = refreshedList.find((s) => s.id === classificationSample.id) ?? null;
@@ -594,6 +603,9 @@ export function App() {
             path={samplePaths[selected.id]}
             onSelect={(s) => {
               void handleSampleSelect(s);
+            }}
+            onError={(message) => {
+              setError(message);
             }}
             onApplyResults={(rows) => {
                // Forward apply action to App-level handler which will backup

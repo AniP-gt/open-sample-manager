@@ -1,7 +1,6 @@
-// Historically some records used "kick" in the sample_type field; keep it
-// in the union for backward compatibility with older DB rows and UI
-// components that may still check for it.
-export type SampleType = "loop" | "one-shot" | "kick";
+// Historically some rows stored "kick" in sample_type; the UI now normalizes
+// all non-loop samples to "one-shot" for consistency.
+export type SampleType = "loop" | "one-shot";
 
 export type PlaybackType = "loop" | "oneshot";
 

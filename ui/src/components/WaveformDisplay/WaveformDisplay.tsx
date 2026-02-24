@@ -31,14 +31,10 @@ export function WaveformDisplay({ sample, isPlaying, currentTime = 0, duration =
   }, [sample.waveform_peaks, sample.sample_type, sample.instrument_type]);
 
   const getWaveColors = () => {
-    switch (sample.instrument_type) {
-      case "kick":
-        return { base: "#f97316", glow: "#fdba74" };
-      default:
-        return sample.sample_type === "loop"
-          ? { base: "#22d3ee", glow: "#67e8f9" }
-          : { base: "#c084fc", glow: "#f0abfc" };
+    if (sample.sample_type === "loop") {
+      return { base: "#22d3ee", glow: "#67e8f9" };
     }
+    return { base: "#c084fc", glow: "#f0abfc" };
   };
 
   const { base, glow } = getWaveColors();

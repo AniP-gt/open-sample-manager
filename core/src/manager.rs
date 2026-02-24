@@ -355,7 +355,6 @@ impl SampleManager {
         crate::db::operations::search_by_embedding(&self.conn, query, k).map_err(ManagerError::Db)
     }
 
-    /// Update the classification of a sample by its path.
     ///
     /// This allows manual overriding of the auto-detected playback_type and instrument_type.
     /// Also updates the legacy sample_type field to reflect the changes.
@@ -365,26 +364,27 @@ impl SampleManager {
     /// Returns [`ManagerError::Db`] if the database cannot be updated or the sample doesn't exist.
     pub fn update_sample_classification(
         &self,
-        path: &str,
+        sample_id: Option<i64>,
+        path: Option<&str>,
         playback_type: Option<String>,
         instrument_type: Option<String>,
     ) -> Result<usize, ManagerError> {
         use crate::db::operations::SampleInput;
 
-        // First get the existing sample to preserve other fields
-        let existing = crate::db::operations::get_sample_by_path(&self.conn, path)?;
+        let existing = match sample_id {
+            Some(id) => crate::db::operations::get_sample_by_id(&self.conn, id)?,
+            None => match path {
+                Some(p) => crate::db::operations::get_sample_by_path(&self.conn, p)?,
+                None => None,
+            },
+        };
+
         match existing {
             Some(row) => {
-                // Use provided values or fall back to existing
                 let pt = playback_type.unwrap_or_else(|| row.playback_type.clone());
                 let it = instrument_type.unwrap_or_else(|| row.instrument_type.clone());
 
-                // Derive sample_type from playback_type and instrument_type
-                // If instrument_type is "kick", use "kick"
-                // Otherwise use playback_type ("loop" or "oneshot")
-                let sample_type = if it == "kick" {
-                    "kick".to_string()
-                } else if pt == "loop" {
+                let sample_type = if pt == "loop" {
                     "loop".to_string()
                 } else {
                     "oneshot".to_string()
@@ -403,8 +403,8 @@ impl SampleManager {
                     sample_type: Some(sample_type),
                     waveform_peaks: row.waveform_peaks,
                     embedding: row.embedding,
-                    playback_type: Some(pt),
-                    instrument_type: Some(it),
+                    playback_type: Some(pt.clone()),
+                    instrument_type: Some(it.clone()),
                 };
                 let updated = crate::db::operations::update_sample(&self.conn, &input)?;
                 Ok(updated)

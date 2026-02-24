@@ -24,7 +24,7 @@ pub struct SampleRow {
     pub attack_slope: Option<f64>,
     /// Decay time in ms.
     pub decay_time: Option<f64>,
-    /// Classification label (e.g. "kick", "loop", "oneshot").
+    /// Classification label ("loop" or "oneshot").
     pub sample_type: Option<String>,
     /// Waveform peaks as JSON array of floats.
     pub waveform_peaks: Option<String>,
@@ -197,6 +197,22 @@ pub fn get_sample_by_path(
     )?;
 
     stmt.query_row(params![path], row_to_sample).optional()
+}
+
+/// Retrieve a sample by its ID.
+///
+/// Returns `None` if no sample with the given ID exists.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn get_sample_by_id(conn: &Connection, id: i64) -> Result<Option<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope,
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
+         FROM samples WHERE id = ?1",
+    )?;
+
+    stmt.query_row(params![id], row_to_sample).optional()
 }
 
 /// Full-text search on sample file names using the FTS5 index.
@@ -486,7 +502,7 @@ mod tests {
             low_ratio: Some(0.65),
             attack_slope: Some(30.0),
             decay_time: Some(150.0),
-            sample_type: Some("kick".to_string()),
+            sample_type: Some("oneshot".to_string()),
             waveform_peaks: None,
             embedding: None,
             playback_type: None,
@@ -522,6 +538,7 @@ mod tests {
             duration: None,
             bpm: None,
             periodicity: None,
+            sample_rate: None,
             low_ratio: None,
             attack_slope: None,
             decay_time: None,
@@ -550,7 +567,7 @@ mod tests {
         assert_eq!(sample.path, "/samples/kick_808.wav");
         assert_eq!(sample.file_name, "kick_808.wav");
         assert_eq!(sample.bpm, Some(120.0));
-        assert_eq!(sample.sample_type, Some("kick".to_string()));
+        assert_eq!(sample.sample_type, Some("oneshot".to_string()));
         assert!(sample.is_online);
     }
 
@@ -575,6 +592,7 @@ mod tests {
             duration: Some(3.0),
             bpm: Some(140.0),
             periodicity: Some(0.9),
+            sample_rate: Some(44100),
             low_ratio: Some(0.7),
             attack_slope: Some(35.0),
             decay_time: Some(200.0),

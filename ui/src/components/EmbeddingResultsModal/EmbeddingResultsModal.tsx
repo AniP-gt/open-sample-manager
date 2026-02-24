@@ -101,7 +101,7 @@ export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Pr
                 <div style={{ color: "#d1d5db", fontSize: 15 }}>{r.row.file_name}</div>
                 <div style={{ color: "#6b7280", fontSize: 12 }}>{r.row.path}</div>
               </div>
-              <div style={{ color: "#22d3ee", fontWeight: 700 }}>{(r.similarity * 100).toFixed(1)}%</div>
+              <div style={{ color: "#22d3ee", fontWeight: 700 }}>{typeof r.similarity === "number" ? `${(r.similarity * 100).toFixed(1)}%` : "—"}</div>
             </div>
           ))}
         </div>
