@@ -4,9 +4,11 @@ import type { Sample } from "../../types/sample";
 interface WaveformDisplayProps {
   sample: Sample;
   isPlaying: boolean;
+  currentTime?: number;
+  duration?: number;
 }
 
-export function WaveformDisplay({ sample, isPlaying }: WaveformDisplayProps) {
+export function WaveformDisplay({ sample, isPlaying, currentTime = 0, duration = 1 }: WaveformDisplayProps) {
   const bars = 64;
 
   const waveData = useMemo(() => {
@@ -27,7 +29,8 @@ export function WaveformDisplay({ sample, isPlaying }: WaveformDisplayProps) {
   }, [sample.waveform_peaks, sample.sample_type]);
 
   const getBarColor = (index: number) => {
-    const isPast = isPlaying && index / bars < (Date.now() / 2000) % 1;
+    const progress = duration > 0 ? currentTime / duration : 0;
+    const isPast = isPlaying && index / bars < progress;
     if (isPast) return "#f97316";
 
     switch (sample.sample_type) {

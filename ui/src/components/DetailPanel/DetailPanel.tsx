@@ -13,14 +13,16 @@ interface DetailPanelProps {
 export function DetailPanel({ sample, path }: DetailPanelProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [tick, setTick] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Reset state when path changes
   useEffect(() => {
     setPlaying(false);
-    setTick(0);
+    setCurrentTime(0);
+    setDuration(0);
     setLoading(false);
     setLoadError(null);
   }, [path]);
@@ -58,6 +60,8 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
         audio.onended = () => setPlaying(false);
         audio.onpause = () => setPlaying(false);
         audio.onplay = () => setPlaying(true);
+        audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
+        audio.onloadedmetadata = () => setDuration(audio.duration);
         audioRef.current = audio;
         setLoading(false);
         console.log("[Audio] Audio element created successfully");
@@ -95,13 +99,6 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
       }
     };
   }, [path]);
-
-  // Animation tick while playing
-  useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => setTick((t) => t + 1), 50);
-    return () => clearInterval(id);
-  }, [playing]);
 
   return (
     <div
@@ -169,7 +166,8 @@ export function DetailPanel({ sample, path }: DetailPanelProps) {
           <WaveformDisplay
             sample={sample}
             isPlaying={playing}
-            key={`${sample.id}-${tick}`}
+            currentTime={currentTime}
+            duration={duration}
           />
         </div>
         
