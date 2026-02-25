@@ -240,8 +240,16 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {/* sample_rate replaces low-ratio display in the UI */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>SAMPLE RATE</div>
+      <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>SAMPLE RATE</div>
             <div style={{ fontSize: "13px", color: "#4b5563" }}>{sample.sample_rate ? `${sample.sample_rate} Hz` : '—'}</div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>FILE SIZE</div>
+            <div style={{ fontSize: "13px", color: "#4b5563" }}>{typeof sample.file_size === 'number' ? `${(sample.file_size/1024).toFixed(1)} KB` : '—'}</div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>ARTIST</div>
+            <div style={{ fontSize: "13px", color: "#4b5563" }}>{sample.artist ?? '—'}</div>
           </div>
           <AnalysisBar
             label="PERIODICITY"

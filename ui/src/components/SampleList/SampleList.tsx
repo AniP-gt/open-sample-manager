@@ -1,5 +1,4 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState } from "react";
 
 import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
@@ -16,6 +15,10 @@ interface SampleListProps {
   onDeleteSample: (id: number) => void;
   onTrashSample?: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
+  // Called when files/folders are dropped onto the list. Paths will be
+  // best-effort resolved from the DataTransfer payload (file.path when
+  // available, otherwise file names or URI list entries).
+  onImportPaths?: (paths: string[]) => void;
 }
 
 function SortHeader({
@@ -62,7 +65,7 @@ export type SampleListHandle = {
   focusSelected: () => void;
 };
 
-export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function SampleList(props, ref) {
+export const SampleList = forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
   const {
     samples,
     samplePaths,
@@ -76,6 +79,92 @@ export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function
     onTypeClick,
   } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounter = useRef(0);
+
+  const extractPathsFromDrop = (e: React.DragEvent) => {
+    const paths: string[] = [];
+
+    const items = e.dataTransfer?.items;
+    if (items && items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind !== "file") continue;
+        try {
+          const file = item.getAsFile();
+          if (!file) continue;
+          const maybePath = (file as File & { path?: string }).path;
+          if (maybePath) {
+            paths.push(maybePath);
+            continue;
+          }
+          // Fallback to filename when full path is unavailable in browser
+          paths.push(file.name);
+        } catch (err) {
+          // ignore
+        }
+      }
+    }
+
+    // If no paths collected, try URI list or plain text payloads
+    if (paths.length === 0) {
+      const uriList = e.dataTransfer?.getData("text/uri-list") || e.dataTransfer?.getData("text/plain") || "";
+      if (uriList) {
+        const lines = uriList.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        for (const line of lines) {
+          if (line.startsWith("file://")) {
+            try {
+              // decodeURI to handle spaces and non-ascii
+              const decoded = decodeURI(line.replace(/^file:\/\//, ""));
+              // On windows file:///C:/path -> remove leading slash if present
+              const winMatch = decoded.match(/^\/?[A-Za-z]:/);
+              const path = winMatch ? decoded.replace(/^\//, "") : decoded;
+              paths.push(path);
+            } catch {
+              paths.push(line);
+            }
+          } else {
+            paths.push(line);
+          }
+        }
+      }
+    }
+
+    // Deduplicate while preserving order
+    return Array.from(new Set(paths));
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current += 1;
+    setIsDragOver(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    try {
+      e.dataTransfer.dropEffect = "copy";
+    } catch {}
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragOver(false);
+    const paths = extractPathsFromDrop(e);
+    if (paths.length > 0) {
+      props.onImportPaths?.(paths);
+    }
+  };
 
   const filtered = samples.filter((s) => {
     const matchSearch =
@@ -149,7 +238,12 @@ export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        position: "relative",
       }}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       <div
         style={{
@@ -227,6 +321,30 @@ export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function
         }}
         ref={listRef}
       >
+        {isDragOver && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(2,6,23,0.65)",
+              zIndex: 40,
+              pointerEvents: "none",
+            }}
+          >
+            <div style={{ textAlign: "center", color: "#f1f5f9" }}>
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8 }}>
+                <path d="M12 3v10" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M8 7l4-4 4 4" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="3" y="11" width="18" height="10" rx="2" stroke="#f97316" strokeWidth="1.2" />
+              </svg>
+              <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>IMPORT</div>
+              <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>Drop files or folders to import into the library</div>
+            </div>
+          </div>
+        )}
         {/* Scroll container reference used to focus selected sample when modal selection occurs */}
         {sorted.map((s, idx) => (
           <div
@@ -236,10 +354,13 @@ export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function
             onDragStart={(e) => {
               const path = samplePaths[s.id];
               if (path) {
-                // Convert local path to file:// URL for DAW compatibility
-                const fileUrl = convertFileSrc(path);
+                // DAW compatible file:// URL (not Tauri asset URL)
+                const isWindows = path.match(/^[A-Z]:/);
+                const fileUrl = isWindows
+                  ? `file:///${path.replace(/\\/g, '/')}`
+                  : `file://${path}`;
                 e.dataTransfer.setData("text/uri-list", fileUrl);
-                e.dataTransfer.setData("text/plain", path);
+                e.dataTransfer.setData("text/plain", fileUrl);
                 e.dataTransfer.effectAllowed = "copy";
               }
             }}

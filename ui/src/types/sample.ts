@@ -23,6 +23,8 @@ export interface Sample {
   periodicity: number;
   low_ratio: number;
   sample_rate?: number; // new: sample rate in Hz
+  file_size?: number;
+  artist?: string;
   attack_slope: number;
   decay_time: number | null;
   sample_type: SampleType;

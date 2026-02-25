@@ -4,8 +4,11 @@ interface HeaderProps {
   onScanClick: () => void;
   onSettingsClick: () => void;
   onReload?: () => void;
+  // When true, show the import drop affordance (app-level drag is active)
+  isDragOver?: boolean;
 }
-export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload }: HeaderProps) {
+
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, isDragOver }: HeaderProps) {
   return (
     <div
       style={{
@@ -107,23 +110,49 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
             ↻
           </button>
         )}
-        <button
-          onClick={onScanClick}
-          style={{
-            fontSize: "15px",
-            letterSpacing: "0.1em",
-            background: "#f97316",
-            color: "#000",
-            border: "none",
-            padding: "6px 14px",
-            borderRadius: "2px",
-            cursor: "pointer",
-            fontFamily: "'Courier New', monospace",
-            fontWeight: 700,
-          }}
-        >
-          SCAN LIBRARY
-        </button>
+
+        {/* Import affordance: when dragging files over the app, show a strong
+            visual affordance in place of the scan button to indicate drop target */}
+        {isDragOver ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "6px 12px",
+              borderRadius: "3px",
+              background: "linear-gradient(90deg,#f97316,#fb923c)",
+              color: "#000",
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              boxShadow: "0 6px 18px rgba(249,115,22,0.16)",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v10" stroke="#000" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 7l4-4 4 4" stroke="#000" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            DROP TO IMPORT
+          </div>
+        ) : (
+          <button
+            onClick={onScanClick}
+            style={{
+              fontSize: "15px",
+              letterSpacing: "0.1em",
+              background: "#f97316",
+              color: "#000",
+              border: "none",
+              padding: "6px 14px",
+              borderRadius: "2px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+              fontWeight: 700,
+            }}
+          >
+            SCAN LIBRARY
+          </button>
+        )}
       </div>
     </div>
   );
