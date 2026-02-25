@@ -14,6 +14,7 @@ interface SampleListProps {
   onFilterChange: (filters: Partial<FilterState>) => void;
   onSortChange: (sort: SortState) => void;
   onDeleteSample: (id: number) => void;
+  onTrashSample?: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
 }
 
@@ -71,7 +72,7 @@ export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function
     onSampleSelect,
     onFilterChange,
     onSortChange,
-    onDeleteSample,
+    onTrashSample,
     onTypeClick,
   } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -321,23 +322,25 @@ export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function
             <div style={{ fontSize: "14px", color: "#4b5563" }}>
               {s.sample_rate ? `${s.sample_rate} Hz` : '—'}
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteSample(s.id);
-              }}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#6b7280",
-                cursor: "pointer",
-                padding: "4px",
-                fontSize: "12px",
-              }}
-              title="Remove from library"
-            >
-              X
-            </button>
+            <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTrashSample?.(s.id);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#ef4444",
+                  cursor: "pointer",
+                  padding: "4px",
+                  fontSize: "14px",
+                }}
+                title="Send to Trash"
+              >
+                🗑
+              </button>
+            </div>
           </div>
         ))}
       </div>

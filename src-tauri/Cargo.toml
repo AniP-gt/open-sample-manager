@@ -17,6 +17,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt"] }
 open-sample-manager-core = { path = "../core" }
+trash = "5"
+dirs = "4"
 
 [profile.release]
 strip = true

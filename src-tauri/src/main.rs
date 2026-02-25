@@ -111,6 +111,40 @@ fn clear_all_samples(state: tauri::State<'_, AppState>) -> Result<usize, Command
 }
 
 #[tauri::command]
+async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Result<String, CommandError> {
+    // Run the potentially blocking filesystem operation in a blocking task
+    // so the async runtime isn't blocked. Also remove DB row after successful
+    // trashing.
+    let db_path = state.db_path.clone();
+    let path_clone = path.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = open_manager(db_path.as_deref())?;
+
+        match trash::delete(&path_clone) {
+            Ok(_) => {
+                // Remove DB entry for the sample path
+                let _ = manager.delete_sample(&path_clone).map_err(CommandError::from)?;
+                Ok(path_clone)
+            }
+            Err(e) => Err(CommandError {
+                code: "io_error".to_string(),
+                message: format!("failed to move to trash: {}", e),
+                details: None,
+            }),
+        }
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+
+    result
+}
+
+#[tauri::command]
 async fn move_sample(
     old_path: String,
     new_path: String,
@@ -261,7 +295,8 @@ fn main() {
             get_sample,
             delete_sample,
             clear_all_samples,
-            move_sample,
+    move_sample,
+            send_to_trash,
             update_sample_classification
         ])
         .run(tauri::generate_context!())

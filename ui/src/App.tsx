@@ -5,7 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState, SortState, SampleType } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
-import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal } from "./components";
+import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -136,6 +136,10 @@ export function App() {
   const [editInstrumentType, setEditInstrumentType] = useState<string>("");
   const [editSampleType, setEditSampleType] = useState<SampleType>("one-shot");
 
+  // Confirm modal state for trash actions
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingTrashSampleId, setPendingTrashSampleId] = useState<number | null>(null);
+
   // Resize handler for sidebar
   const handleMouseDown = () => {
     setIsResizing(true);
@@ -162,6 +166,17 @@ export function App() {
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isResizing]);
+
+  // Listen for the SettingsModal's clear-all event and open the centralized confirm modal
+  useEffect(() => {
+    const handler = () => {
+      setConfirmOpen(true);
+      // mark a special sentinel to indicate 'clear all' rather than a single sample
+      setPendingTrashSampleId(-1);
+    };
+    window.addEventListener("confirm-clear-all", handler as EventListener);
+    return () => window.removeEventListener("confirm-clear-all", handler as EventListener);
+  }, []);
 
   const runSearch = async (query: string) => {
     const rows = await invoke<TauriSampleRow[]>("search_samples", { query });
@@ -328,6 +343,52 @@ export function App() {
     } catch (e) {
       handleInvokeError(e);
     }
+  };
+
+  const handleTrashSample = async (sampleId: number) => {
+    const path = samplePaths[sampleId];
+    if (!path) return;
+
+    try {
+      // invoke returns a promise - ConfirmModal now shows a loading state while this runs
+      await invoke<string>("send_to_trash", { path });
+      await runSearch(filters.search);
+      if (selected?.id === sampleId) {
+        setSelected(null);
+      }
+    } catch (e) {
+      handleInvokeError(e);
+    } finally {
+      // Close confirm modal after action
+      setConfirmOpen(false);
+      setPendingTrashSampleId(null);
+    }
+  };
+
+  const requestTrash = (sampleId: number) => {
+    setPendingTrashSampleId(sampleId);
+    setConfirmOpen(true);
+  };
+
+  const confirmTrash = async () => {
+    if (pendingTrashSampleId == null) return;
+    if (pendingTrashSampleId === -1) {
+      // special sentinel: clear all samples
+      try {
+        await handleClearAllSamples();
+      } finally {
+        setConfirmOpen(false);
+        setPendingTrashSampleId(null);
+      }
+      return;
+    }
+
+    await handleTrashSample(pendingTrashSampleId);
+  };
+
+  const cancelTrash = () => {
+    setPendingTrashSampleId(null);
+    setConfirmOpen(false);
   };
 
   const handleRetry = async () => {
@@ -556,6 +617,7 @@ export function App() {
           onFilterChange={handleFilterChange}
           onSortChange={setSort}
           onDeleteSample={(id) => { void handleDeleteSample(id); }}
+          onTrashSample={(id) => { requestTrash(id); }}
           onTypeClick={handleTypeClick}
         />
         {selected && (
@@ -578,11 +640,24 @@ export function App() {
 
       {selected && <PlayerBar sample={selected} path={samplePaths[selected.id]} />}
 
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onClearAllSamples={handleClearAllSamples}
-        sampleCount={samples.length}
+          <SettingsModal
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            sampleCount={samples.length}
+          />
+
+      {/* Confirm modal for trashing samples */}
+      <ConfirmModal
+        isOpen={confirmOpen}
+        title={pendingTrashSampleId === -1 ? "Clear All Samples" : "Move to Trash"}
+        message={
+          pendingTrashSampleId === -1
+            ? "Are you sure you want to clear all samples from the library index? This will remove all samples from the application's index (your sample files on disk will NOT be deleted). This action cannot be undone in the app."
+            : `Are you sure you want to move '${samples.find(s => s.id === pendingTrashSampleId)?.file_name ?? 'this file'}' to the Trash?`
+        }
+        danger={pendingTrashSampleId === -1}
+        onConfirm={async () => { await confirmTrash(); }}
+        onCancel={() => { cancelTrash(); }}
       />
 
       <ClassificationEditModal

@@ -8,9 +8,8 @@ interface SettingsModalProps {
 export function SettingsModal({
   isOpen,
   onClose,
-  onClearAllSamples,
   sampleCount,
-}: SettingsModalProps) {
+}: Omit<SettingsModalProps, 'onClearAllSamples'>) {
   if (!isOpen) return null;
 
   return (
@@ -108,17 +107,16 @@ export function SettingsModal({
             </div>
             <button
               onClick={() => {
-                if (confirm("Are you sure you want to delete all samples from the library?")) {
-                  onClearAllSamples();
-                  onClose();
-                }
+                // Open App-level confirm modal by emitting a custom event so App can handle centralized confirm
+                const event = new CustomEvent('confirm-clear-all', { detail: null });
+                window.dispatchEvent(event);
               }}
               style={{
                 fontSize: "12px",
                 letterSpacing: "0.1em",
-                background: "#7f1d1d",
-                color: "#fecaca",
-                border: "1px solid #ef444440",
+                background: "#ef4444",
+                color: "#fff",
+                border: "1px solid #ef4444",
                 padding: "8px 16px",
                 borderRadius: "2px",
                 cursor: "pointer",
