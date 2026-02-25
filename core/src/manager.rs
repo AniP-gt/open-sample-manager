@@ -19,7 +19,7 @@
 //! }
 //! ```
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
@@ -32,6 +32,10 @@ use crate::db::operations::{
 };
 use crate::db::schema::init_database;
 use crate::scanner::scan_directory;
+use crossbeam_channel::unbounded;
+use rayon::prelude::*;
+use std::panic::AssertUnwindSafe;
+use std::thread;
 /// Progress information emitted during scanning.
 #[derive(Debug, Clone)]
 pub struct ScanProgress {
@@ -211,9 +215,48 @@ impl SampleManager {
         });
 
         // Stage 2: Analyzing files
-        let mut count = 0;
+        // Stream analysis results from parallel workers to a single DB writer
+        // on this thread via a channel. This avoids sharing rusqlite::Connection
+        // across threads while allowing analysis to run concurrently and to
+        // keep memory usage bounded.
+        let mut count = 0usize;
 
-        for (idx, file_path) in files.into_iter().enumerate() {
+        // Channel to receive analysis outcomes as they complete.
+        let (tx, rx) = unbounded::<(
+            PathBuf,
+            Result<crate::db::operations::SampleInput, ManagerError>,
+        )>();
+
+        // Spawn a background thread that runs the parallel analysis. Each
+        // worker sends exactly one message (the analysis result) for its file.
+        let producer = thread::spawn(move || {
+            // Use Rayon parallel iterator to analyze files concurrently.
+            files.into_par_iter().for_each(|file_path| {
+                // Protect against panics inside analysis to ensure we still
+                // send a message for every file.
+                let outcome =
+                    std::panic::catch_unwind(AssertUnwindSafe(|| Self::analyze(&file_path)))
+                        .map_err(|_| {
+                            ManagerError::Io(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "analysis panicked",
+                            ))
+                        })
+                        .and_then(|r| r);
+
+                // Best-effort send; if the receiver is gone we simply stop.
+                let _ = tx.send((file_path, outcome));
+            });
+            // tx is dropped here when thread exits, signalling completion to receiver.
+        });
+
+        // Sequentially receive analysis results and persist them.
+        for idx in 0..total_files {
+            let (file_path, analysis_res) = match rx.recv() {
+                Ok(v) => v,
+                Err(_) => break, // channel closed unexpectedly
+            };
+
             let file_name = file_path
                 .file_name()
                 .and_then(|n| n.to_str())
@@ -227,12 +270,23 @@ impl SampleManager {
                 current_file: file_name.clone(),
             });
 
-            match self.analyze_and_store(&file_path) {
-                Ok(_) => count += 1,
-                Err(ManagerError::Db(rusqlite::Error::SqliteFailure(err, _)))
-                    if err.code == rusqlite::ErrorCode::ConstraintViolation =>
-                {
-                    // Duplicate path — skip
+            match analysis_res {
+                Ok(input) => {
+                    match insert_sample(&self.conn, &input) {
+                        Ok(_) => count += 1,
+                        Err(e) => {
+                            match e {
+                                rusqlite::Error::SqliteFailure(err, _) => {
+                                    if err.code == rusqlite::ErrorCode::ConstraintViolation {
+                                        // Duplicate path — skip
+                                    } else {
+                                        return Err(ManagerError::Db(e));
+                                    }
+                                }
+                                _ => return Err(ManagerError::Db(e)),
+                            }
+                        }
+                    }
                 }
                 Err(ManagerError::Decode(_)) => {
                     // Failed to decode — skip
@@ -240,6 +294,9 @@ impl SampleManager {
                 Err(e) => return Err(e),
             }
         }
+
+        // Ensure the producer finished.
+        let _ = producer.join();
 
         // Complete
         progress(ScanProgress {
@@ -397,6 +454,8 @@ impl SampleManager {
                     bpm: row.bpm,
                     periodicity: row.periodicity,
                     sample_rate: row.sample_rate,
+                    file_size: row.file_size,
+                    artist: row.artist,
                     low_ratio: row.low_ratio,
                     attack_slope: row.attack_slope,
                     decay_time: row.decay_time,
@@ -464,6 +523,15 @@ impl SampleManager {
         // sample_rate from decoded file
         let sample_rate = decoded.sample_rate as i64;
 
+        // Attempt to stat file size, but don't fail analysis if unavailable
+        let file_size = match std::fs::metadata(file_path) {
+            Ok(m) => Some(m.len() as i64),
+            Err(_) => None,
+        };
+
+        // Artist metadata extraction is not implemented yet; leave as None
+        let artist: Option<String> = None;
+
         // Generate 64-dim embedding from audio samples
         let emb_vec = crate::embedding::generate_embedding(&decoded.samples, decoded.sample_rate);
         // serialize f32 vec to bytes (little-endian)
@@ -479,6 +547,8 @@ impl SampleManager {
             bpm: Some(bpm_result.bpm),
             periodicity: Some(bpm_result.periodicity_strength),
             sample_rate: Some(sample_rate),
+            file_size,
+            artist,
             low_ratio: Some(kick_result.low_ratio),
             attack_slope: Some(kick_result.attack_slope),
             decay_time: Some(kick_result.decay_time_ms),
