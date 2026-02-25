@@ -139,16 +139,19 @@ fn update_sample_classification(
     instrument_type: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    // Log incoming parameters for debugging persistence issues
     eprintln!("update_sample_classification called: path={}, playback_type={:?}, instrument_type={:?}", path, playback_type, instrument_type);
     let manager = open_manager(state.db_path.as_deref())?;
-    let res = manager
+    let rows = manager
         .update_sample_classification(None, Some(path.as_str()), playback_type, instrument_type)
-        .map_err(CommandError::from);
-    if let Err(ref e) = res {
-        eprintln!("update_sample_classification error: {}", e.message);
+        .map_err(CommandError::from)?;
+    if rows == 0 {
+        return Err(CommandError {
+            code: "not_found".to_string(),
+            message: format!("no sample found at path '{}'; 0 rows updated", path),
+            details: Some("The sample may have been deleted or the path is incorrect.".to_string()),
+        });
     }
-    res
+    Ok(rows)
 }
 #[derive(Debug, Clone)]
 struct AppState {

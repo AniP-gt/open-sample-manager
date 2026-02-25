@@ -5,7 +5,9 @@
   "identifier": "com.opensamplemanager.app",
   "build": {
     "frontendDist": "../ui/dist",
-    "devUrl": "http://localhost:5173",
+    // Updated devUrl to match UI dev server port (moved from 5173 -> 5174)
+    // This avoids collisions when port 5173 is already in use on the developer machine.
+    "devUrl": "http://localhost:5174",
     "beforeDevCommand": "npm run dev --prefix ui",
     "beforeBuildCommand": "npm run build --prefix ui"
   },

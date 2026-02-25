@@ -28,6 +28,8 @@ interface DetailPanelProps {
 export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
   const [resultsOpen, setResultsOpen] = useState(false);
   const [results, setResults] = useState<any[]>([]);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const tooltipId = "find-similar-tooltip";
 
   const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
 
@@ -77,9 +79,59 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         gap: "20px",
         flexShrink: 0,
         overflowY: "auto",
+        zIndex: 2,
       }}
     >
-      
+      <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
+        <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2 }}>
+          <button
+            type="button"
+            onClick={handleRunEmbeddingSearch}
+            onMouseEnter={() => setTooltipVisible(true)}
+            onMouseLeave={() => setTooltipVisible(false)}
+            onFocus={() => setTooltipVisible(true)}
+            onBlur={() => setTooltipVisible(false)}
+            aria-describedby={tooltipId}
+            style={{
+              padding: "6px 12px",
+              background: "#111827",
+              color: "#e2e8f0",
+              border: "1px solid #0f172a",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+            }}
+          >
+            Find similar samples
+          </button>
+          <div
+            id={tooltipId}
+            role="tooltip"
+            aria-hidden={!tooltipVisible}
+            style={{
+              position: "absolute",
+              bottom: "100%",
+              left: "50%",
+              transform: "translate(-50%, -8px)",
+              padding: "6px 10px",
+              borderRadius: "8px",
+              background: "rgba(13, 20, 35, 0.95)",
+              color: "#f8fafc",
+              fontSize: "12px",
+              lineHeight: 1.3,
+              whiteSpace: "nowrap",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.55)",
+              opacity: tooltipVisible ? 1 : 0,
+              visibility: tooltipVisible ? "visible" : "hidden",
+              pointerEvents: "none",
+              transition: "opacity 150ms ease, visibility 150ms ease",
+              zIndex: 2000,
+            }}
+          >
+            Opens a floating list of cosine similarity scores for this sample.
+          </div>
+        </div>
+      </div>
 
       {/* Moved filter controls from left sidebar into the right detail panel */}
       <div>
@@ -301,19 +353,6 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         </div>
         <div style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}>
           cos-sim search · HNSW ready
-        </div>
-        <div style={{ marginTop: "8px", display: "flex", gap: "8px", alignItems: "center" }}>
-          <button onClick={handleRunEmbeddingSearch} style={{
-            marginTop: "8px",
-            padding: "6px 8px",
-            background: "#111827",
-            color: "#e2e8f0",
-            border: "1px solid #0f172a",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}>
-            Find similar samples
-          </button>
         </div>
         <EmbeddingResultsModal isOpen={resultsOpen} results={results} onClose={() => setResultsOpen(false)} onSelect={handleSelectResult} />
       </div>

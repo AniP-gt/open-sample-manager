@@ -30,6 +30,8 @@ interface Props {
 
 export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Props) {
   if (!isOpen) return null;
+  // Sort by similarity descending (highest first)
+  const sortedResults = [...results].sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
 
   return (
     <div
@@ -62,11 +64,11 @@ export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Pr
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {results.length === 0 && (
+          {sortedResults.length === 0 && (
             <div style={{ color: "#9ca3af" }}>No similar samples found.</div>
           )}
 
-          {results.map((r) => (
+          {sortedResults.map((r) => (
             <div
               key={r.row.id}
               onClick={() => onSelect(
