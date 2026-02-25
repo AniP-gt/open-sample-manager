@@ -1,4 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 
 import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
@@ -56,18 +57,25 @@ function SortHeader({
   );
 }
 
-export function SampleList({
-  samples,
-  samplePaths,
-  filters,
-  sort,
-  selectedSample,
-  onSampleSelect,
-  onFilterChange,
-  onSortChange,
-  onDeleteSample,
-  onTypeClick,
-}: SampleListProps) {
+export type SampleListHandle = {
+  focusSelected: () => void;
+};
+
+export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function SampleList(props, ref) {
+  const {
+    samples,
+    samplePaths,
+    filters,
+    sort,
+    selectedSample,
+    onSampleSelect,
+    onFilterChange,
+    onSortChange,
+    onDeleteSample,
+    onTypeClick,
+  } = props;
+  const listRef = useRef<HTMLDivElement | null>(null);
+
   const filtered = samples.filter((s) => {
     const matchSearch =
       s.file_name.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -102,6 +110,36 @@ export function SampleList({
         return 0;
     }
   });
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    // If a selectedSample exists, ensure it's scrolled into view.
+    const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row.active`);
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [selectedSample]);
+
+  useImperativeHandle(ref, () => ({
+    focusSelected: () => {
+      if (!listRef.current) return;
+      const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row.active`);
+      if (!el) return;
+      // Make the element focusable, focus it, then remove the tabindex attribute.
+      const prevTab = el.getAttribute("tabindex");
+      el.setAttribute("tabindex", "-1");
+      // Ensure DOM painted
+      requestAnimationFrame(() => {
+        try {
+          (el as HTMLElement).focus();
+        } finally {
+          if (prevTab !== null) {
+            el.setAttribute("tabindex", prevTab);
+          } else {
+            el.removeAttribute("tabindex");
+          }
+        }
+      });
+    },
+  }));
 
   return (
     <div
@@ -186,7 +224,9 @@ export function SampleList({
           paddingBottom: selectedSample ? "160px" : undefined,
           boxSizing: "border-box",
         }}
+        ref={listRef}
       >
+        {/* Scroll container reference used to focus selected sample when modal selection occurs */}
         {sorted.map((s, idx) => (
           <div
             key={s.id}
@@ -303,4 +343,4 @@ export function SampleList({
       </div>
     </div>
   );
-}
+});
