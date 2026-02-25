@@ -135,15 +135,18 @@ async fn move_sample(
 #[tauri::command]
 fn update_sample_classification(
     path: String,
-    playback_type: Option<String>,
-    instrument_type: Option<String>,
+    playback_type: String,
+    instrument_type: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    eprintln!("update_sample_classification called: path={}, playback_type={:?}, instrument_type={:?}", path, playback_type, instrument_type);
+    eprintln!("[update_sample_classification] INPUT: path='{}'", path);
+    eprintln!("[update_sample_classification] INPUT: playback_type={:?}", playback_type);
+    eprintln!("[update_sample_classification] INPUT: instrument_type={:?}", instrument_type);
     let manager = open_manager(state.db_path.as_deref())?;
     let rows = manager
-        .update_sample_classification(None, Some(path.as_str()), playback_type, instrument_type)
+        .update_sample_classification(None, Some(path.as_str()), Some(playback_type), Some(instrument_type))
         .map_err(CommandError::from)?;
+    eprintln!("[update_sample_classification] RESULT: {} rows affected", rows);
     if rows == 0 {
         return Err(CommandError {
             code: "not_found".to_string(),

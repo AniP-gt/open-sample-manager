@@ -405,8 +405,8 @@ export function App() {
       console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: payloadPlayback, instrument_type: payloadInstrument });
       const updateResult = await invoke<number>("update_sample_classification", {
         path,
-        playback_type: payloadPlayback,
-        instrument_type: payloadInstrument,
+        playbackType: payloadPlayback,
+        instrumentType: payloadInstrument,
       });
       // Debug output: make it obvious in renderer console and optionally alert if no rows changed.
       // eslint-disable-next-line no-console
