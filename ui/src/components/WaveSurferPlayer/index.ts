@@ -1,0 +1,1 @@
+export { WaveSurferPlayer } from "./WaveSurferPlayer";

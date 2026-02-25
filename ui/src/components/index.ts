@@ -1,4 +1,5 @@
 export { WaveformDisplay } from "./WaveformDisplay/WaveformDisplay";
+export { WaveSurferPlayer } from "./WaveSurferPlayer/WaveSurferPlayer";
 export { TypeBadge } from "./TypeBadge/TypeBadge";
 export { AnalysisBar } from "./AnalysisBar/AnalysisBar";
 export { ScannerOverlay } from "./ScannerOverlay/ScannerOverlay";
@@ -11,3 +12,4 @@ export { ResizeHandle } from "./ResizeHandle/ResizeHandle";
 
 export { SettingsModal } from "./SettingsModal/SettingsModal";
 export { ClassificationEditModal } from "./ClassificationEditModal/ClassificationEditModal";
+export { ConfirmModal } from "./ConfirmModal/ConfirmModal";

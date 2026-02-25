@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { readFile } from "@tauri-apps/plugin-fs";
 import type { Sample } from "../../types/sample";
-import { WaveformDisplay } from "../WaveformDisplay/WaveformDisplay";
+import { WaveSurferPlayer } from "../WaveSurferPlayer/WaveSurferPlayer";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 
 interface PlayerBarProps {
@@ -228,8 +228,9 @@ export function PlayerBar({ sample, path }: PlayerBarProps) {
 
       {/* Waveform */}
       <div style={{ flex: 1, minHeight: 0 }}>
-        <WaveformDisplay
+        <WaveSurferPlayer
           sample={sample}
+          filePath={path || ""}
           isPlaying={playing}
           currentTime={currentTime}
           duration={duration || sample.duration}
