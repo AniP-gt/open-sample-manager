@@ -70,6 +70,8 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         bpm: result.bpm.map(|b| b.bpm),
         periodicity: result.bpm.map(|b| b.periodicity_strength),
         sample_rate: Some(result.sample_rate as i64),
+        file_size: None,
+        artist: None,
         low_ratio: result.kick.map(|k| k.low_ratio),
         attack_slope: result.kick.map(|k| k.attack_slope),
         decay_time: result.kick.map(|k| k.decay_time_ms),

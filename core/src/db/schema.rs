@@ -32,6 +32,8 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             periodicity REAL,
             low_ratio REAL,
             sample_rate INTEGER,
+            file_size INTEGER,
+            artist TEXT,
             attack_slope REAL,
             decay_time REAL,
             sample_type TEXT,
@@ -87,6 +89,30 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     if !has_sample_rate {
         // best-effort: ignore error when column already exists or other issues
         let _ = conn.execute("ALTER TABLE samples ADD COLUMN sample_rate INTEGER", []);
+    }
+
+    let has_file_size: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM PRAGMA table_info(samples) WHERE name = 'file_size'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+
+    if !has_file_size {
+        let _ = conn.execute("ALTER TABLE samples ADD COLUMN file_size INTEGER", []);
+    }
+
+    let has_artist: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM PRAGMA table_info(samples) WHERE name = 'artist'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+
+    if !has_artist {
+        let _ = conn.execute("ALTER TABLE samples ADD COLUMN artist TEXT", []);
     }
 
     let has_waveform_peaks: bool = conn

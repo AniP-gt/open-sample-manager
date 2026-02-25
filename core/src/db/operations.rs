@@ -18,6 +18,10 @@ pub struct SampleRow {
     pub periodicity: Option<f64>,
     /// Sample rate in Hz.
     pub sample_rate: Option<i64>,
+    /// File size in bytes
+    pub file_size: Option<i64>,
+    /// Embedded artist metadata (if available)
+    pub artist: Option<String>,
     /// Low-band energy ratio.
     pub low_ratio: Option<f64>,
     /// Attack slope in dB/ms.
@@ -60,6 +64,10 @@ pub struct SampleInput {
     pub periodicity: Option<f64>,
     /// Sample rate in Hz.
     pub sample_rate: Option<i64>,
+    /// File size in bytes
+    pub file_size: Option<i64>,
+    /// Artist metadata if available
+    pub artist: Option<String>,
     /// Low-band energy ratio.
     pub low_ratio: Option<f64>,
     /// Classification label.
@@ -88,8 +96,8 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
     // Use COALESCE for playback_type/instrument_type so that when input provides NULL
     // the database default values ('oneshot' / 'other') are used instead of inserting NULL
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, COALESCE(?13, 'oneshot'), COALESCE(?14, 'other'))",
+        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, COALESCE(?15, 'oneshot'), COALESCE(?16, 'other'))",
     )?;
     stmt.execute(params![
         input.path,
@@ -98,6 +106,8 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
         input.bpm,
         input.periodicity,
         input.sample_rate,
+        input.file_size,
+        input.artist,
         input.low_ratio,
         input.attack_slope,
         input.decay_time,
@@ -143,9 +153,9 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
     // keep existing values by using COALESCE(?param, column)
     let mut stmt = conn.prepare_cached(
         "UPDATE samples SET file_name = ?1, duration = ?2, bpm = ?3, periodicity = ?4,
-         sample_rate = ?5, low_ratio = ?6, attack_slope = ?7, decay_time = ?8, sample_type = ?9, embedding = ?10,
-         playback_type = COALESCE(?11, playback_type), instrument_type = COALESCE(?12, instrument_type)
-         WHERE path = ?13",
+         sample_rate = ?5, file_size = ?6, artist = ?7, low_ratio = ?8, attack_slope = ?9, decay_time = ?10, sample_type = ?11, embedding = ?12,
+         playback_type = COALESCE(?13, playback_type), instrument_type = COALESCE(?14, instrument_type)
+         WHERE path = ?15",
     )?;
     let updated = stmt.execute(params![
         input.file_name,
@@ -153,6 +163,8 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         input.bpm,
         input.periodicity,
         input.sample_rate,
+        input.file_size,
+        input.artist,
         input.low_ratio,
         input.attack_slope,
         input.decay_time,
@@ -191,7 +203,7 @@ pub fn get_sample_by_path(
     path: &str,
 ) -> Result<Option<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope,
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
                 decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
          FROM samples WHERE path = ?1",
     )?;
@@ -207,7 +219,7 @@ pub fn get_sample_by_path(
 /// Returns `rusqlite::Error` on any SQL error.
 pub fn get_sample_by_id(conn: &Connection, id: i64) -> Result<Option<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope,
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
                 decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
          FROM samples WHERE id = ?1",
     )?;
@@ -281,7 +293,7 @@ pub fn search_by_embedding(
     }
 
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples WHERE embedding IS NOT NULL",
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples WHERE embedding IS NOT NULL",
     )?;
 
     let rows = stmt.query_map([], |row| row_to_sample(row))?;
@@ -334,7 +346,7 @@ pub fn search_by_embedding(
 /// List all samples in the database, ordered by file name.
 fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, low_ratio, attack_slope,
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
                 decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
          FROM samples
          ORDER BY id",
@@ -350,7 +362,7 @@ fn run_search_samples_query(
 ) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
-                s.sample_rate, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
+                s.sample_rate, s.file_size, s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
                 s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type
          FROM samples_fts f
          JOIN samples s ON s.id = f.rowid
@@ -443,22 +455,24 @@ pub fn delete_sample(conn: &Connection, path: &str) -> Result<usize, rusqlite::E
 /// Map a `rusqlite::Row` to a `SampleRow`.
 fn row_to_sample(row: &rusqlite::Row<'_>) -> Result<SampleRow, rusqlite::Error> {
     Ok(SampleRow {
-        id: row.get(0)?,
-        path: row.get(1)?,
-        file_name: row.get(2)?,
-        duration: row.get(3)?,
-        bpm: row.get(4)?,
-        periodicity: row.get(5)?,
-        sample_rate: row.get(6)?,
-        low_ratio: row.get(7)?,
-        attack_slope: row.get(8)?,
-        decay_time: row.get(9)?,
-        sample_type: row.get(10)?,
-        waveform_peaks: row.get(11)?,
-        embedding: row.get(12)?,
-        is_online: row.get::<_, i32>(13)? != 0,
-        playback_type: row.get(14)?,
-        instrument_type: row.get(15)?,
+        id: row.get::<_, i64>("id")?,
+        path: row.get::<_, String>("path")?,
+        file_name: row.get::<_, String>("file_name")?,
+        duration: row.get::<_, Option<f64>>("duration")?,
+        bpm: row.get::<_, Option<f64>>("bpm")?,
+        periodicity: row.get::<_, Option<f64>>("periodicity")?,
+        sample_rate: row.get::<_, Option<i64>>("sample_rate")?,
+        file_size: row.get::<_, Option<i64>>("file_size")?,
+        artist: row.get::<_, Option<String>>("artist")?,
+        low_ratio: row.get::<_, Option<f64>>("low_ratio")?,
+        attack_slope: row.get::<_, Option<f64>>("attack_slope")?,
+        decay_time: row.get::<_, Option<f64>>("decay_time")?,
+        sample_type: row.get::<_, Option<String>>("sample_type")?,
+        waveform_peaks: row.get::<_, Option<String>>("waveform_peaks")?,
+        embedding: row.get::<_, Option<Vec<u8>>>("embedding")?,
+        is_online: row.get::<_, i32>("is_online")? != 0,
+        playback_type: row.get::<_, String>("playback_type")?,
+        instrument_type: row.get::<_, String>("instrument_type")?,
     })
 }
 
@@ -499,6 +513,8 @@ mod tests {
             bpm: Some(120.0),
             periodicity: Some(0.85),
             sample_rate: Some(44100),
+            file_size: None,
+            artist: None,
             low_ratio: Some(0.65),
             attack_slope: Some(30.0),
             decay_time: Some(150.0),
@@ -539,6 +555,8 @@ mod tests {
             bpm: None,
             periodicity: None,
             sample_rate: None,
+            file_size: None,
+            artist: None,
             low_ratio: None,
             attack_slope: None,
             decay_time: None,
@@ -593,6 +611,8 @@ mod tests {
             bpm: Some(140.0),
             periodicity: Some(0.9),
             sample_rate: Some(44100),
+            file_size: None,
+            artist: None,
             low_ratio: Some(0.7),
             attack_slope: Some(35.0),
             decay_time: Some(200.0),
@@ -625,6 +645,8 @@ mod tests {
         let updated = SampleInput {
             playback_type: Some("loop".to_string()),
             instrument_type: Some("snare".to_string()),
+            file_size: input.file_size,
+            artist: input.artist.clone(),
             ..input.clone()
         };
 

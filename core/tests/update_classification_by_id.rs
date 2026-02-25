@@ -24,6 +24,8 @@ fn update_classification_by_id_updates_row() {
             bpm: None,
             periodicity: None,
             sample_rate: None,
+            file_size: None,
+            artist: None,
             low_ratio: None,
             attack_slope: None,
             decay_time: None,
