@@ -30,4 +30,6 @@ pub struct AnalysisResult {
     pub loop_type: LoopType,
     /// Duration of the audio file in seconds.
     pub duration_seconds: f32,
+    /// Sample rate of the decoded audio (Hz).
+    pub sample_rate: u32,
 }

@@ -6,6 +6,7 @@
     "core:default",
     "shell:allow-open",
     "dialog:allow-open",
+    "dialog:allow-message",
     {
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "**" }]

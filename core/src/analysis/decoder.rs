@@ -19,8 +19,10 @@ pub const TARGET_SAMPLE_RATE: u32 = 11_025;
 pub struct DecodedAudio {
     /// Mono samples at `sample_rate` Hz in the range [-1.0, 1.0].
     pub samples: Vec<f32>,
-    /// The actual sample rate of the decoded data (typically [`TARGET_SAMPLE_RATE`]).
+    /// The sample rate of the decoded data (typically [`TARGET_SAMPLE_RATE`]).
     pub sample_rate: u32,
+    /// The original sample rate from the source file (before downsampling).
+    pub original_sample_rate: u32,
 }
 
 /// Errors that can occur during audio decoding.
@@ -143,6 +145,7 @@ pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
     Ok(DecodedAudio {
         samples: downsampled,
         sample_rate: TARGET_SAMPLE_RATE,
+        original_sample_rate,
     })
 }
 

@@ -1,4 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 
 import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
@@ -56,18 +57,25 @@ function SortHeader({
   );
 }
 
-export function SampleList({
-  samples,
-  samplePaths,
-  filters,
-  sort,
-  selectedSample,
-  onSampleSelect,
-  onFilterChange,
-  onSortChange,
-  onDeleteSample,
-  onTypeClick,
-}: SampleListProps) {
+export type SampleListHandle = {
+  focusSelected: () => void;
+};
+
+export const SampleList = forwardRef<SampleListHandle, SampleListProps>(function SampleList(props, ref) {
+  const {
+    samples,
+    samplePaths,
+    filters,
+    sort,
+    selectedSample,
+    onSampleSelect,
+    onFilterChange,
+    onSortChange,
+    onDeleteSample,
+    onTypeClick,
+  } = props;
+  const listRef = useRef<HTMLDivElement | null>(null);
+
   const filtered = samples.filter((s) => {
     const matchSearch =
       s.file_name.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -83,9 +91,9 @@ export function SampleList({
     return matchSearch && matchType && matchBpmMin && matchBpmMax;
   });
 
-  const sorted = [...filtered].sort((a, b) => {
-    const dir = sort.direction === "asc" ? 1 : -1;
-    switch (sort.field) {
+      const sorted = [...filtered].sort((a, b) => {
+        const dir = sort.direction === "asc" ? 1 : -1;
+        switch (sort.field) {
       case "id":
         return (a.id - b.id) * dir;
       case "file_name":
@@ -96,12 +104,42 @@ export function SampleList({
         return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
       case "duration":
         return (a.duration - b.duration) * dir;
-      case "low_ratio":
-        return (a.low_ratio - b.low_ratio) * dir;
+      case "sample_rate":
+        return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
       default:
         return 0;
     }
   });
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    // If a selectedSample exists, ensure it's scrolled into view.
+    const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row.active`);
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [selectedSample]);
+
+  useImperativeHandle(ref, () => ({
+    focusSelected: () => {
+      if (!listRef.current) return;
+      const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row.active`);
+      if (!el) return;
+      // Make the element focusable, focus it, then remove the tabindex attribute.
+      const prevTab = el.getAttribute("tabindex");
+      el.setAttribute("tabindex", "-1");
+      // Ensure DOM painted
+      requestAnimationFrame(() => {
+        try {
+          (el as HTMLElement).focus();
+        } finally {
+          if (prevTab !== null) {
+            el.setAttribute("tabindex", prevTab);
+          } else {
+            el.removeAttribute("tabindex");
+          }
+        }
+      });
+    },
+  }));
 
   return (
     <div
@@ -171,11 +209,24 @@ export function SampleList({
         <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange}>TYPE / INST</SortHeader>
         <SortHeader field="bpm" currentSort={sort} onSort={onSortChange}>BPM</SortHeader>
         <SortHeader field="duration" currentSort={sort} onSort={onSortChange}>DUR</SortHeader>
-        <SortHeader field="low_ratio" currentSort={sort} onSort={onSortChange}>LOW RATIO</SortHeader>
+          <SortHeader field="sample_rate" currentSort={sort} onSort={onSortChange}>SAMPLE RATE</SortHeader>
         <div />
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          // Add bottom padding when a player/waveform is visible so the
+          // last list item can be scrolled fully into view instead of
+          // being clipped by the fixed-position PlayerBar at the bottom.
+          // PlayerBar uses a fixed height of 160px; match that here.
+          paddingBottom: selectedSample ? "160px" : undefined,
+          boxSizing: "border-box",
+        }}
+        ref={listRef}
+      >
+        {/* Scroll container reference used to focus selected sample when modal selection occurs */}
         {sorted.map((s, idx) => (
           <div
             key={s.id}
@@ -267,27 +318,8 @@ export function SampleList({
             <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div
-                style={{
-                  flex: 1,
-                  height: "3px",
-                  background: "#1f2937",
-                  borderRadius: "1px",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${s.low_ratio * 100}%`,
-                    background: s.low_ratio > 0.6 ? "#f97316" : "#4b5563",
-                    borderRadius: "1px",
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: "14px", color: "#4b5563", width: "32px" }}>
-                {(s.low_ratio * 100).toFixed(0)}%
-              </span>
+            <div style={{ fontSize: "14px", color: "#4b5563" }}>
+              {s.sample_rate ? `${s.sample_rate} Hz` : '—'}
             </div>
             <button
               onClick={(e) => {
@@ -311,4 +343,4 @@ export function SampleList({
       </div>
     </div>
   );
-}
+});

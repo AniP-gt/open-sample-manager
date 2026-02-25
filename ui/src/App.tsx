@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
-import type { Sample, FilterState, SortState } from "./types/sample";
+import type { Sample, FilterState, SortState, SampleType } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
 import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal } from "./components";
+import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
   id: number;
@@ -14,6 +15,7 @@ type TauriSampleRow = {
   duration: number | null;
   bpm: number | null;
   periodicity: number | null;
+  sample_rate: number | null;
   low_ratio: number | null;
   attack_slope: number | null;
   decay_time: number | null;
@@ -24,14 +26,11 @@ type TauriSampleRow = {
 };
 
 const normalizeSampleType = (
+  playbackType: string | null,
   sampleType: string | null,
 ): Sample["sample_type"] => {
-  if (sampleType === "kick" || sampleType === "loop") {
-    return sampleType;
-  }
-
-  if (sampleType === "oneshot" || sampleType === "one-shot") {
-    return "one-shot";
+  if (playbackType === "loop" || sampleType === "loop") {
+    return "loop";
   }
 
   return "one-shot";
@@ -51,10 +50,28 @@ const mapRowToSample = (row: TauriSampleRow): Sample => {
   const playbackType = row.playback_type === "loop" ? "loop" : "oneshot";
 
   // Normalize instrument_type
-  const validInstrumentTypes = ["kick", "snare", "hihat", "bass", "synth", "fx", "vocal", "percussion", "other"];
-  const instrumentType = validInstrumentTypes.includes(row.instrument_type) 
-    ? row.instrument_type as Sample["instrument_type"] 
+  const validInstrumentTypes = [
+    "kick",
+    "snare",
+    "hihat",
+    "bass",
+    "synth",
+    "fx",
+    "vocal",
+    "percussion",
+    "other",
+  ];
+
+  // Prefer explicit instrument_type from the row. If missing but the
+  // backend stored "kick" in sample_type historically, map it to the
+  // instrument_type so the UI preserves the previous classification.
+  let instrumentType = validInstrumentTypes.includes(row.instrument_type)
+    ? (row.instrument_type as Sample["instrument_type"])
     : "other";
+
+  if (instrumentType === "other" && row.sample_type === "kick") {
+    instrumentType = "kick";
+  }
 
   return {
     id: row.id,
@@ -62,10 +79,11 @@ const mapRowToSample = (row: TauriSampleRow): Sample => {
     duration: row.duration ?? 0,
     bpm: row.bpm,
     periodicity: row.periodicity ?? 0,
+    sample_rate: row.sample_rate ?? undefined,
     low_ratio: row.low_ratio ?? 0,
     attack_slope: row.attack_slope ?? 0,
     decay_time: row.decay_time,
-    sample_type: normalizeSampleType(row.sample_type),
+    sample_type: normalizeSampleType(row.playback_type, row.sample_type),
     tags: [],
     waveform_peaks: waveformPeaks,
     playback_type: playbackType,
@@ -110,12 +128,13 @@ export function App() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(180);
   const [isResizing, setIsResizing] = useState(false);
+  const sampleListRef = useRef<SampleListHandle | null>(null);
   
   // Classification modal state
   const [classificationModalOpen, setClassificationModalOpen] = useState(false);
   const [classificationSample, setClassificationSample] = useState<Sample | null>(null);
-  const [editPlaybackType, setEditPlaybackType] = useState<string>("");
   const [editInstrumentType, setEditInstrumentType] = useState<string>("");
+  const [editSampleType, setEditSampleType] = useState<SampleType>("one-shot");
 
   // Resize handler for sidebar
   const handleMouseDown = () => {
@@ -178,6 +197,7 @@ export function App() {
 
       return nextSamples.find((sample) => sample.id === prev.id) ?? null;
     });
+    return nextSamples;
   };
 
   const handleInvokeError = (e: unknown) => {
@@ -185,7 +205,11 @@ export function App() {
   };
 
   const handleSearch = async (query: string) => {
-    const action = () => runSearch(query);
+    // Wrap runSearch in a void-returning wrapper for retryAction to satisfy
+    // the expected type `() => Promise<void>` used by the retry mechanism.
+    const action = async () => {
+      await runSearch(query);
+    };
     setRetryAction(() => action);
 
     try {
@@ -203,8 +227,18 @@ export function App() {
   const handleSampleSelect = async (sample: Sample) => {
     const path = samplePaths[sample.id];
 
+    // Immediately set the selected sample so the SampleList can focus/scroll
+    // to the row right away. We will refresh/replace the selected item with
+    // the backend's canonical row once the invoke completes.
+    setSelected(sample);
+    // After updating selection state, ensure the SampleList focuses the selected row.
+    // Use requestAnimationFrame so the DOM updates have a chance to paint before
+    // attempting to focus the element.
+    requestAnimationFrame(() => {
+      sampleListRef.current?.focusSelected?.();
+    });
+
     if (!path) {
-      setSelected(sample);
       return;
     }
 
@@ -212,7 +246,7 @@ export function App() {
       const row = await invoke<TauriSampleRow | null>("get_sample", { path });
 
       if (!row) {
-        setSelected(sample);
+        // Keep the optimistic selection; backend didn't return details.
         return;
       }
 
@@ -315,46 +349,88 @@ export function App() {
     // Log incoming sample values to help debug modal default issues
     // (helps verify whether the sample.playback_type/instrument_type are correct when opening)
     // eslint-disable-next-line no-console
-    console.log("handleTypeClick - sample playback/instrument:", sample.playback_type, sample.instrument_type);
+    console.log(
+      "handleTypeClick - sample summary:",
+      sample.sample_type,
+      sample.playback_type,
+      sample.instrument_type,
+    );
     setClassificationSample(sample);
-    setEditPlaybackType(sample.playback_type);
+    setEditSampleType(sample.sample_type);
     setEditInstrumentType(sample.instrument_type);
     setClassificationModalOpen(true);
   };
 
+  const handleSampleTypeSelect = (type: SampleType) => {
+    setEditSampleType(type);
+    // If the currently selected instrument was previously 'kick' but the
+    // user changed the top-level sample type, avoid leaving instrument as
+    // kick (kick is now an instrument tag). Convert it to 'other' so the
+    // user consciously selects a proper instrument if desired.
+    setEditInstrumentType((prev) => (prev === "kick" ? "other" : prev));
+  };
+
   const handleClassificationSave = async () => {
     if (!classificationSample) return;
-    
     const path = samplePaths[classificationSample.id];
-    if (!path) return;
+
+    // Early exit for missing path
+    if (!path) {
+      setError("Sample path not available for update");
+      return;
+    }
 
     try {
-      // Log the payload we are sending to the backend for easier tracing
-      // eslint-disable-next-line no-console
-      console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: editPlaybackType, instrument_type: editInstrumentType });
-
-      // Tauri command expects snake_case parameter names (playback_type, instrument_type)
-      // (was previously sending camelCase keys which do not map to the Tauri command's parameters)
-      await invoke<number>("update_sample_classification", {
+      // Build payload: send null for empty strings so Rust receives Option::None
+      // Also normalize values to allowed backend strings to avoid accidental mismatches.
+      const allowedInstruments = [
+        "kick",
+        "snare",
+        "hihat",
+        "bass",
+        "synth",
+        "fx",
+        "vocal",
+        "percussion",
+        "other",
+      ];
+      // Always send explicit values to backend. If the editing state is empty or
+      // invalid, fall back to the currently opened sample's values so backend
+      // receives a concrete value rather than `null`.
+      const payloadPlayback = editSampleType === "loop" ? "loop" : "oneshot";
+      const payloadInstrument =
+        allowedInstruments.includes(editInstrumentType)
+          ? editInstrumentType
+          : classificationSample.instrument_type;
+      console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: payloadPlayback, instrument_type: payloadInstrument });
+      const updateResult = await invoke<number>("update_sample_classification", {
         path,
-        playback_type: editPlaybackType,
-        instrument_type: editInstrumentType,
+        playbackType: payloadPlayback,
+        instrumentType: payloadInstrument,
       });
-      
-      // Refresh the sample data
-      const row = await invoke<TauriSampleRow | null>("get_sample", { path });
-      if (row) {
-        const updatedSample = mapRowToSample(row);
-        setSamples((prev) =>
-          prev.map((s) => (s.id === classificationSample.id ? updatedSample : s))
-        );
-        setSelected((prev) =>
-          prev?.id === classificationSample.id ? updatedSample : prev
-        );
+      // Debug output: make it obvious in renderer console and optionally alert if no rows changed.
+      // eslint-disable-next-line no-console
+      console.log("update_sample_classification result:", updateResult);
+      if (updateResult === 0) {
+        setError("Sample not found in database. The file may have been moved or deleted.");
+        return;
       }
+      const refreshedList = await runSearch(filters.search);
+      console.log("refreshedList length:", refreshedList.length);
+      const refreshedSample = refreshedList.find((s) => s.id === classificationSample.id) ?? null;
+      console.log("refreshedSample:", refreshedSample);
+      console.log("classificationSample.id:", classificationSample.id);
+      console.log("samples state length:", samples.length);
+      console.log("sample with same id in samples:", samples.find(s => s.id === classificationSample.id));
+      console.log("refreshedSample.sample_type:", refreshedSample?.sample_type);
+      console.log("refreshedSample.playback_type:", refreshedSample?.playback_type);
+      setSelected((prev) =>
+        prev?.id === classificationSample.id ? refreshedSample : prev
+      );
       setClassificationModalOpen(false);
     } catch (e) {
-      handleInvokeError(e);
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      setError(`Failed to save: ${errorMsg}`);
     }
   };
 
@@ -421,9 +497,9 @@ export function App() {
         </div>
       )}
 
-      {scanning && (
-        <ScannerOverlay progress={scanProgress} onDone={() => {}} />
-      )}
+        {scanning && (
+          <ScannerOverlay progress={scanProgress} onDone={() => {}} />
+        )}
 
       <div
         style={{
@@ -435,12 +511,20 @@ export function App() {
         }}
       >
         <FilterSidebar
-          samples={samples}
-          filters={filters}
           scannedPaths={scannedPaths}
+          filePaths={samples.map((s) => samplePaths[s.id]).filter(Boolean)}
           selectedPath={selected ? samplePaths[selected.id] : null}
           onFilterChange={handleFilterChange}
+          onPathSelect={(path) => {
+            // When a file path is clicked in the sidebar, find the corresponding
+            // sample (by matching samplePaths) and focus/select it in the list.
+            const matching = samples.find((s) => samplePaths[s.id] === path);
+            if (matching) {
+              void handleSampleSelect(matching);
+            }
+          }}
           width={sidebarWidth}
+          bottomInset={selected ? 160 : 0}
         />
 
         {/* Resize handle - simple inline handle kept for now */}
@@ -462,6 +546,7 @@ export function App() {
         />
 
         <SampleList
+          ref={sampleListRef}
           samples={samples}
           samplePaths={samplePaths}
           filters={filters}
@@ -473,10 +558,22 @@ export function App() {
           onDeleteSample={(id) => { void handleDeleteSample(id); }}
           onTypeClick={handleTypeClick}
         />
-        {selected && <DetailPanel 
-          sample={selected} 
-          path={samplePaths[selected.id]}
-        />}
+        {selected && (
+          <DetailPanel
+            sample={selected}
+            path={samplePaths[selected.id]}
+            onSelect={(s) => {
+              void handleSampleSelect(s);
+            }}
+            // Provide moved filter controls data + handler so DetailPanel can render them
+            samples={samples}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onError={(message) => {
+              setError(message);
+            }}
+          />
+        )}
       </div>
 
       {selected && <PlayerBar sample={selected} path={samplePaths[selected.id]} />}
@@ -491,10 +588,10 @@ export function App() {
       <ClassificationEditModal
         isOpen={classificationModalOpen}
         sample={classificationSample}
-        editPlaybackType={editPlaybackType}
         editInstrumentType={editInstrumentType}
-        onPlaybackTypeChange={setEditPlaybackType}
+        editSampleType={editSampleType}
         onInstrumentTypeChange={setEditInstrumentType}
+        onSampleTypeChange={handleSampleTypeSelect}
         onSave={handleClassificationSave}
         onClose={() => setClassificationModalOpen(false)}
       />

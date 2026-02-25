@@ -21,24 +21,20 @@ export function WaveformDisplay({ sample, isPlaying, currentTime = 0, duration =
     return Array.from({ length: bars }, (_, i) => {
       const x = i / bars;
       const base =
-        sample.sample_type === "kick"
-          ? Math.exp(-x * 6) * (0.7 + Math.random() * 0.3)
-          : sample.sample_type === "loop"
+      sample.instrument_type === "kick"
+        ? Math.exp(-x * 6) * (0.7 + Math.random() * 0.3)
+        : sample.sample_type === "loop"
           ? 0.3 + Math.sin(x * Math.PI * 8) * 0.25 + Math.random() * 0.2
           : Math.exp(-x * 3) * (0.5 + Math.random() * 0.4);
       return Math.max(0.04, base);
     });
-  }, [sample.waveform_peaks, sample.sample_type]);
+  }, [sample.waveform_peaks, sample.sample_type, sample.instrument_type]);
 
   const getWaveColors = () => {
-    switch (sample.sample_type) {
-      case "kick":
-        return { base: "#f97316", glow: "#fdba74" };
-      case "loop":
-        return { base: "#22d3ee", glow: "#67e8f9" };
-      default:
-        return { base: "#c084fc", glow: "#f0abfc" };
+    if (sample.sample_type === "loop") {
+      return { base: "#22d3ee", glow: "#67e8f9" };
     }
+    return { base: "#c084fc", glow: "#f0abfc" };
   };
 
   const { base, glow } = getWaveColors();

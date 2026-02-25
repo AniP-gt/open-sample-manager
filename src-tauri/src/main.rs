@@ -135,14 +135,26 @@ async fn move_sample(
 #[tauri::command]
 fn update_sample_classification(
     path: String,
-    playback_type: Option<String>,
-    instrument_type: Option<String>,
+    playback_type: String,
+    instrument_type: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
+    eprintln!("[update_sample_classification] INPUT: path='{}'", path);
+    eprintln!("[update_sample_classification] INPUT: playback_type={:?}", playback_type);
+    eprintln!("[update_sample_classification] INPUT: instrument_type={:?}", instrument_type);
     let manager = open_manager(state.db_path.as_deref())?;
-    manager
-        .update_sample_classification(&path, playback_type, instrument_type)
-        .map_err(CommandError::from)
+    let rows = manager
+        .update_sample_classification(None, Some(path.as_str()), Some(playback_type), Some(instrument_type))
+        .map_err(CommandError::from)?;
+    eprintln!("[update_sample_classification] RESULT: {} rows affected", rows);
+    if rows == 0 {
+        return Err(CommandError {
+            code: "not_found".to_string(),
+            message: format!("no sample found at path '{}'; 0 rows updated", path),
+            details: Some("The sample may have been deleted or the path is incorrect.".to_string()),
+        });
+    }
+    Ok(rows)
 }
 #[derive(Debug, Clone)]
 struct AppState {
@@ -195,6 +207,35 @@ fn open_manager(db_path: Option<&std::path::Path>) -> Result<SampleManager, Comm
     Ok(manager)
 }
 
+#[tauri::command]
+fn search_by_embedding(
+    path: String,
+    k: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::EmbeddingSearchResult>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+
+    let sample = manager
+        .get_sample(&path)
+        .map_err(CommandError::from)?
+        .ok_or(CommandError { code: "not_found".to_string(), message: "sample not found".to_string(), details: None })?;
+
+    let emb_blob = sample.embedding.ok_or(CommandError { code: "no_embedding".to_string(), message: "sample has no embedding".to_string(), details: None })?;
+    if emb_blob.len() % 4 != 0 {
+        return Err(CommandError { code: "invalid_embedding".to_string(), message: "embedding blob invalid".to_string(), details: None });
+    }
+    let dim = emb_blob.len() / 4;
+    let mut vec: Vec<f32> = Vec::with_capacity(dim);
+    for i in 0..dim {
+        let off = i * 4;
+        let bytes: [u8; 4] = [emb_blob[off], emb_blob[off + 1], emb_blob[off + 2], emb_blob[off + 3]];
+        vec.push(f32::from_le_bytes(bytes));
+    }
+
+    let results = manager.search_by_embedding(&vec, k).map_err(CommandError::from)?;
+    Ok(results)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -216,6 +257,7 @@ fn main() {
             health_check,
             scan_directory,
             search_samples,
+            search_by_embedding,
             get_sample,
             delete_sample,
             clear_all_samples,

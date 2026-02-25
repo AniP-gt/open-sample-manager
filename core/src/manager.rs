@@ -346,7 +346,15 @@ impl SampleManager {
         Ok(new_path.to_string())
     }
 
-    /// Update the classification of a sample by its path.
+    /// Semantic search by embedding: return top-k samples similar to `query`.
+    pub fn search_by_embedding(
+        &self,
+        query: &[f32],
+        k: usize,
+    ) -> Result<Vec<crate::db::operations::EmbeddingSearchResult>, ManagerError> {
+        crate::db::operations::search_by_embedding(&self.conn, query, k).map_err(ManagerError::Db)
+    }
+
     ///
     /// This allows manual overriding of the auto-detected playback_type and instrument_type.
     /// Also updates the legacy sample_type field to reflect the changes.
@@ -356,26 +364,27 @@ impl SampleManager {
     /// Returns [`ManagerError::Db`] if the database cannot be updated or the sample doesn't exist.
     pub fn update_sample_classification(
         &self,
-        path: &str,
+        sample_id: Option<i64>,
+        path: Option<&str>,
         playback_type: Option<String>,
         instrument_type: Option<String>,
     ) -> Result<usize, ManagerError> {
         use crate::db::operations::SampleInput;
 
-        // First get the existing sample to preserve other fields
-        let existing = crate::db::operations::get_sample_by_path(&self.conn, path)?;
+        let existing = match sample_id {
+            Some(id) => crate::db::operations::get_sample_by_id(&self.conn, id)?,
+            None => match path {
+                Some(p) => crate::db::operations::get_sample_by_path(&self.conn, p)?,
+                None => None,
+            },
+        };
+
         match existing {
             Some(row) => {
-                // Use provided values or fall back to existing
                 let pt = playback_type.unwrap_or_else(|| row.playback_type.clone());
                 let it = instrument_type.unwrap_or_else(|| row.instrument_type.clone());
 
-                // Derive sample_type from playback_type and instrument_type
-                // If instrument_type is "kick", use "kick"
-                // Otherwise use playback_type ("loop" or "oneshot")
-                let sample_type = if it == "kick" {
-                    "kick".to_string()
-                } else if pt == "loop" {
+                let sample_type = if pt == "loop" {
                     "loop".to_string()
                 } else {
                     "oneshot".to_string()
@@ -387,14 +396,15 @@ impl SampleManager {
                     duration: row.duration,
                     bpm: row.bpm,
                     periodicity: row.periodicity,
+                    sample_rate: row.sample_rate,
                     low_ratio: row.low_ratio,
                     attack_slope: row.attack_slope,
                     decay_time: row.decay_time,
                     sample_type: Some(sample_type),
                     waveform_peaks: row.waveform_peaks,
                     embedding: row.embedding,
-                    playback_type: Some(pt),
-                    instrument_type: Some(it),
+                    playback_type: Some(pt.clone()),
+                    instrument_type: Some(it.clone()),
                 };
                 let updated = crate::db::operations::update_sample(&self.conn, &input)?;
                 Ok(updated)
@@ -451,18 +461,30 @@ impl SampleManager {
 
         let path_str = file_path.to_str().unwrap_or_default().to_string();
         let waveform_peaks = compute_waveform_peaks(&decoded.samples, 64);
+        // sample_rate from decoded file
+        let sample_rate = decoded.sample_rate as i64;
+
+        // Generate 64-dim embedding from audio samples
+        let emb_vec = crate::embedding::generate_embedding(&decoded.samples, decoded.sample_rate);
+        // serialize f32 vec to bytes (little-endian)
+        let mut emb_bytes: Vec<u8> = Vec::with_capacity(emb_vec.len() * 4);
+        for v in &emb_vec {
+            emb_bytes.extend_from_slice(&v.to_le_bytes());
+        }
+
         Ok(SampleInput {
             path: path_str,
             file_name,
             duration: Some(duration),
             bpm: Some(bpm_result.bpm),
             periodicity: Some(bpm_result.periodicity_strength),
+            sample_rate: Some(sample_rate),
             low_ratio: Some(kick_result.low_ratio),
             attack_slope: Some(kick_result.attack_slope),
             decay_time: Some(kick_result.decay_time_ms),
             sample_type: Some(sample_type),
             waveform_peaks: Some(waveform_peaks),
-            embedding: None,
+            embedding: Some(emb_bytes),
             playback_type: Some(playback_type.to_string()),
             instrument_type: Some(instrument_type.to_string()),
         })

@@ -1,13 +1,78 @@
-import type { Sample } from "../../types/sample";
+import type { Sample, FilterState } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
+import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface DetailPanelProps {
   sample: Sample;
   path?: string;
-  onUpdateClassification?: (playbackType: string | null, instrumentType: string | null) => void;
+  // kept for backwards compatibility with App.tsx which previously passed
+  // an onUpdateClassification handler. It's optional and unused here.
+  onUpdateClassification?: (playbackType: string, instrumentType: string) => void;
+  // Called when a user selects a sample from the embedding results modal.
+  // If provided, DetailPanel will forward modal selections to this handler
+  // so the parent (App) can update the global selection state.
+  onSelect?: (sample: Sample, path?: string) => void;
+  // If provided, called after embedding search completes with the raw result
+  // rows returned by the backend. Parent can choose to replace the main list
+  // with these rows (apply a 'similar items' view) or ignore.
+  onError?: (message: string) => void;
+
+  // New props: moved filter controls (sample type, BPM, tags) now render here.
+  samples?: Sample[];
+  filters?: FilterState;
+  onFilterChange?: (filters: Partial<FilterState>) => void;
 }
 
-export function DetailPanel({ sample, path, onUpdateClassification }: DetailPanelProps) {
+export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const [results, setResults] = useState<any[]>([]);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const tooltipId = "find-similar-tooltip";
+
+  const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
+
+  type FilterTypeOption = FilterState["filterType"];
+  const typeFilters: FilterTypeOption[] = ["all", "loop", "one-shot"];
+
+  const getTypeCount = (type: FilterTypeOption) =>
+    type === "all" ? samples.length : samples.filter((s) => s.sample_type === type).length;
+
+  const handleRunEmbeddingSearch = async () => {
+    if (!path) return;
+    try {
+      const rows: any[] = await invoke("search_by_embedding", { path, k: 8 });
+      // Exclude the query sample itself from the candidate list (it often appears with ~100% similarity)
+      const filtered = rows.filter((r) => {
+        try {
+          // r.row.path is the absolute path returned by backend; sample.path may be undefined so compare with provided `path` too
+          return !(r?.row?.path === path || r?.row?.id === sample.id);
+        } catch {
+          return true;
+        }
+      });
+      setResults(filtered);
+      setResultsOpen(true);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("embedding search failed", e);
+      if (typeof propsOnError === "function") {
+        propsOnError("Embedding search failed: " + String(e));
+      }
+    }
+  };
+
+  const handleSelectResult = (s: Sample, p?: string) => {
+    // If parent provided an onSelect handler, forward the selection so App
+    // can update the global selected sample and focus the list. Otherwise
+    // fallback to closing the modal only.
+    if (typeof propsOnSelect === "function") {
+      propsOnSelect(s, p);
+    }
+    setResultsOpen(false);
+  };
+
   return (
     <div
       style={{
@@ -23,81 +88,143 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
         gap: "20px",
         flexShrink: 0,
         overflowY: "auto",
+        zIndex: 2,
       }}
     >
-      {/* Classification Edit Section */}
-      {onUpdateClassification && (
-        <div
-          style={{
-            background: "#080a0f",
-            border: "1px solid #1a1f2e",
-            borderRadius: "3px",
-            padding: "10px",
-          }}
-        >
-          <div
+      <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
+        <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2 }}>
+          <button
+            type="button"
+            onClick={handleRunEmbeddingSearch}
+            onMouseEnter={() => setTooltipVisible(true)}
+            onMouseLeave={() => setTooltipVisible(false)}
+            onFocus={() => setTooltipVisible(true)}
+            onBlur={() => setTooltipVisible(false)}
+            aria-describedby={tooltipId}
             style={{
-              fontSize: "12px",
-              color: "#6b7280",
-              letterSpacing: "0.1em",
-              marginBottom: "8px",
+              padding: "6px 12px",
+              background: "#111827",
+              color: "#e2e8f0",
+              border: "1px solid #0f172a",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
             }}
           >
-            CLASSIFICATION
-          </div>
-          
-          {/* Playback Type */}
-          <div style={{ marginBottom: "8px" }}>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "4px" }}>PLAYBACK</div>
-            <select
-              value={sample.playback_type}
-              onChange={(e) => onUpdateClassification(e.target.value, null)}
-              style={{
-                width: "100%",
-                padding: "4px 6px",
-                fontSize: "12px",
-                background: "#1f2937",
-                color: "#e2e8f0",
-                border: "1px solid #374151",
-                borderRadius: "2px",
-                cursor: "pointer",
-              }}
-            >
-              <option value="loop">Loop</option>
-              <option value="oneshot">One-shot</option>
-            </select>
-          </div>
-
-          {/* Instrument Type */}
-          <div>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "4px" }}>INSTRUMENT</div>
-            <select
-              value={sample.instrument_type}
-              onChange={(e) => onUpdateClassification(null, e.target.value)}
-              style={{
-                width: "100%",
-                padding: "4px 6px",
-                fontSize: "12px",
-                background: "#1f2937",
-                color: "#e2e8f0",
-                border: "1px solid #374151",
-                borderRadius: "2px",
-                cursor: "pointer",
-              }}
-            >
-              <option value="kick">Kick</option>
-              <option value="snare">Snare</option>
-              <option value="hihat">Hi-hat</option>
-              <option value="bass">Bass</option>
-              <option value="synth">Synth</option>
-              <option value="fx">FX</option>
-              <option value="vocal">Vocal</option>
-              <option value="percussion">Percussion</option>
-              <option value="other">Other</option>
-            </select>
+            Find similar samples
+          </button>
+          <div
+            id={tooltipId}
+            role="tooltip"
+            aria-hidden={!tooltipVisible}
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translate(-50%, 8px)",
+              padding: "8px 12px",
+              borderRadius: "8px",
+              background: "rgba(13, 20, 35, 0.95)",
+              color: "#f8fafc",
+              fontSize: "12px",
+              lineHeight: 1.4,
+              whiteSpace: "normal",
+              maxWidth: "340px",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.55)",
+              opacity: tooltipVisible ? 1 : 0,
+              visibility: tooltipVisible ? "visible" : "hidden",
+              pointerEvents: "none",
+              transition: "opacity 150ms ease, visibility 150ms ease",
+              zIndex: 2000,
+            }}
+          >
+            Opens a floating list of{"\n"}
+            cosine similarity{"\n"}scores for this sample.
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Moved filter controls from left sidebar into the right detail panel */}
+      <div>
+        <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.12em", marginBottom: "8px" }}>FILTERS</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "8px" }}>
+          <div>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>SAMPLE TYPE</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              {typeFilters.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => onFilterChange?.({ filterType: t })}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    width: "100%",
+                    background: filters?.filterType === t ? "#111827" : "transparent",
+                    border: "1px solid #1f2937",
+                    padding: "6px 10px",
+                    fontSize: "13px",
+                    color: "#e2e8f0",
+                    cursor: onFilterChange ? "pointer" : "default",
+                    borderRadius: "4px",
+                    fontFamily: "'Courier New', monospace",
+                  }}
+                >
+                  <span>{t.toUpperCase()}</span>
+                  <span style={{ fontSize: "12px", color: "#374151" }}>{getTypeCount(t)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>BPM RANGE</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              <input
+                type="number"
+                placeholder="MIN"
+                value={filters?.filterBpmMin ?? ""}
+                onChange={(e) => onFilterChange && onFilterChange({ filterBpmMin: e.target.value })}
+                style={{
+                  minWidth: "120px",
+                  flex: "1 1 120px",
+                  padding: "6px",
+                  borderRadius: "4px",
+                  border: "1px solid #1f2937",
+                  background: "transparent",
+                  color: "#9ca3af",
+                  boxSizing: "border-box",
+                }}
+              />
+              <input
+                type="number"
+                placeholder="MAX"
+                value={filters?.filterBpmMax ?? ""}
+                onChange={(e) => onFilterChange && onFilterChange({ filterBpmMax: e.target.value })}
+                style={{
+                  minWidth: "120px",
+                  flex: "1 1 120px",
+                  padding: "6px",
+                  borderRadius: "4px",
+                  border: "1px solid #1f2937",
+                  background: "transparent",
+                  color: "#9ca3af",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>TAGS</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {allTags.map((tag) => (
+                <button key={tag} onClick={() => onFilterChange && onFilterChange({ search: tag })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: "transparent", color: "#6b7280", cursor: onFilterChange ? "pointer" : "default" }}>{tag}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div>
         <div
@@ -111,12 +238,11 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
           SPECTRAL ANALYSIS
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <AnalysisBar
-            label="LOW RATIO"
-            value={sample.low_ratio}
-            max={1}
-            color="#f97316"
-          />
+          {/* sample_rate replaces low-ratio display in the UI */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>SAMPLE RATE</div>
+            <div style={{ fontSize: "13px", color: "#4b5563" }}>{sample.sample_rate ? `${sample.sample_rate} Hz` : '—'}</div>
+          </div>
           <AnalysisBar
             label="PERIODICITY"
             value={sample.periodicity}
@@ -141,11 +267,11 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
       </div>
 
       
-      {sample.sample_type === "kick" && (
+      {sample.instrument_type === "kick" && (
         <div
           style={{
-            background: "#f9731610",
-            border: "1px solid #f9731630",
+            background: "#a78bfa15",
+            border: "1px solid #a78bfa40",
             borderRadius: "3px",
             padding: "10px",
           }}
@@ -153,7 +279,7 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
           <div
             style={{
               fontSize: "14px",
-              color: "#f97316",
+              color: "#a78bfa",
               letterSpacing: "0.12em",
               marginBottom: "8px",
             }}
@@ -202,41 +328,7 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
       )}
 
       
-      {sample.sample_type === "loop" && (
-        <div
-          style={{
-            background: "#22d3ee10",
-            border: "1px solid #22d3ee30",
-            borderRadius: "3px",
-            padding: "10px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "14px",
-              color: "#22d3ee",
-              letterSpacing: "0.12em",
-              marginBottom: "8px",
-            }}
-          >
-            LOOP CLASSIFIER
-          </div>
-          <div style={{ fontSize: "14px", color: "#6b7280", lineHeight: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>duration &gt; 1.0s</span>
-              <span style={{ color: "#22d3ee" }}>✓ {sample.duration.toFixed(2)}s</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>periodicity &gt; 0.3</span>
-              <span style={{ color: "#22d3ee" }}>✓ {sample.periodicity.toFixed(2)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>BPM (FFT-ACF)</span>
-              <span style={{ color: "#22d3ee" }}>{sample.bpm ? Math.floor(sample.bpm) : '—'}</span>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       
       <div>
@@ -270,11 +362,10 @@ export function DetailPanel({ sample, path, onUpdateClassification }: DetailPane
             />
           ))}
         </div>
-        <div
-          style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}
-        >
+        <div style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}>
           cos-sim search · HNSW ready
         </div>
+        <EmbeddingResultsModal isOpen={resultsOpen} results={results} onClose={() => setResultsOpen(false)} onSelect={handleSelectResult} />
       </div>
 
       
