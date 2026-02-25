@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -6,6 +6,7 @@ import "./styles/global.css";
 import type { Sample, FilterState, SortState, SampleType } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
 import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal } from "./components";
+import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
   id: number;
@@ -127,6 +128,7 @@ export function App() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(180);
   const [isResizing, setIsResizing] = useState(false);
+  const sampleListRef = useRef<SampleListHandle | null>(null);
   
   // Classification modal state
   const [classificationModalOpen, setClassificationModalOpen] = useState(false);
@@ -225,8 +227,18 @@ export function App() {
   const handleSampleSelect = async (sample: Sample) => {
     const path = samplePaths[sample.id];
 
+    // Immediately set the selected sample so the SampleList can focus/scroll
+    // to the row right away. We will refresh/replace the selected item with
+    // the backend's canonical row once the invoke completes.
+    setSelected(sample);
+    // After updating selection state, ensure the SampleList focuses the selected row.
+    // Use requestAnimationFrame so the DOM updates have a chance to paint before
+    // attempting to focus the element.
+    requestAnimationFrame(() => {
+      sampleListRef.current?.focusSelected?.();
+    });
+
     if (!path) {
-      setSelected(sample);
       return;
     }
 
@@ -234,7 +246,7 @@ export function App() {
       const row = await invoke<TauriSampleRow | null>("get_sample", { path });
 
       if (!row) {
-        setSelected(sample);
+        // Keep the optimistic selection; backend didn't return details.
         return;
       }
 
@@ -360,8 +372,13 @@ export function App() {
 
   const handleClassificationSave = async () => {
     if (!classificationSample) return;
-
     const path = samplePaths[classificationSample.id];
+
+    // Early exit for missing path
+    if (!path) {
+      setError("Sample path not available for update");
+      return;
+    }
 
     try {
       // Build payload: send null for empty strings so Rust receives Option::None
@@ -385,16 +402,7 @@ export function App() {
         allowedInstruments.includes(editInstrumentType)
           ? editInstrumentType
           : classificationSample.instrument_type;
-
-      // Debug log for the update call
-      // eslint-disable-next-line no-console
       console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: payloadPlayback, instrument_type: payloadInstrument });
-
-      // Tauri command expects: path (String), playback_type, instrument_type
-      if (!path) {
-        setError("Sample path not available for update");
-        return;
-      }
       const updateResult = await invoke<number>("update_sample_classification", {
         path,
         playback_type: payloadPlayback,
@@ -404,18 +412,25 @@ export function App() {
       // eslint-disable-next-line no-console
       console.log("update_sample_classification result:", updateResult);
       if (updateResult === 0) {
-        setError("Update did not apply: backend reported 0 rows changed. Check backend logs for details.");
+        setError("Sample not found in database. The file may have been moved or deleted.");
+        return;
       }
-
       const refreshedList = await runSearch(filters.search);
+      console.log("refreshedList length:", refreshedList.length);
       const refreshedSample = refreshedList.find((s) => s.id === classificationSample.id) ?? null;
+      console.log("refreshedSample:", refreshedSample);
+      console.log("classificationSample.id:", classificationSample.id);
+      console.log("samples state length:", samples.length);
+      console.log("sample with same id in samples:", samples.find(s => s.id === classificationSample.id));
+      console.log("refreshedSample.sample_type:", refreshedSample?.sample_type);
+      console.log("refreshedSample.playback_type:", refreshedSample?.playback_type);
       setSelected((prev) =>
         prev?.id === classificationSample.id ? refreshedSample : prev
       );
-
       setClassificationModalOpen(false);
     } catch (e) {
-      handleInvokeError(e);
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      setError(`Failed to save: ${errorMsg}`);
     }
   };
 
@@ -497,9 +512,19 @@ export function App() {
       >
         <FilterSidebar
           scannedPaths={scannedPaths}
+          filePaths={samples.map((s) => samplePaths[s.id]).filter(Boolean)}
           selectedPath={selected ? samplePaths[selected.id] : null}
           onFilterChange={handleFilterChange}
+          onPathSelect={(path) => {
+            // When a file path is clicked in the sidebar, find the corresponding
+            // sample (by matching samplePaths) and focus/select it in the list.
+            const matching = samples.find((s) => samplePaths[s.id] === path);
+            if (matching) {
+              void handleSampleSelect(matching);
+            }
+          }}
           width={sidebarWidth}
+          bottomInset={selected ? 160 : 0}
         />
 
         {/* Resize handle - simple inline handle kept for now */}
@@ -521,6 +546,7 @@ export function App() {
         />
 
         <SampleList
+          ref={sampleListRef}
           samples={samples}
           samplePaths={samplePaths}
           filters={filters}

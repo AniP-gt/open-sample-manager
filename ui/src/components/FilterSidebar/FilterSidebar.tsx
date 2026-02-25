@@ -4,9 +4,14 @@ import type { FilterState } from "../../types/sample";
 
 interface FilterSidebarProps {
   scannedPaths: string[];
+  // full file paths for scanned sample files (e.g. /foo/bar/sample.wav)
+  filePaths?: string[];
   selectedPath: string | null;
   onFilterChange: (filters: Partial<FilterState>) => void;
+  // called when a file path is clicked in the sidebar
+  onPathSelect?: (path: string) => void;
   width?: number;
+  bottomInset?: number; // space to leave at the bottom (e.g. player height)
 }
 
 interface TreeNode {
@@ -67,6 +72,7 @@ interface FileTreeItemProps {
   selectedPath: string | null;
   onToggleExpand: (path: string) => void;
   onMoveSample: (oldPath: string, newPath: string) => void;
+  onPathSelect?: (path: string) => void;
 }
 
 function FileTreeItem({
@@ -76,6 +82,7 @@ function FileTreeItem({
   selectedPath,
   onToggleExpand,
   onMoveSample,
+  onPathSelect,
 }: FileTreeItemProps) {
   const isExpanded = expandedPaths.has(node.path);
   const hasChildren = node.children.length > 0;
@@ -108,24 +115,27 @@ function FileTreeItem({
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "4px 8px",
-          paddingLeft: `${depth * 12 + 8}px`,
-          cursor: node.isFolder ? "pointer" : "default",
-          color: isSelected ? "#f97316" : isAncestorOfSelected ? "#9ca3af" : "#6b7280",
-          fontSize: "13px",
-          fontFamily: "'Courier New', monospace",
-          borderRadius: "2px",
-          background: isSelected ? "#1f2937" : "transparent",
-        }}
-        onClick={() => {
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "4px 8px",
+              paddingLeft: `${depth * 12 + 8}px`,
+          cursor: "pointer",
+              color: isSelected ? "#f97316" : isAncestorOfSelected ? "#9ca3af" : "#6b7280",
+              fontSize: "13px",
+              fontFamily: "'Courier New', monospace",
+              borderRadius: "2px",
+              background: isSelected ? "#1f2937" : "transparent",
+            }}
+            onClick={() => {
+          // If node is a folder toggle expand; always call onPathSelect so
+          // parent can handle clicking a sample (leaf) or a folder path.
           if (hasChildren) {
             onToggleExpand(node.path);
           }
-        }}
+          onPathSelect?.(node.path);
+            }}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
@@ -150,6 +160,7 @@ function FileTreeItem({
             selectedPath={selectedPath}
             onToggleExpand={onToggleExpand}
             onMoveSample={onMoveSample}
+            onPathSelect={onPathSelect}
           />
         ))}
     </div>
@@ -158,15 +169,18 @@ function FileTreeItem({
 
 export function FilterSidebar({
   scannedPaths,
+  filePaths,
   selectedPath,
   onFilterChange,
+  onPathSelect,
   width = 180,
+  bottomInset = 0,
 }: FilterSidebarProps) {
   // Sidebar is now a simple file tree container; no top/bottom split or resizer.
 
   // No filter controls here anymore; counts and tags are rendered in the DetailPanel
 
-  const tree = useMemo(() => buildTree(scannedPaths), [scannedPaths]);
+  const tree = useMemo(() => buildTree([...(scannedPaths || []), ...(filePaths || [])]), [scannedPaths, filePaths]);
   
   // Track expanded paths
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
@@ -225,6 +239,7 @@ export function FilterSidebar({
     <div
       style={{
         height: "100%",
+        minHeight: 0, // allow flex children to shrink so internal scrolling works
         width: `${width}px`,
         borderRight: "1px solid #0f1117",
         background: "#0a0c12",
@@ -235,7 +250,21 @@ export function FilterSidebar({
       className="filter-sidebar-root"
     >
       {/* Top: file tree only — controls were moved to the right/detail panel */}
-      <div style={{ height: "100%", overflowY: "auto", padding: "12px 0" }}>
+      {/* Make this a flexible scroll container. Use flex:1 + minHeight:0 so
+          in a flex layout the browser allows the child to be scrollable.
+          paddingBottom includes bottomInset so content isn't hidden under
+          an overlapping bottom UI (player bar). */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          paddingTop: "12px",
+          paddingLeft: "0",
+          paddingRight: "0",
+          paddingBottom: `${12 + bottomInset}px`,
+        }}
+      >
         {scannedPaths.length > 0 ? (
           <>
             <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>
@@ -249,6 +278,7 @@ export function FilterSidebar({
                 selectedPath={selectedPath}
                 onToggleExpand={handleToggleExpand}
                 onMoveSample={handleMoveSample}
+                onPathSelect={onPathSelect}
               />
             ))}
           </>
