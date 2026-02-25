@@ -43,7 +43,16 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
     if (!path) return;
     try {
       const rows: any[] = await invoke("search_by_embedding", { path, k: 8 });
-      setResults(rows);
+      // Exclude the query sample itself from the candidate list (it often appears with ~100% similarity)
+      const filtered = rows.filter((r) => {
+        try {
+          // r.row.path is the absolute path returned by backend; sample.path may be undefined so compare with provided `path` too
+          return !(r?.row?.path === path || r?.row?.id === sample.id);
+        } catch {
+          return true;
+        }
+      });
+      setResults(filtered);
       setResultsOpen(true);
     } catch (e) {
       // eslint-disable-next-line no-console
@@ -110,16 +119,17 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
             aria-hidden={!tooltipVisible}
             style={{
               position: "absolute",
-              bottom: "100%",
+              top: "100%",
               left: "50%",
-              transform: "translate(-50%, -8px)",
-              padding: "6px 10px",
+              transform: "translate(-50%, 8px)",
+              padding: "8px 12px",
               borderRadius: "8px",
               background: "rgba(13, 20, 35, 0.95)",
               color: "#f8fafc",
               fontSize: "12px",
-              lineHeight: 1.3,
-              whiteSpace: "nowrap",
+              lineHeight: 1.4,
+              whiteSpace: "normal",
+              maxWidth: "340px",
               boxShadow: "0 6px 18px rgba(0,0,0,0.55)",
               opacity: tooltipVisible ? 1 : 0,
               visibility: tooltipVisible ? "visible" : "hidden",
@@ -128,7 +138,8 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
               zIndex: 2000,
             }}
           >
-            Opens a floating list of cosine similarity scores for this sample.
+            Opens a floating list of{"\n"}
+            cosine similarity{"\n"}scores for this sample.
           </div>
         </div>
       </div>
