@@ -128,6 +128,7 @@ export function App() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(180);
   const [isResizing, setIsResizing] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const sampleListRef = useRef<SampleListHandle | null>(null);
   
   // Classification modal state
@@ -317,6 +318,19 @@ export function App() {
     }
   };
 
+  const handleSidebarImport = async (rawPaths: string[]) => {
+    const { handleImportPaths } = await import("./utils/handleImportPaths");
+    await handleImportPaths(rawPaths, {
+      invokeFn: (cmd, payload) => invoke(cmd as any, payload as any),
+      listenFn: (event, cb) => listen(event, cb as any),
+      runSearchFn: (q) => runSearch(q),
+      onScanProgress: (p) => setScanProgress(p),
+      setScanning: (v) => setScanning(v),
+      setError: (m) => setError(m),
+      getSearchQuery: () => filters.search,
+    });
+  };
+
   const handleDeleteSample = async (sampleId: number) => {
     const path = samplePaths[sampleId];
     if (!path) return;
@@ -499,6 +513,173 @@ export function App() {
     void handleSearch(filters.search);
   }, [filters.search]);
 
+  // Fallback: Listen to Tauri-native drag/drop events when running inside
+  // the Tauri webview. This is deterministic for obtaining full filesystem
+  // paths from Finder/Explorer. If not running in Tauri (browser), this
+  // will silently fail and the HTML5 drop handlers in SampleList remain.
+  useEffect(() => {
+    let unlistenEnter: (() => void) | null = null;
+    let unlistenOver: (() => void) | null = null;
+    let unlistenLeave: (() => void) | null = null;
+    let unlistenDrop: (() => void) | null = null;
+
+    const setup = async () => {
+      try {
+        // Drag enter - show visual affordance
+        unlistenEnter = await listen<{ paths?: string[] }>("tauri://drag-enter", () => {
+          setIsDragOver(true);
+        });
+
+        // Drag over (movement) - keep the visual state
+        unlistenOver = await listen("tauri://drag-over", () => {
+          setIsDragOver(true);
+        });
+
+        // Drag leave
+        unlistenLeave = await listen("tauri://drag-leave", () => {
+          setIsDragOver(false);
+        });
+
+        // Drop - payload contains `paths: string[]`
+        unlistenDrop = await listen<{ paths?: string[] }>("tauri://drag-drop", (e) => {
+          setIsDragOver(false);
+          const paths = e.payload?.paths ?? [];
+          if (paths.length > 0) {
+            void handleImportPaths(paths);
+          }
+        });
+      } catch (err) {
+        // Not running in Tauri or event listen not available; ignore.
+      }
+    };
+
+    void setup();
+
+    return () => {
+      try {
+        unlistenEnter?.();
+      } catch {}
+      try {
+        unlistenOver?.();
+      } catch {}
+      try {
+        unlistenLeave?.();
+      } catch {}
+      try {
+        unlistenDrop?.();
+      } catch {}
+    };
+  }, [filters.search]);
+
+  // Handle import paths (from SampleList drop or Tauri-native listener)
+  const handleImportPaths = async (paths: string[]) => {
+    if (!paths || paths.length === 0) return;
+
+    // Dev-time trace to help manual verification: print incoming raw paths.
+    // This makes it trivial to confirm a Finder/Explorer drop arrived in the
+    // renderer and what the app will attempt to scan. Safe to leave in — it's
+    // a low-noise console.debug that helps reproducibility.
+    // eslint-disable-next-line no-console
+    console.debug('handleImportPaths: received raw paths ->', paths);
+
+    // Attempt to use @tauri-apps/plugin-fs.stat for deterministic file vs
+    // directory detection when running inside Tauri. Fall back to a
+    // heuristic (file if last path segment contains a dot) if stat isn't
+    // available or fails for any entry.
+    let statFn: ((p: string) => Promise<{ isDirectory: boolean; isFile: boolean }>) | null = null;
+    try {
+      // dynamic import keeps module resolution safe in non-Tauri test envs
+      // and avoids top-level import causing bundlers to include native
+      // plugin stubs unnecessarily.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const fsMod = await import("@tauri-apps/plugin-fs");
+      if (fsMod && typeof fsMod.stat === "function") {
+        statFn = async (p: string) => {
+          try {
+            const info = await fsMod.stat(p as string);
+            return { isDirectory: !!info.isDirectory, isFile: !!info.isFile };
+          } catch {
+            // stat failed for this path (allowlist or other); surface as unknown
+            throw new Error("stat-failed");
+          }
+        };
+      }
+    } catch {
+      statFn = null;
+    }
+
+    const normalizedTargets: string[] = [];
+
+    // Process all dropped paths in parallel where possible
+    const results = await Promise.allSettled(
+      paths.map(async (p) => {
+        if (!p) return null;
+        const normalized = p.replace(/\\/g, "/");
+
+        if (statFn) {
+          try {
+            const info = await statFn(normalized);
+            if (info.isDirectory) return normalized;
+            if (info.isFile) {
+              // parent directory of file
+              const parts = normalized.split("/");
+              return parts.slice(0, -1).join("/") || "/";
+            }
+          } catch {
+            // stat failed; fall back to heuristic below
+          }
+        }
+
+        // Heuristic fallback: treat last segment with a dot as file
+        const parts = normalized.split("/");
+        const last = parts[parts.length - 1] ?? "";
+        if (last.includes(".")) {
+          return parts.slice(0, -1).join("/") || "/";
+        }
+        return normalized;
+      }),
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value) normalizedTargets.push(r.value);
+    }
+
+    // Deduplicate while preserving order
+    const uniqueDirs = Array.from(new Set(normalizedTargets));
+
+    // Debug output for manual testing: show the final directories that will be
+    // scanned and emitted to the backend. This helps confirm path normalization
+    // without stepping through the full native flow.
+    // eslint-disable-next-line no-console
+    console.debug('handleImportPaths: normalized uniqueDirs ->', uniqueDirs);
+
+    for (const dir of uniqueDirs) {
+      setScanning(true);
+      setScanProgress(null);
+      setError(null);
+
+      const unlisten = await listen<ScanProgress>("scan-progress", (event) => {
+        setScanProgress(event.payload);
+      });
+
+      try {
+        await invoke<number>("scan_directory", { path: dir });
+        // eslint-disable-next-line no-console
+        console.debug('handleImportPaths: invoked scan_directory for', dir);
+        setScanned(true);
+        await runSearch(filters.search);
+      } catch (e) {
+        handleInvokeError(e);
+      } finally {
+        try {
+          unlisten();
+        } catch {}
+        setScanning(false);
+        setScanProgress(null);
+      }
+    }
+  };
+
   return (
     <div
       style={{
@@ -514,6 +695,7 @@ export function App() {
       <Header
         sampleCount={samples.length}
         scanned={scanned}
+        isDragOver={isDragOver}
         onScanClick={() => {
           void handleScanClick();
         }}
@@ -619,6 +801,7 @@ export function App() {
           onDeleteSample={(id) => { void handleDeleteSample(id); }}
           onTrashSample={(id) => { requestTrash(id); }}
           onTypeClick={handleTypeClick}
+          onImportPaths={handleImportPaths}
         />
         {selected && (
           <DetailPanel

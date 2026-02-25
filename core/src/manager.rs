@@ -34,8 +34,14 @@ use crate::db::schema::init_database;
 use crate::scanner::scan_directory;
 use crossbeam_channel::unbounded;
 use rayon::prelude::*;
+use std::fs::File;
 use std::panic::AssertUnwindSafe;
 use std::thread;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
+use symphonia::core::meta::StandardTagKey;
+use symphonia::core::probe::Hint;
+use symphonia::default::get_probe;
 /// Progress information emitted during scanning.
 #[derive(Debug, Clone)]
 pub struct ScanProgress {
@@ -481,6 +487,10 @@ impl SampleManager {
 
     /// Decode and analyze a single audio file, returning a [`SampleInput`].
     fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
+        // Best-effort: extract artist metadata before decoding. This must not fail analysis.
+        // (kept brief to satisfy repository doc-comment policy)
+        let artist = extract_artist(file_path);
+
         let decoded = decode_to_mono_f32(file_path)?;
 
         let bpm_result = estimate_bpm(&decoded.samples, decoded.sample_rate);
@@ -529,8 +539,8 @@ impl SampleManager {
             Err(_) => None,
         };
 
-        // Artist metadata extraction is not implemented yet; leave as None
-        let artist: Option<String> = None;
+        // Use the best-effort extracted artist (may be None).
+        let artist: Option<String> = artist;
 
         // Generate 64-dim embedding from audio samples
         let emb_vec = crate::embedding::generate_embedding(&decoded.samples, decoded.sample_rate);
@@ -585,6 +595,53 @@ fn compute_waveform_peaks(samples: &[f32], num_peaks: usize) -> String {
     format!("[{}]", json.join(","))
 }
 
+/// Best-effort extraction of artist metadata using Symphonia.
+/// Returns `Some(String)` when an artist tag is found, otherwise `None`.
+fn extract_artist(path: &Path) -> Option<String> {
+    // Open file and create a media source stream
+    let file = File::open(path).ok()?;
+    let mss = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
+
+    // Probe format (best-effort)
+    let probed = get_probe()
+        .format(
+            &Hint::default(),
+            mss,
+            &FormatOptions::default(),
+            &Default::default(),
+        )
+        .ok()?;
+
+    let mut format = probed.format;
+
+    // Inspect current metadata revision and look for artist tags
+    let metadata = format.metadata();
+    let rev = metadata.current();
+    let tags = match rev {
+        Some(r) => r.tags(),
+        None => &[],
+    };
+
+    // Prefer standardized Artist tag when present
+    for tag in tags.iter() {
+        if let Some(std_key) = tag.std_key {
+            if std_key == StandardTagKey::Artist {
+                return Some(tag.value.to_string());
+            }
+        }
+    }
+
+    // Fallback: look for keys containing 'artist' (case-insensitive) or common vendor keys
+    for tag in tags.iter() {
+        let key = tag.key.to_lowercase();
+        if key.contains("artist") || key == "©art" || key == "art" || key == "iart" {
+            return Some(tag.value.to_string());
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -628,6 +685,80 @@ mod tests {
         }
 
         buf
+    }
+
+    /// Helper: build a WAV file that includes an INFO/IART artist tag (RIFF INFO LIST).
+    fn build_wav_with_artist(duration_samples: usize, artist: &str) -> Vec<u8> {
+        let sample_rate: u32 = 11_025;
+        let num_channels: u16 = 1;
+        let bits_per_sample: u16 = 16;
+        let block_align = num_channels * bits_per_sample / 8;
+        let byte_rate = sample_rate * u32::from(block_align);
+        let data_size = (duration_samples * 2) as u32;
+
+        let artist_bytes = artist.as_bytes();
+        let artist_len = artist_bytes.len() as u32;
+        // IART chunk size must be even (pad with zero if needed)
+        let iart_size = if (artist_len + 1) % 2 == 0 {
+            artist_len + 1
+        } else {
+            artist_len + 2
+        };
+
+        // LIST chunk contains 'INFO' + subchunks
+        let list_payload_size = 4 + 8 + iart_size; // 'INFO' + ('IART' + size) + data
+                                                   // RIFF size: 4 (WAVE) + fmt chunk (8+16) + data chunk (8+data) + LIST chunk (8 + list_payload_size)
+        let riff_size = 4 + (8 + 16) + (8 + data_size) + (8 + list_payload_size);
+
+        let mut buf: Vec<u8> = Vec::with_capacity((riff_size + 8) as usize);
+        buf.extend_from_slice(b"RIFF");
+        buf.extend_from_slice(&riff_size.to_le_bytes());
+        buf.extend_from_slice(b"WAVE");
+
+        // LIST/INFO/IART
+        buf.extend_from_slice(b"LIST");
+        buf.extend_from_slice(&(list_payload_size as u32).to_le_bytes());
+        buf.extend_from_slice(b"INFO");
+        buf.extend_from_slice(b"IART");
+        buf.extend_from_slice(&(iart_size as u32).to_le_bytes());
+        buf.extend_from_slice(artist_bytes);
+        buf.push(0u8);
+        if (artist_len + 1) % 2 == 1 {
+            buf.push(0u8);
+        }
+
+        // fmt chunk
+        buf.extend_from_slice(b"fmt ");
+        buf.extend_from_slice(&16u32.to_le_bytes());
+        buf.extend_from_slice(&1u16.to_le_bytes()); // PCM
+        buf.extend_from_slice(&num_channels.to_le_bytes());
+        buf.extend_from_slice(&sample_rate.to_le_bytes());
+        buf.extend_from_slice(&byte_rate.to_le_bytes());
+        buf.extend_from_slice(&block_align.to_le_bytes());
+        buf.extend_from_slice(&bits_per_sample.to_le_bytes());
+
+        // data chunk
+        buf.extend_from_slice(b"data");
+        buf.extend_from_slice(&data_size.to_le_bytes());
+        for _ in 0..duration_samples {
+            buf.extend_from_slice(&0i16.to_le_bytes());
+        }
+
+        buf
+    }
+
+    /// Helper: write WAV with artist to path
+    fn write_wav_with_artist(
+        dir: &TempDir,
+        name: &str,
+        samples: usize,
+        artist: &str,
+    ) -> std::path::PathBuf {
+        let path = dir.path().join(name);
+        let wav_data = build_wav_with_artist(samples, artist);
+        let mut f = File::create(&path).expect("create wav file");
+        f.write_all(&wav_data).expect("write wav data");
+        path
     }
 
     /// Helper: write a WAV file to a directory and return its path.
@@ -752,6 +883,15 @@ mod tests {
         assert!(input.duration.is_some());
         assert!(input.bpm.is_some());
         assert!(input.sample_type.is_some());
+    }
+
+    #[test]
+    fn extract_artist_from_info_list() {
+        let dir = TempDir::new().unwrap();
+        let wav_path = write_wav_with_artist(&dir, "with_artist.wav", 11_025, "Unit Test Artist");
+
+        let artist = extract_artist(wav_path.as_path());
+        assert_eq!(artist, Some("Unit Test Artist".to_string()));
     }
 
     #[test]

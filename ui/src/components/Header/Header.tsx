@@ -115,26 +115,29 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
             visual affordance in place of the scan button to indicate drop target */}
         {isDragOver ? (
           <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "6px 12px",
-              borderRadius: "3px",
-              background: "linear-gradient(90deg,#f97316,#fb923c)",
-              color: "#000",
-              fontWeight: 800,
-              letterSpacing: "0.08em",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.16)",
-            }}
-          >
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "6px 12px",
+                borderRadius: "3px",
+                background: "linear-gradient(90deg,#f97316,#fb923c)",
+                color: "#000",
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                boxShadow: "0 6px 18px rgba(249,115,22,0.16)",
+              }}
+              aria-label="Drop to import"
+              // small lift animation
+              onAnimationEnd={() => {}}
+            >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M12 3v10" stroke="#000" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M8 7l4-4 4 4" stroke="#000" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             DROP TO IMPORT
           </div>
-        ) : (
+          ) : (
           <button
             onClick={onScanClick}
             style={{

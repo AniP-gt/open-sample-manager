@@ -60,6 +60,11 @@ input {
   }
 }
 
+@keyframes lift {
+  from { transform: translateY(4px); }
+  to { transform: translateY(0); }
+}
+
 .sample-row:hover {
   background: #0f1117 !important;
   cursor: pointer;

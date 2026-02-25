@@ -270,11 +270,27 @@ fn search_by_embedding(
     Ok(results)
 }
 
+/// Open folder in system file manager (Finder on macOS)
+#[tauri::command]
+fn open_folder(path: String) -> Result<(), String> {
+    open::that(&path).map_err(|e| e.to_string())
+}
+
+/// Copy text to clipboard via Tauri plugin
+#[tauri::command]
+fn copy_to_clipboard(text: String, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+    app.clipboard()
+        .write_text(text)
+        .map_err(|e| e.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let db_path = match app.path().app_data_dir() {
                 Ok(dir) => {
@@ -297,7 +313,9 @@ fn main() {
             clear_all_samples,
     move_sample,
             send_to_trash,
-            update_sample_classification
+            update_sample_classification,
+            open_folder,
+            copy_to_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

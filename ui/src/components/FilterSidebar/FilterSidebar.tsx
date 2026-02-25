@@ -10,6 +10,8 @@ interface FilterSidebarProps {
   onFilterChange: (filters: Partial<FilterState>) => void;
   // called when a file path is clicked in the sidebar
   onPathSelect?: (path: string) => void;
+  // Called when external files/folders are dropped onto a folder node in the sidebar
+  onImportPaths?: (paths: string[]) => void;
   width?: number;
   bottomInset?: number; // space to leave at the bottom (e.g. player height)
 }
@@ -83,6 +85,7 @@ function FileTreeItem({
   onToggleExpand,
   onMoveSample,
   onPathSelect,
+  onImportPaths,
 }: FileTreeItemProps) {
   const isExpanded = expandedPaths.has(node.path);
   const hasChildren = node.children.length > 0;
@@ -100,15 +103,54 @@ function FileTreeItem({
     if ((node.isFolder || hasChildren) && e.dataTransfer) {
       e.preventDefault();
       e.stopPropagation();
-      
-      const draggedPath = e.dataTransfer.getData("text/plain");
-      if (draggedPath) {
-        const fileName = draggedPath.split("/").pop() || "sample.wav";
-        const newPath = `${node.path}/${fileName}`;
-        
-        if (draggedPath !== newPath) {
-          onMoveSample(draggedPath, newPath);
+      // If the drop contains files from the OS, prefer treating it as an import
+      try {
+        const dt = e.dataTransfer;
+        const uriList = dt?.getData && (dt.getData("text/uri-list") || dt.getData("text/plain"));
+        const hasFiles = (dt && (dt.files && dt.files.length > 0)) || !!uriList;
+
+        if (hasFiles) {
+          // Dynamically import the shared utility to avoid circular imports and keep this file light
+          import("../../utils/dataTransfer").then((mod) => {
+            const paths = mod.extractPathsFromDataTransfer(e.dataTransfer ?? null);
+            if (paths && paths.length > 0) {
+              onImportPaths?.(paths);
+              return;
+            }
+            // Fallback to treating as internal move if no filesystem paths found
+            const draggedPath = dt.getData("text/plain");
+            if (draggedPath) {
+              const fileName = draggedPath.split("/").pop() || "sample.wav";
+              const newPath = `${node.path}/${fileName}`;
+              if (draggedPath !== newPath) {
+                onMoveSample(draggedPath, newPath);
+              }
+            }
+          }).catch(() => {
+            // On dynamic import failure, fall back to internal move
+            const draggedPath = e.dataTransfer.getData("text/plain");
+            if (draggedPath) {
+              const fileName = draggedPath.split("/").pop() || "sample.wav";
+              const newPath = `${node.path}/${fileName}`;
+              if (draggedPath !== newPath) {
+                onMoveSample(draggedPath, newPath);
+              }
+            }
+          });
+          return;
         }
+
+        // Internal drag from within the app (text/plain path)
+        const draggedPath = e.dataTransfer.getData("text/plain");
+        if (draggedPath) {
+          const fileName = draggedPath.split("/").pop() || "sample.wav";
+          const newPath = `${node.path}/${fileName}`;
+          if (draggedPath !== newPath) {
+            onMoveSample(draggedPath, newPath);
+          }
+        }
+      } catch (err) {
+        // ignore and allow default behavior
       }
     }
   };
@@ -279,6 +321,11 @@ export function FilterSidebar({
                 onToggleExpand={handleToggleExpand}
                 onMoveSample={handleMoveSample}
                 onPathSelect={onPathSelect}
+                onImportPaths={(paths) => {
+                  if (paths && paths.length > 0) {
+                    (onFilterChange as any)({});
+                  }
+                }}
               />
             ))}
           </>
