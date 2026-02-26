@@ -261,6 +261,8 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
         return a.file_name.localeCompare(b.file_name) * dir;
       case "sample_type":
         return a.sample_type.localeCompare(b.sample_type) * dir;
+      case "instrument_type":
+        return a.instrument_type.localeCompare(b.instrument_type) * dir;
       case "bpm":
         return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
       case "duration":

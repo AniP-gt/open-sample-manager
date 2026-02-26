@@ -41,7 +41,7 @@ export interface FilterState {
   filterBpmMax: string;
 }
 
-export type SortField = "id" | "file_name" | "sample_type" | "bpm" | "duration" | "sample_rate";
+export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate";
 export type SortDirection = "asc" | "desc";
 
 export interface SortState {
