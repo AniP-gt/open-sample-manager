@@ -5,6 +5,8 @@ use open_sample_manager_core::{healthcheck, SampleManager, ScanProgress, ScanSta
 use serde::Serialize;
 use std::error::Error as _;
 use tauri::{AppHandle, Emitter, Manager};
+mod platform;
+use crate::platform::start_native_drag as platform_start_native_drag;
 
 /// Progress event sent to frontend
 #[derive(Debug, Clone, Serialize)]
@@ -262,6 +264,21 @@ fn open_manager(db_path: Option<&std::path::Path>) -> Result<SampleManager, Comm
 }
 
 #[tauri::command]
+fn start_native_drag(window_label: String, paths: Vec<String>, app: tauri::AppHandle) -> Result<(), CommandError> {
+    // Find the window by label and call platform-specific helper.
+    // tauri::AppHandle does not expose get_window on all versions; use app.get_window
+    let window = app.get_window(&window_label).ok_or(CommandError { code: "no_window".to_string(), message: "window not found".to_string(), details: None })?;
+    #[cfg(target_os = "macos")]
+    {
+        platform_start_native_drag(&window, paths).map_err(|e| CommandError { code: "native_drag_failed".to_string(), message: e, details: None })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err(CommandError { code: "unsupported_platform".to_string(), message: "start_native_drag is only supported on macOS".to_string(), details: None })
+    }
+}
+
+#[tauri::command]
 fn search_by_embedding(
     path: String,
     k: usize,
@@ -335,7 +352,8 @@ fn main() {
             send_to_trash,
             update_sample_classification,
             open_folder,
-            copy_to_clipboard
+            copy_to_clipboard,
+            start_native_drag
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
