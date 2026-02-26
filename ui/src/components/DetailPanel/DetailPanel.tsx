@@ -2,7 +2,6 @@ import type { Sample, FilterState } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 
 interface DetailPanelProps {
   sample: Sample;
@@ -25,7 +24,7 @@ interface DetailPanelProps {
   onFilterChange?: (filters: Partial<FilterState>) => void;
 }
 
-export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
+export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect }: DetailPanelProps) {
   // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
@@ -39,7 +38,32 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
     type === "all" ? samples.length : samples.filter((s) => s.sample_type === type).length;
 
   // Embedding search handler removed per user request.
+  // Local types for embedding results modal
+  interface EmbeddingResult {
+    similarity: number;
+    row: {
+      id: number;
+      path: string;
+      file_name: string;
+      duration: number | null;
+      bpm: number | null;
+      periodicity: number | null;
+      low_ratio: number | null;
+      attack_slope: number | null;
+      decay_time: number | null;
+      sample_type: string | null;
+      waveform_peaks: string | null;
+      playback_type: string;
+      instrument_type: string;
+    };
+  }
 
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const [embeddingResults] = useState<EmbeddingResult[]>([]);
+
+  // Open results modal (placeholder handler). Provide a minimal, local
+  // handler so the button doesn't reference an undefined symbol at runtime.
+  const handleRunEmbeddingSearch = async () => setResultsOpen(true);
   const handleSelectResult = (s: Sample, p?: string) => {
     // If parent provided an onSelect handler, forward the selection so App
     // can update the global selected sample and focus the list. Otherwise
@@ -49,6 +73,11 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
     }
     setResultsOpen(false);
   };
+
+  // Render the results modal; it will forward selection to the parent.
+  const resultsModal = (
+    <EmbeddingResultsModal isOpen={resultsOpen} results={embeddingResults} onClose={() => setResultsOpen(false)} onSelect={handleSelectResult} />
+  );
 
   return (
       <div
@@ -365,6 +394,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           {path || "—"}
         </div>
       </div>
+      {resultsModal}
     </div>
   );
 }
