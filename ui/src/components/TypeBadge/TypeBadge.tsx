@@ -27,6 +27,7 @@ export function TypeBadge({ type, onClick }: TypeBadgeProps) {
         letterSpacing: "0.12em",
         textTransform: "uppercase",
         padding: "2px 6px",
+        whiteSpace: "nowrap",
         borderRadius: "2px",
         background: style.bg,
         color: style.color,
