@@ -318,7 +318,6 @@ export function FilterSidebar({
               <FileTreeItem
                 key={node.path}
                 node={node}
-                depth={0}
                 expandedPaths={expandedPaths}
                 selectedPath={selectedPath}
                 onToggleExpand={handleToggleExpand}

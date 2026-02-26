@@ -801,6 +801,7 @@ export function App() {
           }}
           onImportPaths={handleSidebarImport}
           width={sidebarWidth}
+          onImportPaths={handleSidebarImport}
           bottomInset={selected ? 160 : 0}
         />
 

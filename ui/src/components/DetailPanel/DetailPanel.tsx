@@ -139,7 +139,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
             }}
           >
             Opens a floating list of{"\n"}
-            cosine similarity{"\n"}scores for this sample.
+            cosine similarity scores for this sample (brute-force; ANN planned).
           </div>
         </div>
       </div>
@@ -226,17 +226,8 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         </div>
       </div>
 
+      {/* Title removed intentionally: kept fields to preserve layout */}
       <div>
-        <div
-          style={{
-            fontSize: "14px",
-            color: "#374151",
-            letterSpacing: "0.14em",
-            marginBottom: "12px",
-          }}
-        >
-          SPECTRAL ANALYSIS
-        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {/* sample_rate replaces low-ratio display in the UI */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -371,14 +362,25 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           ))}
         </div>
         <div style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}>
-          cos-sim search · HNSW ready
+          cos-sim search · ANN planned
         </div>
         <EmbeddingResultsModal isOpen={resultsOpen} results={results} onClose={() => setResultsOpen(false)} onSelect={handleSelectResult} />
       </div>
 
       
       <div
-        style={{ borderTop: "1px solid #0f1117", paddingTop: "12px" }}
+        style={{
+          borderTop: "1px solid #0f1117",
+          paddingTop: "12px",
+          /* Keep the PATH visible when waveform canvases overlap the panel.
+             Using a sticky bottom container with higher zIndex preserves
+             readability without changing layout elsewhere. */
+          position: "sticky",
+          bottom: 0,
+          background: "#0a0c12",
+          zIndex: 3,
+          paddingBottom: "12px",
+        }}
       >
         <div
           style={{
