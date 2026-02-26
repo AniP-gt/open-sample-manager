@@ -20,6 +20,8 @@ interface SampleListProps {
   // best-effort resolved from the DataTransfer payload (file.path when
   // available, otherwise file names or URI list entries).
   onImportPaths?: (paths: string[]) => void;
+  // When true, externally force the drop overlay (useful for dev/testing)
+  externalIsDragOver?: boolean;
 }
 
 // Helper: extract file system paths from a DataTransfer-like object. Exported
@@ -546,7 +548,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
         }}
         ref={listRef}
       >
-        {isDragOver && (
+        {(props.externalIsDragOver || isDragOver) && (
         <div
             role="status"
             aria-live="polite"

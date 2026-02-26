@@ -318,6 +318,8 @@ export function App() {
     }
   };
 
+  // Exposed callback forwarded into FilterSidebar so sidebar folder drops
+  // can reuse the same scanning/import orchestration as the main list.
   const handleSidebarImport = async (rawPaths: string[]) => {
     const { handleImportPaths } = await import("./utils/handleImportPaths");
     await handleImportPaths(rawPaths, {
@@ -766,6 +768,7 @@ export function App() {
               void handleSampleSelect(matching);
             }
           }}
+          onImportPaths={handleSidebarImport}
           width={sidebarWidth}
           bottomInset={selected ? 160 : 0}
         />

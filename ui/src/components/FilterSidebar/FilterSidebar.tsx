@@ -75,6 +75,7 @@ interface FileTreeItemProps {
   onToggleExpand: (path: string) => void;
   onMoveSample: (oldPath: string, newPath: string) => void;
   onPathSelect?: (path: string) => void;
+  onImportPaths?: (paths: string[]) => void;
 }
 
 function FileTreeItem({
@@ -215,6 +216,7 @@ export function FilterSidebar({
   selectedPath,
   onFilterChange,
   onPathSelect,
+  onImportPaths,
   width = 180,
   bottomInset = 0,
 }: FilterSidebarProps) {
@@ -316,16 +318,13 @@ export function FilterSidebar({
               <FileTreeItem
                 key={node.path}
                 node={node}
+                depth={0}
                 expandedPaths={expandedPaths}
                 selectedPath={selectedPath}
                 onToggleExpand={handleToggleExpand}
                 onMoveSample={handleMoveSample}
                 onPathSelect={onPathSelect}
-                onImportPaths={(paths) => {
-                  if (paths && paths.length > 0) {
-                    (onFilterChange as any)({});
-                  }
-                }}
+                onImportPaths={onImportPaths}
               />
             ))}
           </>
