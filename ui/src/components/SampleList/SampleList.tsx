@@ -378,17 +378,25 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           <SortHeader field="id" currentSort={sort} onSort={onSortChange} columnIndex={0} draggedColumnRef={draggedColumnRef}>#</SortHeader>
         </div>
 
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[1] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[1];
-            if (!el) return;
-            activeResize.current = { index: 1, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
-          }}
-          onMouseEnter={() => setHoveredCol(1)}
-          onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))}
-        >
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[1] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[1];
+              if (!el) return;
+              activeResize.current = { index: 1, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[1];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              // Consider the mouse "near the right edge" when within 10px of the right
+              // (this allows hovering the small resizer which sits slightly outside).
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 1 : h === 1 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))}
+          >
           <SortHeader field="file_name" currentSort={sort} onSort={onSortChange} columnIndex={1} draggedColumnRef={draggedColumnRef}>FILENAME</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
@@ -404,17 +412,23 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           </div>
         </div>
 
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[2] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[2];
-            if (!el) return;
-            activeResize.current = { index: 2, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
-          }}
-          onMouseEnter={() => setHoveredCol(2)}
-          onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))}
-        >
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[2] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[2];
+              if (!el) return;
+              activeResize.current = { index: 2, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[2];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 2 : h === 2 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))}
+          >
           <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>TYPE / INST</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
@@ -430,17 +444,23 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           </div>
         </div>
 
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[3] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[3];
-            if (!el) return;
-            activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
-          }}
-          onMouseEnter={() => setHoveredCol(3)}
-          onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}
-        >
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[3] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[3];
+              if (!el) return;
+              activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[3];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 3 : h === 3 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}
+          >
           <SortHeader field="bpm" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>BPM</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
@@ -456,17 +476,23 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           </div>
         </div>
 
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[4] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[4];
-            if (!el) return;
-            activeResize.current = { index: 4, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
-          }}
-          onMouseEnter={() => setHoveredCol(4)}
-          onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}
-        >
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[4] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[4];
+              if (!el) return;
+              activeResize.current = { index: 4, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[4];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 4 : h === 4 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}
+          >
           <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>DUR</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
@@ -482,17 +508,23 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           </div>
         </div>
 
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[5] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[5];
-            if (!el) return;
-            activeResize.current = { index: 5, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
-          }}
-          onMouseEnter={() => setHoveredCol(5)}
-          onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))}
-        >
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[5] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[5];
+              if (!el) return;
+              activeResize.current = { index: 5, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[5];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 5 : h === 5 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))}
+          >
           <SortHeader field="sample_rate" currentSort={sort} onSort={onSortChange} columnIndex={5} draggedColumnRef={draggedColumnRef}>SAMPLE RATE</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
@@ -508,17 +540,23 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           </div>
         </div>
 
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[6] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[6];
-            if (!el) return;
-            activeResize.current = { index: 6, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
-          }}
-          onMouseEnter={() => setHoveredCol(6)}
-          onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))}
-        >
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[6] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[6];
+              if (!el) return;
+              activeResize.current = { index: 6, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[6];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 6 : h === 6 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))}
+          >
           <div />
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
