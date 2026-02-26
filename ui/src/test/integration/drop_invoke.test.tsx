@@ -56,8 +56,10 @@ describe('App drag/drop integration', () => {
 
     // Expect invoke('scan_directory') to have been called with parent folder
     await waitFor(() => {
-      // scan_directory should be called at least once
-      expect((invoke as any).mock.calls.some((c: any[]) => c[0] === 'scan_directory')).toBeTruthy();
+      // Either scan_directory or import_file may be invoked depending on fast-path logic
+      const calledScan = (invoke as any).mock.calls.some((c: any[]) => c[0] === 'scan_directory');
+      const calledImportFile = (invoke as any).mock.calls.some((c: any[]) => c[0] === 'import_file');
+      expect(calledScan || calledImportFile).toBeTruthy();
     });
   });
 });

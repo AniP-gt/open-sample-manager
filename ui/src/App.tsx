@@ -610,23 +610,20 @@ export function App() {
       statFn = null;
     }
 
-    const normalizedTargets: string[] = [];
+    type Resolved = { kind: "file" | "dir"; path: string };
+    const resolved: Resolved[] = [];
 
     // Process all dropped paths in parallel where possible
     const results = await Promise.allSettled(
       paths.map(async (p) => {
-        if (!p) return null;
+        if (!p) return null as Resolved | null;
         const normalized = p.replace(/\\/g, "/");
 
         if (statFn) {
           try {
             const info = await statFn(normalized);
-            if (info.isDirectory) return normalized;
-            if (info.isFile) {
-              // parent directory of file
-              const parts = normalized.split("/");
-              return parts.slice(0, -1).join("/") || "/";
-            }
+            if (info.isDirectory) return { kind: "dir", path: normalized } as Resolved;
+            if (info.isFile) return { kind: "file", path: normalized } as Resolved;
           } catch {
             // stat failed; fall back to heuristic below
           }
@@ -636,14 +633,48 @@ export function App() {
         const parts = normalized.split("/");
         const last = parts[parts.length - 1] ?? "";
         if (last.includes(".")) {
-          return parts.slice(0, -1).join("/") || "/";
+          return { kind: "file", path: normalized } as Resolved;
         }
-        return normalized;
+        return { kind: "dir", path: normalized } as Resolved;
       }),
     );
 
     for (const r of results) {
-      if (r.status === "fulfilled" && r.value) normalizedTargets.push(r.value);
+      if (r.status === "fulfilled" && r.value) resolved.push(r.value as Resolved);
+    }
+
+    // If a single file was dropped, use the import_file fast-path. Otherwise
+    // continue with directory dedupe/scan as before.
+    if (resolved.length === 1 && resolved[0].kind === "file") {
+      const filePath = resolved[0].path;
+      setScanning(true);
+      setScanProgress(null);
+      setError(null);
+
+      try {
+        // Call new import_file command which analyzes and inserts a single file.
+        await invoke<number>("import_file", { path: filePath });
+        // eslint-disable-next-line no-console
+        console.debug("handleImportPaths: invoked import_file for", filePath);
+        setScanned(true);
+        await runSearch(filters.search);
+      } catch (e) {
+        handleInvokeError(e);
+      } finally {
+        setScanning(false);
+        setScanProgress(null);
+      }
+      return;
+    }
+
+    const normalizedTargets: string[] = [];
+    for (const item of resolved) {
+      if (item.kind === "dir") normalizedTargets.push(item.path);
+      if (item.kind === "file") {
+        // Convert file to parent directory for bulk scan flow
+        const parts = item.path.split("/");
+        normalizedTargets.push(parts.slice(0, -1).join("/") || "/");
+      }
     }
 
     // Deduplicate while preserving order

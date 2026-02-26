@@ -148,7 +148,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
   } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
   // Column widths as strings so we can mix px and flexible units like '1fr'.
-  const [colWidths, setColWidths] = useState<string[]>(["28px", "0.9fr", "100px", "60px", "60px", "80px", "40px"]);
+  const [colWidths, setColWidths] = useState<string[]>(["28px", "0.9fr", "90px", "90px", "60px", "60px", "40px"]);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
   const draggedColumnRef = useRef<number | null>(null);
   const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
@@ -161,8 +161,8 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
       const dx = e.clientX - active.startX;
       let next = Math.max(10, Math.round(active.startWidth + dx));
       // min widths per column (px)
-      const minWidths = [20, 120, 60, 40, 40, 60, 30];
-      const maxWidths = [400, 1600, 800, 400, 400, 600, 400];
+      const minWidths = [20, 120, 60, 60, 40, 40, 30];
+      const maxWidths = [400, 1600, 800, 800, 400, 400, 400];
       const min = minWidths[active.index] ?? 20;
       const max = maxWidths[active.index] ?? 2000;
       next = Math.max(min, Math.min(max, next));
@@ -266,6 +266,8 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
       case "duration":
         return (a.duration - b.duration) * dir;
       case "sample_rate":
+        // sample_rate sort no longer exposed in UI headers, but keep logic
+        // so external sort state remains functional.
         return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
       default:
         return 0;
@@ -429,7 +431,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             }}
             onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))}
           >
-          <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>TYPE / INST</SortHeader>
+          <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>TYPE</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -444,24 +446,24 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           </div>
         </div>
 
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[3] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[3];
-              if (!el) return;
-              activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[3];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 3 : h === 3 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}
-          >
-          <SortHeader field="bpm" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>BPM</SortHeader>
+        <div
+          style={{ position: "relative" }}
+          ref={(el) => (headerRefs.current[3] = el)}
+          onMouseDown={(e) => {
+            const el = headerRefs.current[3];
+            if (!el) return;
+            activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+          }}
+          onMouseMove={(e) => {
+            const el = headerRefs.current[3];
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            const near = Math.abs(rect.right - e.clientX) <= 10;
+            setHoveredCol((h) => (near ? 3 : h === 3 ? null : h));
+          }}
+          onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}
+        >
+          <SortHeader field="instrument_type" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>INST</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -493,7 +495,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             }}
             onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}
           >
-          <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>DUR</SortHeader>
+          <SortHeader field="bpm" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>BPM</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -525,7 +527,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             }}
             onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))}
           >
-          <SortHeader field="sample_rate" currentSort={sort} onSort={onSortChange} columnIndex={5} draggedColumnRef={draggedColumnRef}>SAMPLE RATE</SortHeader>
+          <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={5} draggedColumnRef={draggedColumnRef}>DUR</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -680,8 +682,10 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
                 ))}
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <div>
               <TypeBadge type={s.sample_type} onClick={() => onTypeClick?.(s)} />
+            </div>
+            <div>
               <span
                 onClick={() => onTypeClick?.(s)}
                 style={{
@@ -708,9 +712,6 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             </div>
             <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
-            </div>
-            <div style={{ fontSize: "14px", color: "#4b5563" }}>
-              {s.sample_rate ? `${s.sample_rate} Hz` : '—'}
             </div>
             <div style={{ display: "flex", gap: "6px", justifyContent: "center", position: "relative" }}>
               <button

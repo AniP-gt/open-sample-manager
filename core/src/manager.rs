@@ -330,6 +330,17 @@ impl SampleManager {
         Ok(input)
     }
 
+    /// Import a single file and store the analysis result in the database.
+    ///
+    /// This is a convenience wrapper around the internal `analyze_and_store`
+    /// helper and returns the inserted sample id on success.
+    pub fn import_file(&self, path: impl AsRef<Path>) -> Result<i64, ManagerError> {
+        let p = path.as_ref();
+        // Reuse the existing analyze_and_store implementation which returns
+        // the inserted row id on success.
+        self.analyze_and_store(p)
+    }
+
     /// Search samples by file name using FTS5 full-text search.
     ///
     /// Supports FTS5 query syntax:

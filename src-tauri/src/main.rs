@@ -77,6 +77,26 @@ async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State
 }
 
 #[tauri::command]
+async fn import_file(path: String, state: tauri::State<'_, AppState>) -> Result<i64, CommandError> {
+    let db_path = state.db_path.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = open_manager(db_path.as_deref())?;
+        // Use the core import_file helper which analyzes a single file and
+        // returns the inserted row id.
+        manager.import_file(path).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+
+    result
+}
+
+#[tauri::command]
 fn search_samples(
     query: String,
     state: tauri::State<'_, AppState>,
