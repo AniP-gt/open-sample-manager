@@ -205,9 +205,8 @@ fn prepare_drag_file(path: String) -> Result<String, CommandError> {
             }
         }
     }
-    // Prefix to avoid collisions and to make it obvious what created the file
-    let prefixed = format!("opensamplemanager-{}", file_name);
-    target.push(prefixed);
+    // Use original filename (no prefix)
+    target.push(file_name);
 
     // Debug log so renderer-side failures can be correlated with backend activity
     eprintln!("[prepare_drag_file] copying '{}' -> '{}'", src.display(), target.display());
