@@ -148,7 +148,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
   } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
   // Column widths as strings so we can mix px and flexible units like '1fr'.
-  const [colWidths, setColWidths] = useState<string[]>(["28px", "1fr", "100px", "60px", "60px", "80px", "40px"]);
+  const [colWidths, setColWidths] = useState<string[]>(["28px", "0.9fr", "100px", "60px", "60px", "80px", "40px"]);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
   const draggedColumnRef = useRef<number | null>(null);
   const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
