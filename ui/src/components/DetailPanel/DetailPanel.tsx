@@ -1,8 +1,8 @@
 import type { Sample, FilterState } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
-import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
 
 interface DetailPanelProps {
   sample: Sample;
@@ -26,9 +26,10 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
-  // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const [results, setResults] = useState<any[]>([]);
 
   const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
 
@@ -38,16 +39,37 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   const getTypeCount = (type: FilterTypeOption) =>
     type === "all" ? samples.length : samples.filter((s) => s.sample_type === type).length;
 
-  // Embedding search handler removed per user request.
+  const handleRunEmbeddingSearch = async () => {
+    if (!path) return;
+    // debug trace to help diagnose reported non-responsiveness
+    // eslint-disable-next-line no-console
+    console.debug("DetailPanel: run embedding search", { path, sampleId: sample.id });
+    try {
+      const rows: any[] = await invoke("search_by_embedding", { path, k: 8 });
+      const filtered = rows.filter((r) => {
+        try {
+          return !(r?.row?.path === path || r?.row?.id === sample.id);
+        } catch {
+          return true;
+        }
+      });
+      setResults(filtered);
+      setResultsOpen(true);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("embedding search failed", e);
+      if (typeof propsOnError === "function") {
+        propsOnError("Embedding search failed: " + String(e));
+      }
+    }
+  };
+
+  
 
   const handleSelectResult = (s: Sample, p?: string) => {
-    // If parent provided an onSelect handler, forward the selection so App
-    // can update the global selected sample and focus the list. Otherwise
-    // fallback to closing the modal only.
     if (typeof propsOnSelect === "function") {
       propsOnSelect(s, p);
     }
-    setResultsOpen(false);
   };
 
   return (
@@ -69,37 +91,35 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           zIndex: 2,
         }}
       >
-      {/* Scrollable content area: everything except the sticky PATH footer */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
-          <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2, width: "100%" }}>
-            <button
-              type="button"
-              onClick={handleRunEmbeddingSearch}
-              onMouseEnter={() => setTooltipVisible(true)}
-              onMouseLeave={() => setTooltipVisible(false)}
-              onFocus={() => setTooltipVisible(true)}
-              onBlur={() => setTooltipVisible(false)}
-              aria-describedby={tooltipId}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "100%",
-                padding: "10px 14px",
-                background: "#22d3ee",
-                color: "#06202a",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "14px",
-                fontWeight: 600,
-                boxShadow: "0 6px 18px rgba(34,211,238,0.08)",
-              }}
-            >
-              Find similar samples
-            </button>
+      <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
+        <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2, width: "100%" }}>
+          <button
+            type="button"
+            onClick={() => {}}
+            onMouseEnter={() => setTooltipVisible(true)}
+            onMouseLeave={() => setTooltipVisible(false)}
+            onFocus={() => setTooltipVisible(true)}
+            onBlur={() => setTooltipVisible(false)}
+            aria-describedby={tooltipId}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              padding: "10px 14px",
+              background: "#22d3ee",
+              color: "#06202a",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+              fontSize: "14px",
+              fontWeight: 600,
+              boxShadow: "0 6px 18px rgba(34,211,238,0.08)",
+            }}
+          >
+            Find similar samples
+          </button>
           <div
             id={tooltipId}
             role="tooltip"
@@ -253,91 +273,34 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
       </div>
 
       
-      {sample.instrument_type === "kick" && (
-        <div
-          style={{
-            background: "#a78bfa15",
-            border: "1px solid #a78bfa40",
-            borderRadius: "3px",
-            padding: "10px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "14px",
-              color: "#a78bfa",
-              letterSpacing: "0.12em",
-              marginBottom: "8px",
-            }}
-          >
-            KICK DETECTION
-          </div>
-          <div style={{ fontSize: "14px", color: "#6b7280", lineHeight: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>low_ratio &gt; 0.6</span>
-              <span
-                style={{
-                  color: sample.low_ratio > 0.6 ? "#22d3ee" : "#ef4444",
-                }}
-              >
-                {sample.low_ratio > 0.6 ? "✓" : "✗"}{" "}
-                {sample.low_ratio.toFixed(2)}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>attack_slope &gt; θ</span>
-              <span
-                style={{
-                  color: sample.attack_slope > 1.5 ? "#22d3ee" : "#ef4444",
-                }}
-              >
-                {sample.attack_slope > 1.5 ? "✓" : "✗"}{" "}
-                {sample.attack_slope.toFixed(2)}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>decay &lt; 400ms</span>
-              <span
-                style={{
-                  color:
-                    sample.decay_time && sample.decay_time < 400
-                      ? "#22d3ee"
-                      : "#ef4444",
-                }}
-              >
-                {sample.decay_time && sample.decay_time < 400 ? "✓" : "✗"}{" "}
-                {sample.decay_time}ms
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       
       
 
       
       <div>
-        {/* Embedding UI removed per user request. */}
+        {resultsOpen && EmbeddingResultsModal ? (
+          <EmbeddingResultsModal results={results} onSelect={handleSelectResult} onClose={() => setResultsOpen(false)} />
+        ) : null}
       </div>
 
       
       </div>
 
-      {/* PATH footer (sticky inside panel) */}
+      {/* PATH footer (always visible at panel bottom) */}
       <div
         style={{
           borderTop: "1px solid #0f1117",
           paddingTop: "12px",
-          /* Keep the PATH visible when waveform canvases or the fixed player
-             bar overlap the panel. PlayerBar uses zIndex:100, so this
-             sticky footer needs a higher stacking context to stay readable. */
-          position: "sticky",
-          bottom: 0,
           background: "#0a0c12",
-          zIndex: 200,
-          paddingBottom: "16px",
+          zIndex: 300,
+          paddingBottom: "12px",
           boxShadow: "0 -6px 18px rgba(0,0,0,0.55)",
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
         }}
       >
         <div

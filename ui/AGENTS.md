@@ -23,7 +23,7 @@ ui/
 |---|---|---|
 | Backend command usage | `ui/src/App.tsx` | `invoke(...)` and `scan-progress` listener wiring |
 | Type contracts | `ui/src/types/sample.ts`, `ui/src/types/scan.ts` | Domain model used across components |
-| Similarity UI flow | `ui/src/components/DetailPanel/DetailPanel.tsx`, `ui/src/components/EmbeddingResultsModal/EmbeddingResultsModal.tsx` | Embedding search interaction |
+| Similarity UI flow | `ui/src/components/DetailPanel/DetailPanel.tsx` | Embedding search interaction (component removed) |
 | Component exports | `ui/src/components/index.ts` | Barrel list for top-level imports |
 | Test setup | `ui/src/test/setup.ts`, `ui/src/test/placeholder.test.ts` | Vitest + jest-dom bootstrapping |
 
