@@ -74,45 +74,53 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   };
 
   return (
-    <div
-      style={{
-        position: "sticky",
-        top: 0,
-        height: "100%",
-        width: "260px",
-        borderLeft: "1px solid #0f1117",
-        background: "#0a0c12",
-        padding: "20px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-        flexShrink: 0,
-        overflowY: "auto",
-        zIndex: 2,
-      }}
-    >
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          height: "100%",
+          minHeight: 0,
+          width: "260px",
+          borderLeft: "1px solid #0f1117",
+          background: "#0a0c12",
+          padding: "20px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px",
+          flexShrink: 0,
+          overflowY: "auto",
+          zIndex: 2,
+        }}
+      >
       <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
-        <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2 }}>
-          <button
-            type="button"
-            onClick={handleRunEmbeddingSearch}
-            onMouseEnter={() => setTooltipVisible(true)}
-            onMouseLeave={() => setTooltipVisible(false)}
-            onFocus={() => setTooltipVisible(true)}
-            onBlur={() => setTooltipVisible(false)}
-            aria-describedby={tooltipId}
-            style={{
-              padding: "6px 12px",
-              background: "#111827",
-              color: "#e2e8f0",
-              border: "1px solid #0f172a",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontFamily: "'Courier New', monospace",
-            }}
-          >
-            Find similar samples
-          </button>
+          <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2, width: "100%" }}>
+            <button
+              type="button"
+              onClick={handleRunEmbeddingSearch}
+              onMouseEnter={() => setTooltipVisible(true)}
+              onMouseLeave={() => setTooltipVisible(false)}
+              onFocus={() => setTooltipVisible(true)}
+              onBlur={() => setTooltipVisible(false)}
+              aria-describedby={tooltipId}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                padding: "10px 14px",
+                background: "#22d3ee",
+                color: "#06202a",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontFamily: "'Courier New', monospace",
+                fontSize: "14px",
+                fontWeight: 600,
+                boxShadow: "0 6px 18px rgba(34,211,238,0.08)",
+              }}
+            >
+              Find similar samples
+            </button>
           <div
             id={tooltipId}
             role="tooltip"
@@ -372,14 +380,15 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         style={{
           borderTop: "1px solid #0f1117",
           paddingTop: "12px",
-          /* Keep the PATH visible when waveform canvases overlap the panel.
-             Using a sticky bottom container with higher zIndex preserves
-             readability without changing layout elsewhere. */
+          /* Keep the PATH visible when waveform canvases or the fixed player
+             bar overlap the panel. PlayerBar uses zIndex:100, so this
+             sticky footer needs a higher stacking context to stay readable. */
           position: "sticky",
           bottom: 0,
           background: "#0a0c12",
-          zIndex: 3,
-          paddingBottom: "12px",
+          zIndex: 200,
+          paddingBottom: "16px",
+          boxShadow: "0 -6px 18px rgba(0,0,0,0.55)",
         }}
       >
         <div
@@ -393,11 +402,15 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           PATH
         </div>
         <div
+          title={path || "—"}
           style={{
             fontSize: "13px",
             color: "#4b5563",
-            wordBreak: "break-all",
             lineHeight: 1.6,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "100%",
           }}
         >
           {path || "—"}

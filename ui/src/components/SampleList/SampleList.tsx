@@ -148,7 +148,10 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
   } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
   // Column widths as strings so we can mix px and flexible units like '1fr'.
-  const [colWidths, setColWidths] = useState<string[]>(["28px", "0.9fr", "90px", "90px", "60px", "60px", "40px"]);
+  // Widen DUR (index 5) and the actions column (index 6) to avoid overlap
+  // between the duration text and action buttons (emoji icons).
+  // Increase TYPE column (index 2) to reduce wrapping of "one-shot" badge
+  const [colWidths, setColWidths] = useState<string[]>(["28px", "0.9fr", "110px", "90px", "60px", "86px", "88px"]);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
   const draggedColumnRef = useRef<number | null>(null);
   const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
