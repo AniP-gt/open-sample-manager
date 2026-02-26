@@ -1,3 +1,4 @@
+import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -78,6 +79,11 @@ export function extractPathsFromDataTransfer(dataTransfer: DataTransfer | null):
   // Deduplicate while preserving order
   return Array.from(new Set(paths));
 }
+// Minimal transparent PNG as a data URL (1x1). The drag plugin's `image`
+// argument accepts a file path or a data URL; using an inline base64 PNG is
+// reliable across environments and avoids binary serialization edge cases.
+const TRANSPARENT_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
 
 function SortHeader({
@@ -201,6 +207,10 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
     };
   }, []);
   const [isDragOver, setIsDragOver] = useState(false);
+  // Prepared (backend-copied) paths for drag operations. We start preparing on
+  // mouse down so the async backend copy has time to finish before the
+  // synchronous dragstart handler runs (browsers require setData to be sync).
+  const preparedPathsRef = useRef<Record<number, string>>({});
   const [toast, setToast] = useState<{ message: string; visible: boolean; sampleId: number | null }>({ message: "", visible: false, sampleId: null });
   const dragCounter = useRef(0);
 
@@ -627,17 +637,59 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             key={s.id}
             className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
             draggable={!!samplePaths[s.id]}
+            onMouseDown={async () => {
+              // Prepare the drag file synchronously (await) before starting a
+              // native macOS drag. MouseDown occurs before dragstart, so it's
+              // safe to await here; dragstart still runs synchronously later.
+              const originalPath = samplePaths[s.id];
+              if (!originalPath) return;
+              try {
+                const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((e) => {
+                  console.warn("prepare_drag_file failed:", e);
+                  return null;
+                });
+                const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
+                if (p) preparedPathsRef.current[s.id] = p;
+
+                // navigator.platform is deprecated in some environments; combine platform
+                // and userAgent defensively to detect macOS/iOS hosts.
+                const platformStr = ((navigator as any)?.platform || '') + (navigator.userAgent || '');
+                const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|Macintosh/.test(platformStr);
+                if (!isMac) return;
+
+                const usable = p || originalPath;
+                // Use @crabnebula/tauri-plugin-drag for native drag
+                try {
+                  await startDrag({
+                    item: [usable],
+                    icon: TRANSPARENT_PNG,
+                  });
+                  return;
+                } catch (err) {
+                  console.warn("[dragout-debug] startDrag failed:", err);
+                }
+              } catch (err) {
+                // ignore non-fatal errors originating from preparation
+                console.warn("onMouseDown handler error:", err);
+              }
+            }}
             onDragStart={(e) => {
-              const path = samplePaths[s.id];
-              if (path) {
-                // DAW compatible file:// URL (not Tauri asset URL)
-                const isWindows = path.match(/^[A-Z]:/);
-                const fileUrl = isWindows
-                  ? `file:///${path.replace(/\\/g, '/')}`
-                  : `file://${path}`;
+              const originalPath = samplePaths[s.id];
+              if (!originalPath) return;
+              const prepared = preparedPathsRef.current[s.id];
+              const usablePath = prepared ?? originalPath;
+
+              // DAW compatible file:// URL (not Tauri asset URL)
+              const isWindows = usablePath.match(/^[A-Z]:/);
+              const fileUrl = isWindows
+                ? `file:///${usablePath.replace(/\\/g, '/')}`
+                : `file://${usablePath}`;
+              try {
                 e.dataTransfer.setData("text/uri-list", fileUrl);
                 e.dataTransfer.setData("text/plain", fileUrl);
                 e.dataTransfer.effectAllowed = "copy";
+              } catch (e) {
+                // Some platforms may restrict dataTransfer usage; ignore failures
               }
             }}
             onClick={() => onSampleSelect(s)}

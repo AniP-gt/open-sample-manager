@@ -164,6 +164,137 @@ async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Resul
     result
 }
 
+/// Prepare a filesystem-backed copy of a sample for dragging to external apps.
+/// Some samples may be stored in locations not directly accessible to other
+/// applications (e.g. packaged resources or virtual blobs). This command
+/// copies the file to the system temporary directory and returns the absolute
+/// path which can be used as a `file://` URI on the renderer side.
+#[tauri::command]
+fn prepare_drag_file(path: String) -> Result<String, CommandError> {
+    let src = std::path::Path::new(&path);
+    if !src.exists() {
+        return Err(CommandError {
+            code: "not_found".to_string(),
+            message: format!("source path does not exist: {}", path),
+            details: None,
+        });
+    }
+
+    let file_name = match src.file_name().and_then(|s| s.to_str()) {
+        Some(n) => n.to_string(),
+        None => {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            format!("drag-{}", ts)
+        }
+    };
+
+    // On macOS/desktop environments, placing the prepared file in the user's
+    // Desktop folder increases the chance the receiving native app (Logic,
+    // etc.) will accept the file directly instead of creating a .fileloc
+    // reference. Fall back to temp_dir on any failure.
+    let mut target = std::env::temp_dir();
+    if cfg!(target_os = "macos") {
+        if let Ok(home) = std::env::var("HOME") {
+            let mut desktop = std::path::PathBuf::from(home);
+            desktop.push("Desktop");
+            if desktop.exists() && desktop.is_dir() {
+                target = desktop;
+            }
+        }
+    }
+    // Use original filename (no prefix)
+    target.push(file_name);
+
+    // Debug log so renderer-side failures can be correlated with backend activity
+    eprintln!("[prepare_drag_file] copying '{}' -> '{}'", src.display(), target.display());
+    match std::fs::copy(&src, &target) {
+        Ok(_) => {
+            let out = target.to_string_lossy().to_string();
+            eprintln!("[prepare_drag_file] prepared -> {}", out);
+            Ok(out)
+        }
+        Err(e) => Err(CommandError {
+            code: "io_error".to_string(),
+            message: format!("failed to prepare drag file: {}", e),
+            details: None,
+        }),
+    }
+}
+
+#[tauri::command]
+fn debug_start_drag(raw: serde_json::Value) -> Result<(), CommandError> {
+    // One-line debug helper: print the raw JSON payload the renderer attempted
+    // to send to the plugin's start_drag command. This helps diagnose serde
+    // deserialization errors without modifying plugin internals. We'll keep
+    // this lightweight and remove it once we've captured logs.
+    eprintln!("[debug_start_drag] raw payload: {}", raw);
+    Ok(())
+}
+
+// Helper structs matching typical shapes we might receive from the renderer.
+#[derive(serde::Deserialize, Debug)]
+struct CandidateFiles { files: Vec<String> }
+
+#[derive(serde::Deserialize, Debug)]
+struct CandidateFilesCapital { Files: Vec<String> }
+
+#[derive(serde::Deserialize, Debug)]
+struct CandidateItemArray(Vec<String>);
+
+#[derive(serde::Deserialize, Debug)]
+struct CandidateImageFile { File: String }
+
+#[derive(serde::Deserialize, Debug)]
+struct CandidateImagePath { path: String }
+
+#[tauri::command]
+fn debug_try_deserialize(raw: serde_json::Value) -> Result<String, CommandError> {
+    // Try several candidate shapes and report which ones succeed
+    let mut successes: Vec<String> = Vec::new();
+    let mut failures: Vec<String> = Vec::new();
+
+    // 1) item as simple array: ["/abs/path"]
+    match serde_json::from_value::<CandidateItemArray>(raw.clone()) {
+        Ok(v) => successes.push(format!("CandidateItemArray -> {:?}", v)),
+        Err(e) => failures.push(format!("CandidateItemArray: {}", e)),
+    }
+
+    // 2) { files: [...] }
+    match serde_json::from_value::<CandidateFiles>(raw.clone()) {
+        Ok(v) => successes.push(format!("CandidateFiles -> {:?}", v)),
+        Err(e) => failures.push(format!("CandidateFiles: {}", e)),
+    }
+
+    // 3) { Files: [...] }
+    match serde_json::from_value::<CandidateFilesCapital>(raw.clone()) {
+        Ok(v) => successes.push(format!("CandidateFilesCapital -> {:?}", v)),
+        Err(e) => failures.push(format!("CandidateFilesCapital: {}", e)),
+    }
+
+    // 4) image: { File: "/path" }
+    match serde_json::from_value::<CandidateImageFile>(raw.clone()) {
+        Ok(v) => successes.push(format!("CandidateImageFile -> {:?}", v)),
+        Err(e) => failures.push(format!("CandidateImageFile: {}", e)),
+    }
+
+    // 5) image: { path: "/path" }
+    match serde_json::from_value::<CandidateImagePath>(raw.clone()) {
+        Ok(v) => successes.push(format!("CandidateImagePath -> {:?}", v)),
+        Err(e) => failures.push(format!("CandidateImagePath: {}", e)),
+    }
+
+    eprintln!("[debug_try_deserialize] successes: {:?}", successes);
+    eprintln!("[debug_try_deserialize] failures: {:?}", failures);
+
+    Ok(format!("successes: {}, failures: {}", successes.len(), failures.len()))
+}
+
+// (start_native_drag wrapper removed) Renderer should call `native_drag_out`
+// directly via `invoke("native_drag_out", { archive_path, file_paths, target_dir })`.
+
 #[tauri::command]
 async fn move_sample(
     old_path: String,
@@ -305,38 +436,62 @@ fn copy_to_clipboard(text: String, app: tauri::AppHandle) -> Result<(), String> 
         .map_err(|e| e.to_string())
 }
 
+// start_native_file_drag removed.
+// Renderer should call the plugin's public command directly (e.g. `invoke("plugin:drag|start_drag", ...)`)
+// or use the JS wrapper exposed by the plugin (window.__TAURI__.drag.startDrag) instead of attempting
+// to call into the plugin's internal symbols from Rust.
+
 fn main() {
-    tauri::Builder::default()
+    // Create the builder and register plugins. We register the dragout plugin
+    // only on macOS because it purposefully fails to compile on other
+    // platforms (it uses macOS-only Objective-C APIs). Keeping the conditional
+    // registration here avoids build errors on Linux/Windows while enabling
+    // native file-promise drag semantics on macOS.
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
-        .setup(|app| {
-            let db_path = match app.path().app_data_dir() {
-                Ok(dir) => {
-                    let _ = std::fs::create_dir_all(&dir);
-                    Some(dir.join("samples.db"))
-                }
-                Err(_) => None,
-            };
+        .plugin(tauri_plugin_clipboard_manager::init());
 
-            app.manage(AppState { db_path });
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            health_check,
-            scan_directory,
-            search_samples,
-            search_by_embedding,
-            get_sample,
-            delete_sample,
-            clear_all_samples,
-    move_sample,
-            send_to_trash,
-            update_sample_classification,
-            open_folder,
-            copy_to_clipboard
-        ])
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .plugin(tauri_plugin_dragout::init())
+            .plugin(tauri_plugin_drag::init());
+    }
+
+    builder = builder.setup(|app| {
+        let db_path = match app.path().app_data_dir() {
+            Ok(dir) => {
+                let _ = std::fs::create_dir_all(&dir);
+                Some(dir.join("samples.db"))
+            }
+            Err(_) => None,
+        };
+
+        app.manage(AppState { db_path });
+        Ok(())
+    });
+
+    builder = builder.invoke_handler(tauri::generate_handler![
+        health_check,
+        scan_directory,
+        search_samples,
+        search_by_embedding,
+        get_sample,
+        delete_sample,
+        clear_all_samples,
+        move_sample,
+        send_to_trash,
+        update_sample_classification,
+        open_folder,
+        copy_to_clipboard,
+        prepare_drag_file,
+        debug_start_drag,
+        debug_try_deserialize,
+    ]);
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

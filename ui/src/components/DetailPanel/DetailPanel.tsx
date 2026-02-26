@@ -2,6 +2,7 @@ import type { Sample, FilterState } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface DetailPanelProps {
   sample: Sample;
@@ -24,7 +25,7 @@ interface DetailPanelProps {
   onFilterChange?: (filters: Partial<FilterState>) => void;
 }
 
-export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect }: DetailPanelProps) {
+export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
   // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
@@ -59,11 +60,44 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   }
 
   const [resultsOpen, setResultsOpen] = useState(false);
-  const [embeddingResults] = useState<EmbeddingResult[]>([]);
+  const [embeddingResults, setEmbeddingResults] = useState<EmbeddingResult[]>([]);
 
-  // Open results modal (placeholder handler). Provide a minimal, local
-  // handler so the button doesn't reference an undefined symbol at runtime.
-  const handleRunEmbeddingSearch = async () => setResultsOpen(true);
+  // Open results modal and run embedding search via Tauri command.
+  // This calls the `search_by_embedding` IPC command with the current
+  // sample path and a small k (top-k) default. Results are stored in
+  // local state and forwarded to the results modal.
+  const handleRunEmbeddingSearch = async () => {
+    // Ensure we have a path to query
+    if (!path) {
+      propsOnSelect?.(sample, path);
+      // Surface a user-facing error if provided
+      // Prefer the parent's onError handler if available
+      if (typeof propsOnError === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (propsOnError as any)("Sample path missing for embedding search");
+      } else {
+        // Fallback: open modal with empty results
+        setResultsOpen(true);
+      }
+      return;
+    }
+
+    try {
+      const k = 12; // return top-12 similar items by default
+      const rows = await invoke<EmbeddingResult[]>("search_by_embedding", { path, k });
+      setEmbeddingResults(rows ?? []);
+      setResultsOpen(true);
+    } catch (e) {
+      // Surface error to parent if provided, otherwise open modal empty
+      const msg = e instanceof Error ? e.message : String(e);
+      if (typeof propsOnError === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (propsOnError as any)(msg);
+      }
+      setEmbeddingResults([]);
+      setResultsOpen(true);
+    }
+  };
   const handleSelectResult = (s: Sample, p?: string) => {
     // If parent provided an onSelect handler, forward the selection so App
     // can update the global selected sample and focus the list. Otherwise

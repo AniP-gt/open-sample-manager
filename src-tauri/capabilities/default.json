@@ -9,6 +9,7 @@
     "dialog:allow-message",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-read-text",
+    "drag:allow-start-drag",
     {
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "**" }]
