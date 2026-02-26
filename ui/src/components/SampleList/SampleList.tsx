@@ -627,17 +627,36 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             key={s.id}
             className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
             draggable={!!samplePaths[s.id]}
-            onDragStart={(e) => {
-              const path = samplePaths[s.id];
-              if (path) {
-                // DAW compatible file:// URL (not Tauri asset URL)
-                const isWindows = path.match(/^[A-Z]:/);
-                const fileUrl = isWindows
-                  ? `file:///${path.replace(/\\/g, '/')}`
-                  : `file://${path}`;
+            onDragStart={async (e) => {
+              const originalPath = samplePaths[s.id];
+              if (!originalPath) return;
+
+              // Ask the backend to prepare a filesystem-backed copy if needed.
+              // If prepare_drag_file fails, fall back to the original path.
+              let usablePath = originalPath;
+              try {
+                // invoke returns the absolute path to use for dragging
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const { invoke } = await import("@tauri-apps/api/core");
+                const prepared = await invoke<string>("prepare_drag_file", { path: originalPath });
+                if (prepared) usablePath = prepared;
+              } catch (err) {
+                // ignore and fall back to originalPath
+                // eslint-disable-next-line no-console
+                console.debug("prepare_drag_file failed, falling back to original path:", err);
+              }
+
+              // DAW compatible file:// URL (not Tauri asset URL)
+              const isWindows = usablePath.match(/^[A-Z]:/);
+              const fileUrl = isWindows
+                ? `file:///${usablePath.replace(/\\/g, '/')}`
+                : `file://${usablePath}`;
+              try {
                 e.dataTransfer.setData("text/uri-list", fileUrl);
                 e.dataTransfer.setData("text/plain", fileUrl);
                 e.dataTransfer.effectAllowed = "copy";
+              } catch (e) {
+                // Some platforms may restrict dataTransfer usage; ignore failures
               }
             }}
             onClick={() => onSampleSelect(s)}

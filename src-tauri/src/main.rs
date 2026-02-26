@@ -164,6 +164,48 @@ async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Resul
     result
 }
 
+/// Prepare a filesystem-backed copy of a sample for dragging to external apps.
+/// Some samples may be stored in locations not directly accessible to other
+/// applications (e.g. packaged resources or virtual blobs). This command
+/// copies the file to the system temporary directory and returns the absolute
+/// path which can be used as a `file://` URI on the renderer side.
+#[tauri::command]
+fn prepare_drag_file(path: String) -> Result<String, CommandError> {
+    let src = std::path::Path::new(&path);
+    if !src.exists() {
+        return Err(CommandError {
+            code: "not_found".to_string(),
+            message: format!("source path does not exist: {}", path),
+            details: None,
+        });
+    }
+
+    let file_name = match src.file_name().and_then(|s| s.to_str()) {
+        Some(n) => n.to_string(),
+        None => {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            format!("drag-{}", ts)
+        }
+    };
+
+    let mut target = std::env::temp_dir();
+    // Prefix to avoid collisions and to make it obvious what created the file
+    let prefixed = format!("opensamplemanager-{}", file_name);
+    target.push(prefixed);
+
+    match std::fs::copy(&src, &target) {
+        Ok(_) => Ok(target.to_string_lossy().to_string()),
+        Err(e) => Err(CommandError {
+            code: "io_error".to_string(),
+            message: format!("failed to prepare drag file: {}", e),
+            details: None,
+        }),
+    }
+}
+
 #[tauri::command]
 async fn move_sample(
     old_path: String,
