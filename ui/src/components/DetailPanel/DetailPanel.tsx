@@ -26,8 +26,7 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
-  const [resultsOpen, setResultsOpen] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
 
@@ -39,29 +38,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   const getTypeCount = (type: FilterTypeOption) =>
     type === "all" ? samples.length : samples.filter((s) => s.sample_type === type).length;
 
-  const handleRunEmbeddingSearch = async () => {
-    if (!path) return;
-    try {
-      const rows: any[] = await invoke("search_by_embedding", { path, k: 8 });
-      // Exclude the query sample itself from the candidate list (it often appears with ~100% similarity)
-      const filtered = rows.filter((r) => {
-        try {
-          // r.row.path is the absolute path returned by backend; sample.path may be undefined so compare with provided `path` too
-          return !(r?.row?.path === path || r?.row?.id === sample.id);
-        } catch {
-          return true;
-        }
-      });
-      setResults(filtered);
-      setResultsOpen(true);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("embedding search failed", e);
-      if (typeof propsOnError === "function") {
-        propsOnError("Embedding search failed: " + String(e));
-      }
-    }
-  };
+  // Embedding search handler removed per user request.
 
   const handleSelectResult = (s: Sample, p?: string) => {
     // If parent provided an onSelect handler, forward the selection so App
@@ -88,11 +65,13 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           flexDirection: "column",
           gap: "20px",
           flexShrink: 0,
-          overflowY: "auto",
+          overflow: "hidden",
           zIndex: 2,
         }}
       >
-      <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
+      {/* Scrollable content area: everything except the sticky PATH footer */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
           <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2, width: "100%" }}>
             <button
               type="button"
@@ -339,43 +318,13 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
 
       
       <div>
-        <div
-          style={{
-            fontSize: "14px",
-            color: "#374151",
-            letterSpacing: "0.14em",
-            marginBottom: "8px",
-          }}
-        >
-          EMBEDDING [64-dim]
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: "1px",
-            flexWrap: "wrap",
-            opacity: 0.6,
-          }}
-        >
-          {Array.from({ length: 32 }, (_, i) => (
-            <div
-              key={i}
-              style={{
-                width: "6px",
-                height: "6px",
-                background: `hsl(${(sample.id * 37 + i * 11) % 360}, 60%, 40%)`,
-                borderRadius: "1px",
-              }}
-            />
-          ))}
-        </div>
-        <div style={{ fontSize: "13px", color: "#374151", marginTop: "6px" }}>
-          cos-sim search · ANN planned
-        </div>
-        <EmbeddingResultsModal isOpen={resultsOpen} results={results} onClose={() => setResultsOpen(false)} onSelect={handleSelectResult} />
+        {/* Embedding UI removed per user request. */}
       </div>
 
       
+      </div>
+
+      {/* PATH footer (sticky inside panel) */}
       <div
         style={{
           borderTop: "1px solid #0f1117",
