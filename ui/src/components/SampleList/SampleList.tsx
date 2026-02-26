@@ -637,41 +637,64 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             key={s.id}
             className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
             draggable={!!samplePaths[s.id]}
-            onMouseDown={async () => {
-              // Prepare the drag file synchronously (await) before starting a
-              // native macOS drag. MouseDown occurs before dragstart, so it's
-              // safe to await here; dragstart still runs synchronously later.
-              const originalPath = samplePaths[s.id];
-              if (!originalPath) return;
-              try {
-                const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((e) => {
-                  console.warn("prepare_drag_file failed:", e);
-                  return null;
-                });
-                const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
-                if (p) preparedPathsRef.current[s.id] = p;
+            onMouseDown={(e) => {
+              // Only prepare drag if we have a path and left mouse button
+              if (!samplePaths[s.id] || e.button !== 0) return;
+              
+              // Track initial position to distinguish click from drag
+              const startX = e.clientX;
+              const startY = e.clientY;
+              
+              const handleMouseMove = (moveEvent: MouseEvent) => {
+                const dx = Math.abs(moveEvent.clientX - startX);
+                const dy = Math.abs(moveEvent.clientY - startY);
+                
+                // Only initiate drag if moved more than 5px (drag threshold)
+                if (dx > 5 || dy > 5) {
+                  // Remove listener to prevent multiple preparations
+                  document.removeEventListener('mousemove', handleMouseMove);
+                  document.removeEventListener('mouseup', handleMouseUp);
+                  
+                  // Now prepare and start the drag
+                  (async () => {
+                    const originalPath = samplePaths[s.id];
+                    if (!originalPath) return;
+                    try {
+                      const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((e) => {
+                        console.warn("prepare_drag_file failed:", e);
+                        return null;
+                      });
+                      const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
+                      if (p) preparedPathsRef.current[s.id] = p;
 
-                // navigator.platform is deprecated in some environments; combine platform
-                // and userAgent defensively to detect macOS/iOS hosts.
-                const platformStr = ((navigator as any)?.platform || '') + (navigator.userAgent || '');
-                const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|Macintosh/.test(platformStr);
-                if (!isMac) return;
+                      const platformStr = ((navigator as any)?.platform || '') + (navigator.userAgent || '');
+                      const isMac = /Mac|iPhone|iPad|Macintosh/.test(platformStr);
+                      if (!isMac) return;
 
-                const usable = p || originalPath;
-                // Use @crabnebula/tauri-plugin-drag for native drag
-                try {
-                  await startDrag({
-                    item: [usable],
-                    icon: TRANSPARENT_PNG,
-                  });
-                  return;
-                } catch (err) {
-                  console.warn("[dragout-debug] startDrag failed:", err);
+                      const usable = p || originalPath;
+                      try {
+                        await startDrag({
+                          item: [usable],
+                          icon: TRANSPARENT_PNG,
+                        });
+                      } catch (err) {
+                        console.warn("[dragout-debug] startDrag failed:", err);
+                      }
+                    } catch (err) {
+                      console.warn("onMouseDown handler error:", err);
+                    }
+                  })();
                 }
-              } catch (err) {
-                // ignore non-fatal errors originating from preparation
-                console.warn("onMouseDown handler error:", err);
-              }
+              };
+              
+              const handleMouseUp = () => {
+                // Clean up listeners if mouse released without moving enough to drag
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
             }}
             onDragStart={(e) => {
               const originalPath = samplePaths[s.id];
@@ -739,12 +762,13 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
                 ))}
               </div>
             </div>
-            <div>
+            <div onMouseDown={(e) => e.stopPropagation()}>
               <TypeBadge type={s.sample_type} onClick={() => onTypeClick?.(s)} />
             </div>
-            <div>
+            <div onMouseDown={(e) => e.stopPropagation()}>
               <span
                 onClick={() => onTypeClick?.(s)}
+                onMouseDown={(e) => e.stopPropagation()}
                 style={{
                   fontSize: "10px",
                   fontFamily: "'Courier New', monospace",
@@ -770,8 +794,9 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
             </div>
-            <div style={{ display: "flex", gap: "6px", justifyContent: "center", position: "relative" }}>
+            <div onMouseDown={(e) => e.stopPropagation()} style={{ display: "flex", gap: "6px", justifyContent: "center", position: "relative" }}>
               <button
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={async (e) => {
                   e.stopPropagation();
                   const path = samplePaths[s.id];
@@ -810,6 +835,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
                 📂
               </button>
               <button
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={async (e) => {
                   e.stopPropagation();
                   const path = samplePaths[s.id];
@@ -868,6 +894,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
                 </div>
               )}
               <button
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onTrashSample?.(s.id);
