@@ -6,15 +6,17 @@ interface ClassificationEditModalProps {
   sample: Sample | null;
   editInstrumentType: string;
   editSampleType: SampleType;
+  instrumentTypes: string[];
   onInstrumentTypeChange: (value: string) => void;
   onSampleTypeChange: (value: SampleType) => void;
   onSave: () => void;
   onClose: () => void;
+  onManageClick?: () => void;
 }
 
 const SAMPLE_TYPE_OPTIONS: SampleType[] = ["loop", "one-shot"];
 
-const INSTRUMENT_OPTIONS: InstrumentType[] = [
+const DEFAULT_INSTRUMENT_TYPES: InstrumentType[] = [
   "kick",
   "snare",
   "hihat",
@@ -31,11 +33,15 @@ export function ClassificationEditModal({
   sample,
   editInstrumentType,
   editSampleType,
+  instrumentTypes,
   onInstrumentTypeChange,
   onSampleTypeChange,
   onSave,
   onClose,
+  onManageClick,
 }: ClassificationEditModalProps) {
+  const options = instrumentTypes.length > 0 ? instrumentTypes : DEFAULT_INSTRUMENT_TYPES;
+
   if (!isOpen || !sample) return null;
 
   return (
@@ -101,7 +107,6 @@ export function ClassificationEditModal({
           </button>
         </div>
 
-        {/* Sample name */}
         <div
           style={{
             fontSize: "14px",
@@ -150,18 +155,44 @@ export function ClassificationEditModal({
           </div>
         </div>
 
-        {/* Instrument Type Section */}
         <div style={{ marginBottom: "28px" }}>
-          <h3
+          <div
             style={{
-              fontSize: "14px",
-              letterSpacing: "0.1em",
-              color: "#9ca3af",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: "12px",
             }}
           >
-            INSTRUMENT TYPE
-          </h3>
+            <h3
+              style={{
+                fontSize: "14px",
+                letterSpacing: "0.1em",
+                color: "#9ca3af",
+                margin: 0,
+              }}
+            >
+              INSTRUMENT TYPE
+            </h3>
+            {onManageClick && (
+              <button
+                onClick={onManageClick}
+                style={{
+                  background: "#1f2937",
+                  border: "1px solid #374151",
+                  color: "#9ca3af",
+                  cursor: "pointer",
+                  fontSize: "10px",
+                  fontFamily: "'Courier New', monospace",
+                  letterSpacing: "0.05em",
+                  padding: "4px 8px",
+                  borderRadius: "2px",
+                }}
+              >
+                MANAGE
+              </button>
+            )}
+          </div>
           <div
             style={{
               display: "grid",
@@ -169,7 +200,7 @@ export function ClassificationEditModal({
               gap: "8px",
             }}
           >
-            {INSTRUMENT_OPTIONS.map((option) => (
+            {options.map((option) => (
               <button
                 key={option}
                 onClick={() => onInstrumentTypeChange(option)}
@@ -195,7 +226,6 @@ export function ClassificationEditModal({
           </div>
         </div>
 
-        {/* Actions */}
         <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
           <button
             onClick={onClose}
