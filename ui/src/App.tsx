@@ -49,26 +49,13 @@ const mapRowToSample = (row: TauriSampleRow): Sample => {
   // Normalize playback_type
   const playbackType = row.playback_type === "loop" ? "loop" : "oneshot";
 
-  // Normalize instrument_type
-  const validInstrumentTypes = [
-    "kick",
-    "snare",
-    "hihat",
-    "bass",
-    "synth",
-    "fx",
-    "vocal",
-    "percussion",
-    "other",
-  ];
-
-  // Prefer explicit instrument_type from the row. If missing but the
-  // backend stored "kick" in sample_type historically, map it to the
-  // instrument_type so the UI preserves the previous classification.
-  let instrumentType = validInstrumentTypes.includes(row.instrument_type)
-    ? (row.instrument_type as Sample["instrument_type"])
+  // Accept custom instrument types returned from the DB (lowercase); fall
+  // back to "other" when missing. This preserves user-created tags.
+  let instrumentType = typeof row.instrument_type === "string" && row.instrument_type.trim() !== ""
+    ? (row.instrument_type.toLowerCase() as Sample["instrument_type"]) 
     : "other";
 
+  // Preserve historical mapping where sample_type="kick" -> instrument_type="kick".
   if (instrumentType === "other" && row.sample_type === "kick") {
     instrumentType = "kick";
   }
@@ -176,7 +163,7 @@ export function App() {
   // Load instrument types on mount
   useEffect(() => {
     invoke<InstrumentTypeRow[]>("get_instrument_types")
-      .then(setInstrumentTypes)
+      .then((res) => setInstrumentTypes(res ?? []))
       .catch(console.error);
   }, []);
   // Listen for the SettingsModal's clear-all event and open the centralized confirm modal
@@ -520,7 +507,7 @@ export function App() {
     try {
       await invoke<number>("add_instrument_type", { name });
       const updated = await invoke<InstrumentTypeRow[]>("get_instrument_types");
-      setInstrumentTypes(updated);
+      setInstrumentTypes(updated ?? []);
     } catch (e) {
       setError(`Failed to add instrument type: ${e}`);
     }
@@ -530,7 +517,7 @@ export function App() {
     try {
       await invoke<number>("delete_instrument_type", { id });
       const updated = await invoke<InstrumentTypeRow[]>("get_instrument_types");
-      setInstrumentTypes(updated);
+      setInstrumentTypes(updated ?? []);
     } catch (e) {
       setError(`Failed to delete instrument type: ${e}`);
     }
@@ -540,7 +527,7 @@ export function App() {
     try {
       await invoke<number>("update_instrument_type", { id, name });
       const updated = await invoke<InstrumentTypeRow[]>("get_instrument_types");
-      setInstrumentTypes(updated);
+      setInstrumentTypes(updated ?? []);
     } catch (e) {
       setError(`Failed to update instrument type: ${e}`);
     }
