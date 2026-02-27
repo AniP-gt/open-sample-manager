@@ -938,3 +938,68 @@ pub fn move_sample_path(
 
     Ok(updated)
 }
+
+// ============ Instrument Types CRUD ============
+
+/// A row from the `instrument_types` table.
+#[derive(Debug, Clone, Serialize)]
+pub struct InstrumentTypeRow {
+    pub id: i64,
+    pub name: String,
+    pub created_at: String,
+}
+
+/// Insert a new instrument type into the database.
+///
+/// Returns the `rowid` of the newly inserted row.
+///
+/// # Errors
+/// Returns `rusqlite::Error` if the name already exists or any SQL error occurs.
+pub fn insert_instrument_type(conn: &Connection, name: &str) -> Result<i64, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "INSERT INTO instrument_types (name) VALUES (?1)",
+    )?;
+    stmt.execute(params![name])?;
+    Ok(conn.last_insert_rowid())
+}
+
+/// Get all instrument types from the database, ordered by name.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn get_all_instrument_types(conn: &Connection) -> Result<Vec<InstrumentTypeRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, name, created_at FROM instrument_types ORDER BY name",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(InstrumentTypeRow {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            created_at: row.get(2)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// Delete an instrument type by its ID.
+///
+/// Returns the number of rows deleted (0 or 1).
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn delete_instrument_type(conn: &Connection, id: i64) -> Result<usize, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("DELETE FROM instrument_types WHERE id = ?1")?;
+    stmt.execute(params![id])
+}
+
+
+/// Update an instrument type's name by its ID.
+///
+/// Returns the number of rows modified (0 or 1).
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn update_instrument_type(conn: &Connection, id: i64, name: &str) -> Result<usize, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("UPDATE instrument_types SET name = ?1 WHERE id = ?2")?;
+    stmt.execute(params![name, id])
+}
