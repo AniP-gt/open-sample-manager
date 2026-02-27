@@ -5,7 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState, SortState, SampleType } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
-import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal } from "./components";
+import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, type PlayerBarHandle } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -130,6 +130,7 @@ export function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const sampleListRef = useRef<SampleListHandle | null>(null);
+  const playerBarRef = useRef<PlayerBarHandle | null>(null);
   
   // Classification modal state
   const [classificationModalOpen, setClassificationModalOpen] = useState(false);
@@ -241,6 +242,11 @@ export function App() {
   };
 
   const handleSampleSelect = async (sample: Sample) => {
+    // Stop playback when selecting a different sample
+    if (selected?.id !== sample.id) {
+      playerBarRef.current?.stop();
+    }
+
     const path = samplePaths[sample.id];
 
     // Immediately set the selected sample so the SampleList can focus/scroll
@@ -855,7 +861,7 @@ export function App() {
         )}
       </div>
 
-      {selected && <PlayerBar sample={selected} path={samplePaths[selected.id]} />}
+      {selected && <PlayerBar ref={playerBarRef} sample={selected} path={samplePaths[selected.id]} />}
 
           <SettingsModal
             isOpen={settingsOpen}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { readFile } from "@tauri-apps/plugin-fs";
 import type { Sample } from "../../types/sample";
 import { WaveSurferPlayer } from "../WaveSurferPlayer/WaveSurferPlayer";
@@ -9,7 +9,11 @@ interface PlayerBarProps {
   path?: string;
 }
 
-export function PlayerBar({ sample, path }: PlayerBarProps) {
+export interface PlayerBarHandle {
+  stop: () => void;
+}
+
+export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path }: PlayerBarProps, ref) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -97,6 +101,18 @@ export function PlayerBar({ sample, path }: PlayerBarProps) {
     const ms = Math.floor((seconds % 1) * 100);
     return `${mins}:${secs.toString().padStart(2, "0")}.${ms.toString().padStart(2, "0")}`;
   };
+
+  // Expose stop method to parent
+  useImperativeHandle(ref, () => ({
+    stop: () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setPlaying(false);
+        setCurrentTime(0);
+      }
+    },
+  }));
 
   return (
     <div
@@ -265,4 +281,4 @@ export function PlayerBar({ sample, path }: PlayerBarProps) {
       )}
     </div>
   );
-}
+});

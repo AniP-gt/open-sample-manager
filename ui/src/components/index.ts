@@ -8,6 +8,7 @@ export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { SampleList } from "./SampleList/SampleList";
 export { DetailPanel } from "./DetailPanel/DetailPanel";
 export { PlayerBar } from "./PlayerBar/PlayerBar";
+export type { PlayerBarHandle } from "./PlayerBar/PlayerBar";
 export { ResizeHandle } from "./ResizeHandle/ResizeHandle";
 
 export { SettingsModal } from "./SettingsModal/SettingsModal";

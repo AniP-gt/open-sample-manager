@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use open_sample_manager_core::{
     analysis::bpm::estimate_bpm, analysis::decoder::decode_to_mono_f32,
-    analysis::kick::detect_kick, analysis::loop_classifier::classify_loop, LoopType,
+    analysis::kick::detect_kick, analysis::loop_classifier::{classify_loop, compute_energy_ratio}, LoopType,
 };
 
 /// Returns the path to the test fixtures directory.
@@ -50,7 +50,8 @@ fn test_full_pipeline_sine_440hz() {
 
     // Step 4: Classify loop (should be one-shot, duration ~1s)
     let duration_seconds = audio.samples.len() as f64 / audio.sample_rate as f64;
-    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength);
+    let energy_ratio = compute_energy_ratio(&audio.samples);
+    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength, energy_ratio);
     assert_eq!(
         loop_type,
         LoopType::OneShot,
@@ -90,7 +91,8 @@ fn test_full_pipeline_kick_808() {
 
     // Step 4: Classify loop (should be one-shot, short duration)
     let duration_seconds = audio.samples.len() as f64 / audio.sample_rate as f64;
-    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength);
+    let energy_ratio = compute_energy_ratio(&audio.samples);
+    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength, energy_ratio);
     assert_eq!(
         loop_type,
         LoopType::OneShot,
@@ -124,7 +126,8 @@ fn test_full_pipeline_snare() {
 
     // Step 4: Classify loop (should be one-shot, short duration ~0.2s)
     let duration_seconds = audio.samples.len() as f64 / audio.sample_rate as f64;
-    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength);
+    let energy_ratio = compute_energy_ratio(&audio.samples);
+    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength, energy_ratio);
     assert_eq!(
         loop_type,
         LoopType::OneShot,
@@ -171,7 +174,8 @@ fn test_full_pipeline_drum_loop_120bpm() {
 
     // Step 4: Classify loop (should be classified as a loop, long duration ~8s)
     let duration_seconds = audio.samples.len() as f64 / audio.sample_rate as f64;
-    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength);
+    let energy_ratio = compute_energy_ratio(&audio.samples);
+    let loop_type = classify_loop(duration_seconds, bpm_result.periodicity_strength, energy_ratio);
     assert_eq!(
         loop_type, LoopType::Loop,
         "drum_loop_120bpm.wav should be classified as a loop (duration: {:.2}s, periodicity: {:.3})",
@@ -283,7 +287,7 @@ fn test_kick_detection_negative_cases() {
 #[test]
 fn test_loop_classification_short_duration() {
     // Short duration with high periodicity → OneShot
-    let loop_type = classify_loop(0.5, 0.8);
+    let loop_type = classify_loop(0.5, 0.8, 0.5);
     assert_eq!(
         loop_type,
         LoopType::OneShot,
@@ -294,7 +298,7 @@ fn test_loop_classification_short_duration() {
 #[test]
 fn test_loop_classification_long_duration_high_periodicity() {
     // Long duration with high periodicity → Loop
-    let loop_type = classify_loop(4.0, 0.5);
+    let loop_type = classify_loop(4.0, 0.5, 0.5);
     assert_eq!(
         loop_type,
         LoopType::Loop,
@@ -305,7 +309,7 @@ fn test_loop_classification_long_duration_high_periodicity() {
 #[test]
 fn test_loop_classification_long_duration_low_periodicity() {
     // Long duration with low periodicity → OneShot
-    let loop_type = classify_loop(4.0, 0.1);
+    let loop_type = classify_loop(4.0, 0.1, 0.5);
     assert_eq!(
         loop_type,
         LoopType::OneShot,

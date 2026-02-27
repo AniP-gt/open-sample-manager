@@ -26,7 +26,7 @@ use rusqlite::Connection;
 use crate::analysis::bpm::estimate_bpm;
 use crate::analysis::decoder::{decode_to_mono_f32, DecodeError};
 use crate::analysis::kick::detect_kick;
-use crate::analysis::loop_classifier::{classify_loop, LoopType};
+use crate::analysis::loop_classifier::{classify_loop, compute_energy_ratio, LoopType};
 use crate::db::operations::{
     get_sample_by_path, insert_sample, search_samples, SampleInput, SampleRow,
 };
@@ -509,7 +509,8 @@ impl SampleManager {
 
         #[allow(clippy::cast_precision_loss)]
         let duration = decoded.samples.len() as f64 / f64::from(decoded.sample_rate);
-        let loop_type = classify_loop(duration, bpm_result.periodicity_strength);
+        let energy_ratio = compute_energy_ratio(&decoded.samples);
+        let loop_type = classify_loop(duration, bpm_result.periodicity_strength, energy_ratio);
 
         let sample_type = if kick_result.is_kick {
             "kick".to_string()
