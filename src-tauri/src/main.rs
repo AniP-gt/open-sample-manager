@@ -484,6 +484,10 @@ fn main() {
         move_sample,
         send_to_trash,
         update_sample_classification,
+        get_instrument_types,
+        add_instrument_type,
+        delete_instrument_type,
+        update_instrument_type,
         open_folder,
         copy_to_clipboard,
         prepare_drag_file,
@@ -494,4 +498,40 @@ fn main() {
     builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[tauri::command]
+fn get_instrument_types(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::InstrumentTypeRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.get_all_instrument_types().map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn add_instrument_type(
+    name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<i64, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.add_instrument_type(&name).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn delete_instrument_type(
+    id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.delete_instrument_type(id).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn update_instrument_type(
+    id: i64,
+    name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.update_instrument_type(id, &name).map_err(CommandError::from)
 }
