@@ -3,9 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
-import type { Sample, FilterState, SortState, SampleType } from "./types/sample";
+import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
-import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, type PlayerBarHandle } from "./components";
+import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, type PlayerBarHandle } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -115,6 +115,7 @@ export function App() {
     filterType: "all",
     filterBpmMin: "",
     filterBpmMax: "",
+    filterInstrumentType: "",
   });
   const [sort, setSort] = useState<SortState>({ field: "id", direction: "asc" });
   const [scanning, setScanning] = useState(false);
@@ -141,6 +142,9 @@ export function App() {
   // Confirm modal state for trash actions
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrashSampleId, setPendingTrashSampleId] = useState<number | null>(null);
+  // Instrument type management
+  const [instrumentTypes, setInstrumentTypes] = useState<InstrumentTypeRow[]>([]);
+  const [instrumentTypeModalOpen, setInstrumentTypeModalOpen] = useState(false);
 
   // Resize handler for sidebar
   const handleMouseDown = () => {
@@ -169,6 +173,12 @@ export function App() {
     };
   }, [isResizing]);
 
+  // Load instrument types on mount
+  useEffect(() => {
+    invoke<InstrumentTypeRow[]>("get_instrument_types")
+      .then(setInstrumentTypes)
+      .catch(console.error);
+  }, []);
   // Listen for the SettingsModal's clear-all event and open the centralized confirm modal
   useEffect(() => {
     const handler = () => {
@@ -466,23 +476,12 @@ export function App() {
     try {
       // Build payload: send null for empty strings so Rust receives Option::None
       // Also normalize values to allowed backend strings to avoid accidental mismatches.
-      const allowedInstruments = [
-        "kick",
-        "snare",
-        "hihat",
-        "bass",
-        "synth",
-        "fx",
-        "vocal",
-        "percussion",
-        "other",
-      ];
       // Always send explicit values to backend. If the editing state is empty or
       // invalid, fall back to the currently opened sample's values so backend
       // receives a concrete value rather than `null`.
       const payloadPlayback = editSampleType === "loop" ? "loop" : "oneshot";
       const payloadInstrument =
-        allowedInstruments.includes(editInstrumentType)
+        instrumentTypes.some((t) => t.name === editInstrumentType)
           ? editInstrumentType
           : classificationSample.instrument_type;
       console.log("handleClassificationSave - invoking update_sample_classification", { path, playback_type: payloadPlayback, instrument_type: payloadInstrument });
@@ -516,7 +515,36 @@ export function App() {
       setError(`Failed to save: ${errorMsg}`);
     }
   };
+  // Instrument type management functions
+  const handleAddInstrumentType = async (name: string) => {
+    try {
+      await invoke<number>("add_instrument_type", { name });
+      const updated = await invoke<InstrumentTypeRow[]>("get_instrument_types");
+      setInstrumentTypes(updated);
+    } catch (e) {
+      setError(`Failed to add instrument type: ${e}`);
+    }
+  };
 
+  const handleDeleteInstrumentType = async (id: number) => {
+    try {
+      await invoke<number>("delete_instrument_type", { id });
+      const updated = await invoke<InstrumentTypeRow[]>("get_instrument_types");
+      setInstrumentTypes(updated);
+    } catch (e) {
+      setError(`Failed to delete instrument type: ${e}`);
+    }
+  };
+
+  const handleUpdateInstrumentType = async (id: number, name: string) => {
+    try {
+      await invoke<number>("update_instrument_type", { id, name });
+      const updated = await invoke<InstrumentTypeRow[]>("get_instrument_types");
+      setInstrumentTypes(updated);
+    } catch (e) {
+      setError(`Failed to update instrument type: ${e}`);
+    }
+  };
   useEffect(() => {
     void handleSearch(filters.search);
   }, [filters.search]);
@@ -888,10 +916,21 @@ export function App() {
         sample={classificationSample}
         editInstrumentType={editInstrumentType}
         editSampleType={editSampleType}
+        instrumentTypes={instrumentTypes.map(t => t.name)}
         onInstrumentTypeChange={setEditInstrumentType}
         onSampleTypeChange={handleSampleTypeSelect}
         onSave={handleClassificationSave}
         onClose={() => setClassificationModalOpen(false)}
+        onManageClick={() => setInstrumentTypeModalOpen(true)}
+      />
+
+      <InstrumentTypeManagementModal
+        isOpen={instrumentTypeModalOpen}
+        instrumentTypes={instrumentTypes}
+        onAdd={handleAddInstrumentType}
+        onDelete={handleDeleteInstrumentType}
+        onUpdate={handleUpdateInstrumentType}
+        onClose={() => setInstrumentTypeModalOpen(false)}
       />
 
     </div>
