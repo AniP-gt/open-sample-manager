@@ -39,6 +39,7 @@ export interface FilterState {
   filterType: SampleType | "all";
   filterBpmMin: string;
   filterBpmMax: string;
+  filterInstrumentType: InstrumentType | "";
 }
 
 export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate";
@@ -53,4 +54,10 @@ export interface TypeBadgeStyle {
   bg: string;
   color: string;
   border: string;
+}
+
+export interface InstrumentTypeRow {
+  id: number;
+  name: string;
+  created_at: string;
 }

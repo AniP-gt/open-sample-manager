@@ -30,7 +30,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
 
-  const allTags = [...new Set(samples.flatMap((s) => s.tags))].slice(0, 14);
+  const allInstrumentTypes = [...new Set(samples.map((s) => s.instrument_type))].sort();
 
   type FilterTypeOption = FilterState["filterType"];
   const typeFilters: FilterTypeOption[] = ["all", "loop", "one-shot"];
@@ -266,10 +266,10 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           </div>
 
           <div>
-            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>TAGS</div>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>INST</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              {allTags.map((tag) => (
-                <button key={tag} onClick={() => onFilterChange && onFilterChange({ search: tag })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: "transparent", color: "#6b7280", cursor: onFilterChange ? "pointer" : "default" }}>{tag}</button>
+              {allInstrumentTypes.map((inst) => (
+                <button key={inst} onClick={() => onFilterChange && onFilterChange({ filterInstrumentType: filters?.filterInstrumentType === inst ? "" : inst })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: filters?.filterInstrumentType === inst ? "#f97316" : "transparent", color: filters?.filterInstrumentType === inst ? "#fff" : "#6b7280", cursor: onFilterChange ? "pointer" : "default" }}>{inst}</button>
               ))}
             </div>
           </div>
@@ -316,65 +316,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
       </div>
 
       
-      {sample.instrument_type === "kick" && (
-        <div
-          style={{
-            background: "#a78bfa15",
-            border: "1px solid #a78bfa40",
-            borderRadius: "3px",
-            padding: "10px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "14px",
-              color: "#a78bfa",
-              letterSpacing: "0.12em",
-              marginBottom: "8px",
-            }}
-          >
-            KICK DETECTION
-          </div>
-          <div style={{ fontSize: "14px", color: "#6b7280", lineHeight: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>low_ratio &gt; 0.6</span>
-              <span
-                style={{
-                  color: sample.low_ratio > 0.6 ? "#22d3ee" : "#ef4444",
-                }}
-              >
-                {sample.low_ratio > 0.6 ? "✓" : "✗"}{" "}
-                {sample.low_ratio.toFixed(2)}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>attack_slope &gt; θ</span>
-              <span
-                style={{
-                  color: sample.attack_slope > 1.5 ? "#22d3ee" : "#ef4444",
-                }}
-              >
-                {sample.attack_slope > 1.5 ? "✓" : "✗"}{" "}
-                {sample.attack_slope.toFixed(2)}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>decay &lt; 400ms</span>
-              <span
-                style={{
-                  color:
-                    sample.decay_time && sample.decay_time < 400
-                      ? "#22d3ee"
-                      : "#ef4444",
-                }}
-              >
-                {sample.decay_time && sample.decay_time < 400 ? "✓" : "✗"}{" "}
-                {sample.decay_time}ms
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       
       

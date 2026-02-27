@@ -262,7 +262,9 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
     const matchBpmMax =
       filters.filterBpmMax === "" ||
       (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
-    return matchSearch && matchType && matchBpmMin && matchBpmMax;
+    const matchInstrumentType =
+      filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
+    return matchSearch && matchType && matchBpmMin && matchBpmMax && matchInstrumentType;
   });
 
       const sorted = [...filtered].sort((a, b) => {
