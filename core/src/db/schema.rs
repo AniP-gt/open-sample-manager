@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, params};
 
 /// Initialize the database schema with all required tables, indices, and FTS5 virtual table.
 ///
@@ -61,6 +61,12 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             is_external INTEGER DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS instrument_types (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
 
@@ -71,7 +77,10 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
         
         ",
     )?;
-    run_migrations(conn)?;
+
+    // Seed default instrument types
+    seed_instrument_types(conn)?;
+
     Ok(())
 }
 
@@ -341,4 +350,14 @@ mod tests {
             );
         }
     }
+}
+
+// Migration: ensure default instrument types exist (insert if not present)
+fn seed_instrument_types(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let default_types = ["kick", "snare", "hihat", "bass", "synth", "fx", "vocal", "percussion", "other"];
+    let mut stmt = conn.prepare("INSERT OR IGNORE INTO instrument_types (name) VALUES (?1)")?;
+    for name in default_types {
+        stmt.execute(params![name])?;
+    }
+    Ok(())
 }
