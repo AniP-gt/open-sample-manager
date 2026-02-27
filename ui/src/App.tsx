@@ -119,6 +119,9 @@ export function App() {
   const [isDragOver, setIsDragOver] = useState(false);
   const sampleListRef = useRef<SampleListHandle | null>(null);
   const playerBarRef = useRef<PlayerBarHandle | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
+  const pageLimit = 20;
   
   // Classification modal state
   const [classificationModalOpen, setClassificationModalOpen] = useState(false);
@@ -178,7 +181,9 @@ export function App() {
   }, []);
 
   const runSearch = async (query: string) => {
-    const rows = await invoke<TauriSampleRow[]>("search_samples", { query });
+    // Use paginated listing to avoid returning the entire DB to the renderer.
+    const limit = 20;
+    const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", { query: query || null, limit, offset: 0 });
     const nextSamples = rows.map(mapRowToSample);
     const nextPaths: Record<number, string> = {};
 
@@ -188,6 +193,7 @@ export function App() {
 
     setSamplePaths(nextPaths);
     setSamples(nextSamples);
+    setLastFetchCount(rows.length);
     
     // Extract unique parent directories from sample paths for file tree
     const uniqueDirs = new Set<string>();
@@ -213,6 +219,30 @@ export function App() {
     });
     return nextSamples;
   };
+
+  // Load more results (append next page) - exposed for SampleList to render a "Load more" control
+  const loadMore = async () => {
+    setIsLoadingMore(true);
+    try {
+      const limit = pageLimit;
+      const offset = samples.length;
+      const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", { query: filters.search || null, limit, offset });
+      const nextSamples = rows.map(mapRowToSample);
+      setSamples((prev) => [...prev, ...nextSamples]);
+      setSamplePaths((prev) => {
+        const copy = { ...prev } as Record<number, string>;
+        rows.forEach((r) => (copy[r.id] = r.path));
+        return copy;
+      });
+      setLastFetchCount(rows.length);
+    } catch (e) {
+      handleInvokeError(e);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // (Dev helper was removed in favor of prop-driven pagination)
 
   const handleInvokeError = (e: unknown) => {
     setError(getErrorMessage(e));
@@ -857,6 +887,9 @@ export function App() {
           onTrashSample={(id) => { requestTrash(id); }}
           onTypeClick={handleTypeClick}
           onImportPaths={handleImportPaths}
+          onLoadMore={loadMore}
+          isLoadingMore={isLoadingMore}
+          canLoadMore={lastFetchCount === null ? true : lastFetchCount === pageLimit}
         />
         {selected && (
           <DetailPanel

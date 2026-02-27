@@ -343,6 +343,20 @@ pub fn search_by_embedding(
         .collect())
 }
 
+/// List samples with pagination. Ordered by id.
+pub fn list_samples_paginated(
+    conn: &Connection,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples ORDER BY id LIMIT ?1 OFFSET ?2",
+    )?;
+
+    let rows = stmt.query_map(params![limit as i64, offset as i64], row_to_sample)?;
+    rows.collect()
+}
+
 /// List all samples in the database, ordered by file name.
 fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
@@ -372,6 +386,56 @@ fn run_search_samples_query(
 
     let rows = stmt.query_map(params![query], row_to_sample)?;
     rows.collect()
+}
+
+fn run_search_samples_query_paginated(
+    conn: &Connection,
+    query: &str,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
+                s.sample_rate, s.file_size, s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
+                s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type
+         FROM samples_fts f
+         JOIN samples s ON s.id = f.rowid
+         WHERE f.file_name MATCH ?1
+         ORDER BY rank
+         LIMIT ?2 OFFSET ?3",
+    )?;
+
+    let rows = stmt.query_map(params![query, limit as i64, offset as i64], row_to_sample)?;
+    rows.collect()
+}
+
+/// Search samples using FTS5 with pagination (LIMIT/OFFSET).
+pub fn search_samples_paginated(
+    conn: &Connection,
+    query: &str,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let query = query.trim();
+    if query.is_empty() {
+        return list_samples_paginated(conn, limit, offset);
+    }
+
+    match run_search_samples_query_paginated(conn, query, limit, offset) {
+        Ok(rows) => Ok(rows),
+        Err(err) if is_fts5_syntax_error(&err) => {
+            let escaped = escape_fts5_query(query);
+            if escaped.is_empty() {
+                return Ok(Vec::new());
+            }
+            match run_search_samples_query_paginated(conn, &escaped, limit, offset) {
+                Ok(rows) => Ok(rows),
+                Err(escaped_err) if is_fts5_syntax_error(&escaped_err) => Ok(Vec::new()),
+                Err(escaped_err) => Err(escaped_err),
+            }
+        }
+        Err(err) => Err(err),
+    }
 }
 
 fn is_fts5_syntax_error(err: &rusqlite::Error) -> bool {
@@ -956,9 +1020,7 @@ pub struct InstrumentTypeRow {
 /// # Errors
 /// Returns `rusqlite::Error` if the name already exists or any SQL error occurs.
 pub fn insert_instrument_type(conn: &Connection, name: &str) -> Result<i64, rusqlite::Error> {
-    let mut stmt = conn.prepare_cached(
-        "INSERT INTO instrument_types (name) VALUES (?1)",
-    )?;
+    let mut stmt = conn.prepare_cached("INSERT INTO instrument_types (name) VALUES (?1)")?;
     stmt.execute(params![name])?;
     Ok(conn.last_insert_rowid())
 }
@@ -967,10 +1029,11 @@ pub fn insert_instrument_type(conn: &Connection, name: &str) -> Result<i64, rusq
 ///
 /// # Errors
 /// Returns `rusqlite::Error` on any SQL error.
-pub fn get_all_instrument_types(conn: &Connection) -> Result<Vec<InstrumentTypeRow>, rusqlite::Error> {
-    let mut stmt = conn.prepare_cached(
-        "SELECT id, name, created_at FROM instrument_types ORDER BY name",
-    )?;
+pub fn get_all_instrument_types(
+    conn: &Connection,
+) -> Result<Vec<InstrumentTypeRow>, rusqlite::Error> {
+    let mut stmt =
+        conn.prepare_cached("SELECT id, name, created_at FROM instrument_types ORDER BY name")?;
     let rows = stmt.query_map([], |row| {
         Ok(InstrumentTypeRow {
             id: row.get(0)?,
@@ -992,14 +1055,17 @@ pub fn delete_instrument_type(conn: &Connection, id: i64) -> Result<usize, rusql
     stmt.execute(params![id])
 }
 
-
 /// Update an instrument type's name by its ID.
 ///
 /// Returns the number of rows modified (0 or 1).
 ///
 /// # Errors
 /// Returns `rusqlite::Error` on any SQL error.
-pub fn update_instrument_type(conn: &Connection, id: i64, name: &str) -> Result<usize, rusqlite::Error> {
+pub fn update_instrument_type(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+) -> Result<usize, rusqlite::Error> {
     let mut stmt = conn.prepare_cached("UPDATE instrument_types SET name = ?1 WHERE id = ?2")?;
     stmt.execute(params![name, id])
 }

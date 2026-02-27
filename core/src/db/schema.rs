@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 
 /// Initialize the database schema with all required tables, indices, and FTS5 virtual table.
 ///
@@ -77,6 +77,9 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
         
         ",
     )?;
+
+    // Run migrations to add newer columns to legacy DBs, then seed defaults.
+    run_migrations(conn)?;
 
     // Seed default instrument types
     seed_instrument_types(conn)?;
@@ -354,7 +357,17 @@ mod tests {
 
 // Migration: ensure default instrument types exist (insert if not present)
 fn seed_instrument_types(conn: &Connection) -> Result<(), rusqlite::Error> {
-    let default_types = ["kick", "snare", "hihat", "bass", "synth", "fx", "vocal", "percussion", "other"];
+    let default_types = [
+        "kick",
+        "snare",
+        "hihat",
+        "bass",
+        "synth",
+        "fx",
+        "vocal",
+        "percussion",
+        "other",
+    ];
     let mut stmt = conn.prepare("INSERT OR IGNORE INTO instrument_types (name) VALUES (?1)")?;
     for name in default_types {
         stmt.execute(params![name])?;

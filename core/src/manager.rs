@@ -256,7 +256,14 @@ impl SampleManager {
             // tx is dropped here when thread exits, signalling completion to receiver.
         });
 
-        // Sequentially receive analysis results and persist them.
+        // Sequentially receive analysis results and persist them. To avoid performing
+        // a separate SQLite transaction per file (which is slow for many files),
+        // start an explicit transaction via SQL on the existing connection. We use
+        // execute_batch so we don't require a mutable borrow of self.conn.
+        if let Err(e) = self.conn.execute_batch("BEGIN IMMEDIATE;") {
+            return Err(ManagerError::Db(e));
+        }
+
         for idx in 0..total_files {
             let (file_path, analysis_res) = match rx.recv() {
                 Ok(v) => v,
@@ -286,10 +293,14 @@ impl SampleManager {
                                     if err.code == rusqlite::ErrorCode::ConstraintViolation {
                                         // Duplicate path — skip
                                     } else {
+                                        let _ = self.conn.execute_batch("ROLLBACK;");
                                         return Err(ManagerError::Db(e));
                                     }
                                 }
-                                _ => return Err(ManagerError::Db(e)),
+                                _ => {
+                                    let _ = self.conn.execute_batch("ROLLBACK;");
+                                    return Err(ManagerError::Db(e));
+                                }
                             }
                         }
                     }
@@ -297,8 +308,16 @@ impl SampleManager {
                 Err(ManagerError::Decode(_)) => {
                     // Failed to decode — skip
                 }
-                Err(e) => return Err(e),
+                Err(e) => {
+                    let _ = self.conn.execute_batch("ROLLBACK;");
+                    return Err(e);
+                }
             }
+        }
+
+        // Commit the batched inserts.
+        if let Err(e) = self.conn.execute_batch("COMMIT;") {
+            return Err(ManagerError::Db(e));
         }
 
         // Ensure the producer finished.
@@ -357,6 +376,34 @@ impl SampleManager {
     pub fn search(&self, query: &str) -> Result<Vec<SampleRow>, ManagerError> {
         let results = search_samples(&self.conn, query)?;
         Ok(results)
+    }
+
+    /// List samples with pagination (ordered by id).
+    ///
+    /// This is a thin wrapper around the DB operation that returns at most
+    /// `limit` rows starting at `offset`.
+    pub fn list_samples_paginated(
+        &self,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<crate::db::operations::SampleRow>, ManagerError> {
+        let rows = crate::db::operations::list_samples_paginated(&self.conn, limit, offset)?;
+        Ok(rows)
+    }
+
+    /// Search samples with pagination (server-side FTS5 when query provided).
+    ///
+    /// If `query` is empty or whitespace this will fall back to the paginated
+    /// listing. Results are ordered by FTS relevance for non-empty queries.
+    pub fn search_paginated(
+        &self,
+        query: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<crate::db::operations::SampleRow>, ManagerError> {
+        let rows =
+            crate::db::operations::search_samples_paginated(&self.conn, query, limit, offset)?;
+        Ok(rows)
     }
 
     /// Retrieve a sample by its absolute file path.
@@ -591,7 +638,9 @@ impl SampleManager {
     /// # Errors
     ///
     /// Returns [`ManagerError::Db`] on SQL errors.
-    pub fn get_all_instrument_types(&self) -> Result<Vec<crate::db::operations::InstrumentTypeRow>, ManagerError> {
+    pub fn get_all_instrument_types(
+        &self,
+    ) -> Result<Vec<crate::db::operations::InstrumentTypeRow>, ManagerError> {
         let types = crate::db::operations::get_all_instrument_types(&self.conn)?;
         Ok(types)
     }
@@ -688,7 +737,12 @@ fn extract_artist(path: &Path) -> Option<String> {
     for tag in tags.iter() {
         if let Some(std_key) = tag.std_key {
             if std_key == StandardTagKey::Artist {
-                return Some(tag.value.to_string());
+                // Trim any trailing null padding and surrounding whitespace introduced
+                // by some RIFF writers.
+                let mut v = tag.value.to_string();
+                // Remove trailing nulls then trim whitespace
+                let v = v.trim_end_matches('\0').trim().to_string();
+                return Some(v);
             }
         }
     }
@@ -697,7 +751,9 @@ fn extract_artist(path: &Path) -> Option<String> {
     for tag in tags.iter() {
         let key = tag.key.to_lowercase();
         if key.contains("artist") || key == "©art" || key == "art" || key == "iart" {
-            return Some(tag.value.to_string());
+            let mut v = tag.value.to_string();
+            let v = v.trim_end_matches('\0').trim().to_string();
+            return Some(v);
         }
     }
 

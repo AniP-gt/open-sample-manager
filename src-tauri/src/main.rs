@@ -106,6 +106,22 @@ fn search_samples(
 }
 
 #[tauri::command]
+fn list_samples_paginated(
+    query: Option<String>,
+    limit: usize,
+    offset: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    match query {
+        Some(q) => manager
+            .search_paginated(&q, limit, offset)
+            .map_err(CommandError::from),
+        None => manager.list_samples_paginated(limit, offset).map_err(CommandError::from),
+    }
+}
+
+#[tauri::command]
 fn get_sample(
     path: String,
     state: tauri::State<'_, AppState>,
@@ -477,6 +493,10 @@ fn main() {
         health_check,
         scan_directory,
         search_samples,
+        // Paginated listing/search exposed to renderer. list_samples_paginated
+        // currently ignores the `query` parameter and returns a LIMIT/OFFSET
+        // paginated listing. Future change will wire server-side FTS filtering.
+        list_samples_paginated,
         search_by_embedding,
         get_sample,
         delete_sample,

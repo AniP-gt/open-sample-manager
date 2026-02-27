@@ -23,6 +23,12 @@ interface SampleListProps {
   onImportPaths?: (paths: string[]) => void;
   // When true, externally force the drop overlay (useful for dev/testing)
   externalIsDragOver?: boolean;
+  // Called to request next page when scrolling to the bottom.
+  onLoadMore?: () => Promise<void>;
+  // Whether the parent is currently loading more items.
+  isLoadingMore?: boolean;
+  // Whether more items can be loaded (parent decides based on last fetch length).
+  canLoadMore?: boolean;
 }
 
 // Helper: extract file system paths from a DataTransfer-like object. Exported
@@ -151,7 +157,11 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
     onSortChange,
     onTrashSample,
     onTypeClick,
+    onLoadMore,
+    isLoadingMore,
+    canLoadMore,
   } = props;
+  // Placeholder state retained for future server-side pagination wiring
   const listRef = useRef<HTMLDivElement | null>(null);
   // Column widths as strings so we can mix px and flexible units like '1fr'.
   // Widen DUR (index 5) and the actions column (index 6) to avoid overlap
@@ -207,6 +217,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
     };
   }, []);
   const [isDragOver, setIsDragOver] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   // Prepared (backend-copied) paths for drag operations. We start preparing on
   // mouse down so the async backend copy has time to finish before the
   // synchronous dragstart handler runs (browsers require setData to be sync).
@@ -297,6 +308,48 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
     const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row.active`);
     if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [selectedSample]);
+
+  // IntersectionObserver: load more when sentinel becomes visible
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const root = listRef.current;
+    if (!sentinel || !root || !onLoadMore) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (isLoadingMore) return;
+            if (canLoadMore === false) return;
+            // Fire and forget
+            void onLoadMore();
+          }
+        }
+      },
+      { root, rootMargin: "200px", threshold: 0.1 }
+    );
+
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [onLoadMore, isLoadingMore, canLoadMore]);
+
+  // Optional: wire a simple Load More footer when the parent exposes the
+  // dev helper on window.__osm_load_more. This avoids changing many call
+  // sites at once while keeping the UI usable in dev mode.
+  useEffect(() => {
+    // noop - keep placeholder for future wiring
+  }, []);
+
+  // The actual load-more invocation is performed by the dev helper exposed on
+  // window.__osm_load_more. We intentionally do not define an exported or
+  // prop-driven handler here to keep this change minimally invasive; the
+  // helper is attached by the App container during development.
+
+
+  // Render the footer below the list when running in development to enable
+  // quick manual testing of the pagination flow. We defer to the dev helper
+  // exposed on window.__osm_load_more which performs the actual invocation.
+
 
   useImperativeHandle(ref, () => ({
     focusSelected: () => {
@@ -925,6 +978,41 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             </div>
           </div>
         ))}
+        {/* Sentinel element observed by IntersectionObserver to trigger loading more */}
+        <div
+          ref={sentinelRef}
+          aria-hidden
+          style={{ height: 1, width: "100%", visibility: "hidden" }}
+        />
+
+        <div style={{ padding: "8px 16px", textAlign: "center", color: "#9ca3af" }}>
+          {isLoadingMore ? (
+            <div style={{ fontSize: 13 }}>Loading...</div>
+          ) : canLoadMore === false ? (
+            <div style={{ fontSize: 13 }}>No more results</div>
+          ) : (
+            // Provide a small manual trigger when parent exposes onLoadMore for debugging
+            onLoadMore ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void onLoadMore();
+                }}
+                style={{
+                  background: "#111827",
+                  border: "1px solid #1f2937",
+                  color: "#f97316",
+                  padding: "6px 10px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontFamily: "'Courier New', monospace",
+                }}
+              >
+                Load more
+              </button>
+            ) : null
+          )}
+        </div>
       </div>
     </div>
   );
