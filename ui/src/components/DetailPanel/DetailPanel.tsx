@@ -127,7 +127,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           display: "flex",
           flexDirection: "column",
           gap: "20px",
-          flexShrink: 0,
+          overflowY: "auto",
           overflow: "hidden",
           zIndex: 2,
         }}
