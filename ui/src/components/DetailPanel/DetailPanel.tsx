@@ -23,9 +23,11 @@ interface DetailPanelProps {
   samples?: Sample[];
   filters?: FilterState;
   onFilterChange?: (filters: Partial<FilterState>) => void;
+  // space to leave at the bottom so content isn't hidden by overlapping UI
+  bottomInset?: number;
 }
 
-export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError }: DetailPanelProps) {
+export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError, bottomInset = 0 }: DetailPanelProps) {
   // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
@@ -120,20 +122,20 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           top: 0,
           height: "100%",
           minHeight: 0,
-          width: "260px",
+          // allow the panel to shrink on small screens and avoid clipping
+          width: "min(260px, 40vw)",
           borderLeft: "1px solid #0f1117",
           background: "#0a0c12",
           padding: "20px 16px",
           display: "flex",
           flexDirection: "column",
           gap: "20px",
-          overflowY: "scroll",
 
           zIndex: 2,
         }}
       >
       {/* Scrollable content area: everything except the sticky PATH footer */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: `${12 + bottomInset}px`, boxSizing: "border-box" }}>
         <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
           <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2, width: "100%" }}>
             <button

@@ -872,6 +872,7 @@ export function App() {
             onError={(message) => {
               setError(message);
             }}
+            bottomInset={selected ? 160 : 0}
           />
         )}
       </div>
