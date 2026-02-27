@@ -581,6 +581,56 @@ impl SampleManager {
             instrument_type: Some(instrument_type.to_string()),
         })
     }
+
+    // ============ Instrument Type Management ============
+
+    /// Get all instrument types from the database.
+    ///
+    /// Returns a list of all instrument types ordered by name.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Db`] on SQL errors.
+    pub fn get_all_instrument_types(&self) -> Result<Vec<crate::db::operations::InstrumentTypeRow>, ManagerError> {
+        let types = crate::db::operations::get_all_instrument_types(&self.conn)?;
+        Ok(types)
+    }
+
+    /// Add a new instrument type to the database.
+    ///
+    /// Returns the ID of the newly created instrument type.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Db`] if the name already exists or on other SQL errors.
+    pub fn add_instrument_type(&self, name: &str) -> Result<i64, ManagerError> {
+        let id = crate::db::operations::insert_instrument_type(&self.conn, name)?;
+        Ok(id)
+    }
+
+    /// Delete an instrument type by its ID.
+    ///
+    /// Returns the number of rows deleted (0 or 1).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Db`] on SQL errors.
+    pub fn delete_instrument_type(&self, id: i64) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::delete_instrument_type(&self.conn, id)?;
+        Ok(count)
+    }
+
+    /// Update an instrument type's name.
+    ///
+    /// Returns the number of rows modified (0 or 1).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Db`] on SQL errors.
+    pub fn update_instrument_type(&self, id: i64, name: &str) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::update_instrument_type(&self.conn, id, name)?;
+        Ok(count)
+    }
 }
 
 fn compute_waveform_peaks(samples: &[f32], num_peaks: usize) -> String {
