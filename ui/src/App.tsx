@@ -330,6 +330,21 @@ export function App() {
     }
   };
 
+  // Load sample by path from DB (used when clicking sidebar file not in loaded list)
+  const loadSampleByPath = async (path: string) => {
+    try {
+      const row = await invoke<TauriSampleRow | null>("get_sample", { path });
+      if (row) {
+        const sample = mapRowToSample(row);
+        setSamples((prev) => [sample, ...prev]);
+        setSamplePaths((prev) => ({ ...prev, [row.id]: row.path }));
+        setSelected(sample);
+      }
+    } catch (e) {
+      console.error("Failed to load sample:", e);
+    }
+  };
+
   const handleScanClick = async () => {
     try {
       const selectedPath = await open({
@@ -873,6 +888,12 @@ export function App() {
             const matching = samples.find((s) => samplePaths[s.id] === path);
             if (matching) {
               void handleSampleSelect(matching);
+            }
+            if (matching) {
+              void handleSampleSelect(matching);
+            } else {
+              // Sample not in loaded list - fetch from DB
+              void loadSampleByPath(path);
             }
           }}
           onImportPaths={handleSidebarImport}
