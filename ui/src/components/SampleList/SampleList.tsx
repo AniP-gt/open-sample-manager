@@ -795,6 +795,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
                   color: "#d1d5db",
                   letterSpacing: "0.02em",
                   marginBottom: "3px",
+                  wordBreak: "break-word",
                 }}
               >
                 {s.file_name}
