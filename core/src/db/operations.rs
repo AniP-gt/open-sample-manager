@@ -370,6 +370,14 @@ fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error
     rows.collect()
 }
 
+/// Get all sample paths from the database, ordered by ID.
+/// Returns only file paths (not full SampleRow) for performance.
+pub fn get_all_sample_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("SELECT path FROM samples ORDER BY id")?;
+    let paths = stmt.query_map([], |row| row.get(0))?.collect::<Result<Vec<String>, _>>()?;
+    Ok(paths)
+}
+
 fn run_search_samples_query(
     conn: &Connection,
     query: &str,

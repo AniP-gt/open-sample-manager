@@ -418,6 +418,18 @@ impl SampleManager {
         Ok(row)
     }
 
+    /// Get all sample paths from the database.
+    ///
+    /// Returns only file paths for performance (not full SampleRow).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ManagerError::Db`] on SQL errors.
+    pub fn get_all_sample_paths(&self) -> Result<Vec<String>, ManagerError> {
+        let paths = crate::db::operations::get_all_sample_paths(&self.conn)?;
+        Ok(paths)
+    }
+
     /// Delete a sample by its file path.
     ///
     /// Also removes the corresponding FTS5 entry and tag associations.

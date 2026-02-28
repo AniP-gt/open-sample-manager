@@ -108,6 +108,8 @@ export function App() {
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);
+  // All sample paths from database (independent of filters/pagination)
+  const [allSamplePaths, setAllSamplePaths] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(
     null,
@@ -169,6 +171,11 @@ export function App() {
       .then((res) => setInstrumentTypes(res ?? []))
       .catch(console.error);
   }, []);
+
+  // Load all sample paths on mount (for sidebar)
+  useEffect(() => {
+    fetchAllSamplePaths();
+  }, []);
   // Listen for the SettingsModal's clear-all event and open the centralized confirm modal
   useEffect(() => {
     const handler = () => {
@@ -218,6 +225,16 @@ export function App() {
       return nextSamples.find((sample) => sample.id === prev.id) ?? null;
     });
     return nextSamples;
+  };
+
+  // Fetch all sample paths from database (independent of pagination/filter)
+  const fetchAllSamplePaths = async () => {
+    try {
+      const paths = await invoke<string[]>("list_all_sample_paths");
+      setAllSamplePaths(paths);
+    } catch (e) {
+      console.error("Failed to fetch all sample paths:", e);
+    }
   };
 
   // Load more results (append next page) - exposed for SampleList to render a "Load more" control
@@ -339,6 +356,7 @@ export function App() {
         await invoke<number>("scan_directory", { path: scanPath });
         setScanned(true);
         await runSearch(filters.search);
+        await fetchAllSamplePaths();
       } catch (e) {
         handleInvokeError(e);
       } finally {
@@ -373,6 +391,7 @@ export function App() {
     try {
       await invoke<number>("delete_sample", { path });
       await runSearch(filters.search);
+      await fetchAllSamplePaths();
       if (selected?.id === sampleId) {
         setSelected(null);
       }
@@ -402,6 +421,7 @@ export function App() {
       // invoke returns a promise - ConfirmModal now shows a loading state while this runs
       await invoke<string>("send_to_trash", { path });
       await runSearch(filters.search);
+      await fetchAllSamplePaths();
       if (selected?.id === sampleId) {
         setSelected(null);
       }
@@ -515,6 +535,7 @@ export function App() {
         return;
       }
       const refreshedList = await runSearch(filters.search);
+      await fetchAllSamplePaths();
       console.log("refreshedList length:", refreshedList.length);
       const refreshedSample = refreshedList.find((s) => s.id === classificationSample.id) ?? null;
       console.log("refreshedSample:", refreshedSample);
@@ -709,6 +730,7 @@ export function App() {
         console.debug("handleImportPaths: invoked import_file for", filePath);
         setScanned(true);
         await runSearch(filters.search);
+        await fetchAllSamplePaths();
       } catch (e) {
         handleInvokeError(e);
       } finally {
@@ -752,6 +774,7 @@ export function App() {
         console.debug('handleImportPaths: invoked scan_directory for', dir);
         setScanned(true);
         await runSearch(filters.search);
+        await fetchAllSamplePaths();
       } catch (e) {
         handleInvokeError(e);
       } finally {
@@ -774,6 +797,7 @@ export function App() {
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        minWidth: 0,
       }}
     >
       <Header
@@ -833,13 +857,14 @@ export function App() {
           display: "flex",
           flex: 1,
           overflow: "hidden",
+          minWidth: 0,
           height: selected ? "calc(100vh - 57px - 160px)" : "calc(100vh - 57px)",
           transition: "height 0.3s ease",
         }}
       >
         <FilterSidebar
           scannedPaths={scannedPaths}
-          filePaths={samples.map((s) => samplePaths[s.id]).filter(Boolean)}
+          filePaths={allSamplePaths}
           selectedPath={selected ? samplePaths[selected.id] : null}
           onFilterChange={handleFilterChange}
           onPathSelect={(path) => {

@@ -130,6 +130,14 @@ fn get_sample(
     manager.get_sample(&path).map_err(CommandError::from)
 }
 
+#[tauri::command]
+fn list_all_sample_paths(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.get_all_sample_paths().map_err(CommandError::from)
+}
+
 
 #[tauri::command]
 fn delete_sample(
@@ -499,6 +507,7 @@ fn main() {
         list_samples_paginated,
         search_by_embedding,
         get_sample,
+        list_all_sample_paths,
         delete_sample,
         clear_all_samples,
         move_sample,
