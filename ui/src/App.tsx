@@ -245,7 +245,11 @@ export function App() {
       const offset = samples.length;
       const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", { query: filters.search || null, limit, offset });
       const nextSamples = rows.map(mapRowToSample);
-      setSamples((prev) => [...prev, ...nextSamples]);
+      setSamples((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const fresh = nextSamples.filter((s) => !existingIds.has(s.id));
+        return [...prev, ...fresh];
+      });
       setSamplePaths((prev) => {
         const copy = { ...prev } as Record<number, string>;
         rows.forEach((r) => (copy[r.id] = r.path));
@@ -336,7 +340,7 @@ export function App() {
       const row = await invoke<TauriSampleRow | null>("get_sample", { path });
       if (row) {
         const sample = mapRowToSample(row);
-        setSamples((prev) => [sample, ...prev]);
+        setSamples((prev) => prev.some((s) => s.id === sample.id) ? prev : [sample, ...prev]);
         setSamplePaths((prev) => ({ ...prev, [row.id]: row.path }));
         setSelected(sample);
       }
@@ -886,9 +890,6 @@ export function App() {
             // When a file path is clicked in the sidebar, find the corresponding
             // sample (by matching samplePaths) and focus/select it in the list.
             const matching = samples.find((s) => samplePaths[s.id] === path);
-            if (matching) {
-              void handleSampleSelect(matching);
-            }
             if (matching) {
               void handleSampleSelect(matching);
             } else {
