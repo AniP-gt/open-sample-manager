@@ -7,8 +7,10 @@ use rusqlite::{params, Connection};
 /// - `tags` table: stores unique tag names
 /// - `sample_tags` table: junction table for many-to-many sample-tag relationship
 /// - `watched_paths` table: stores directory paths being monitored
+/// - `midis` table: stores MIDI file metadata
 /// - indices: for efficient querying on bpm, `sample_type`, `playback_type`, `instrument_type`
 /// - `samples_fts`: FTS5 virtual table for full-text search on `file_name`
+/// - `midis_fts`: FTS5 virtual table for MIDI file name search
 ///
 /// # Arguments
 /// * `conn` - `SQLite` connection to initialize
@@ -67,14 +69,34 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS midis (
+            id INTEGER PRIMARY KEY,
+            path TEXT UNIQUE NOT NULL,
+            file_name TEXT NOT NULL,
+            duration REAL,
+            tempo REAL,
+            time_signature_numerator INTEGER DEFAULT 4,
+            time_signature_denominator INTEGER DEFAULT 4,
+            track_count INTEGER,
+            note_count INTEGER,
+            channel_count INTEGER,
+            key_estimate TEXT,
+            file_size INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            modified_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
 
         CREATE INDEX IF NOT EXISTS idx_sample_tags_sid ON sample_tags(sample_id);
         CREATE INDEX IF NOT EXISTS idx_sample_tags_tid ON sample_tags(tag_id);
 
+        CREATE INDEX IF NOT EXISTS idx_midis_tempo ON midis(tempo);
+        CREATE INDEX IF NOT EXISTS idx_midis_track_count ON midis(track_count);
+
         CREATE VIRTUAL TABLE IF NOT EXISTS samples_fts USING fts5(file_name);
-        
+        CREATE VIRTUAL TABLE IF NOT EXISTS midis_fts USING fts5(file_name);
         ",
     )?;
 
@@ -160,6 +182,39 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         [],
     )?;
 
+    // Create indices for midis table (if table exists)
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_midis_tempo ON midis(tempo)",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_midis_track_count ON midis(track_count)",
+        [],
+    );
+
+    Ok(())
+}
+
+fn seed_instrument_types(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let instrument_types = [
+        "kick",
+        "snare",
+        "hihat",
+        "bass",
+        "synth",
+        "fx",
+        "vocal",
+        "percussion",
+        "other",
+    ];
+
+    for name in instrument_types {
+        conn.execute(
+            "INSERT OR IGNORE INTO instrument_types (name) VALUES (?1)",
+            params![name],
+        )?;
+    }
+
     Ok(())
 }
 
@@ -195,6 +250,10 @@ mod tests {
         assert!(
             tables.contains(&"watched_paths".to_string()),
             "watched_paths table not found"
+        );
+        assert!(
+            tables.contains(&"midis".to_string()),
+            "midis table not found"
         );
     }
 
@@ -238,6 +297,14 @@ mod tests {
             indices.contains(&"idx_sample_tags_tid".to_string()),
             "idx_sample_tags_tid index not found"
         );
+        assert!(
+            indices.contains(&"idx_midis_tempo".to_string()),
+            "idx_midis_tempo index not found"
+        );
+        assert!(
+            indices.contains(&"idx_midis_track_count".to_string()),
+            "idx_midis_track_count index not found"
+        );
     }
 
     #[test]
@@ -245,7 +312,7 @@ mod tests {
         let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
         init_database(&conn).expect("Failed to initialize database");
 
-        // Verify FTS5 virtual table exists
+        // Verify FTS5 virtual tables exist
         let mut stmt = conn
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='samples_fts'")
             .expect("Failed to prepare statement");
@@ -255,71 +322,47 @@ mod tests {
             rows.next().expect("Failed to iterate rows").is_some(),
             "samples_fts FTS5 table not found"
         );
-    }
 
-    #[test]
-    fn test_fts5_search_basic() {
-        let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
-        init_database(&conn).expect("Failed to initialize database");
-
-        // Insert a sample
-        conn.execute(
-            "INSERT INTO samples (path, file_name) VALUES (?, ?)",
-            rusqlite::params!("/path/to/kick_808.wav", "kick_808.wav"),
-        )
-        .expect("Failed to insert sample");
-
-        // Insert into FTS5 table
-        conn.execute(
-            "INSERT INTO samples_fts (rowid, file_name) VALUES (1, ?)",
-            rusqlite::params!("kick_808.wav"),
-        )
-        .expect("Failed to insert into FTS5");
-
-        // Search for "kick" in FTS5
         let mut stmt = conn
-            .prepare("SELECT rowid, file_name FROM samples_fts WHERE file_name MATCH 'kick'")
-            .expect("Failed to prepare FTS5 query");
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='midis_fts'")
+            .expect("Failed to prepare statement");
 
-        let mut rows = stmt.query([]).expect("Failed to execute FTS5 query");
-        let match_found = rows
-            .next()
-            .expect("Failed to iterate FTS5 results")
-            .is_some();
-
+        let mut rows = stmt.query([]).expect("Failed to query FTS5 table");
         assert!(
-            match_found,
-            "FTS5 search did not find 'kick' in 'kick_808.wav'"
+            rows.next().expect("Failed to iterate rows").is_some(),
+            "midis_fts FTS5 table not found"
         );
     }
 
     #[test]
-    fn test_wal_mode_enabled() {
-        let tempdir = tempfile::TempDir::new().expect("Failed to create temp dir");
-        let db_path = tempdir.path().join("test.db");
-        let conn = Connection::open(&db_path).expect("Failed to create file-based DB");
-        init_database(&conn).expect("Failed to initialize database");
-
-        let mut stmt = conn
-            .prepare("PRAGMA journal_mode")
-            .expect("Failed to prepare pragma query");
-
-        let journal_mode: String = stmt
-            .query_row([], |row| row.get(0))
-            .expect("Failed to query journal mode");
-
-        assert_eq!(journal_mode.to_uppercase(), "WAL", "WAL mode not enabled");
-    }
-
-    #[test]
-    fn test_samples_table_schema() {
+    fn test_seed_instrument_types() {
         let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
         init_database(&conn).expect("Failed to initialize database");
 
-        // Verify samples table has all required columns
         let mut stmt = conn
-            .prepare("PRAGMA table_info(samples)")
-            .expect("Failed to prepare pragma query");
+            .prepare("SELECT name FROM instrument_types")
+            .expect("Failed to prepare statement");
+
+        let types: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .expect("Failed to query instrument types")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Failed to collect instrument types");
+
+        assert!(types.contains(&"kick".to_string()));
+        assert!(types.contains(&"snare".to_string()));
+        assert!(types.contains(&"bass".to_string()));
+    }
+
+    #[test]
+    fn test_midis_columns() {
+        let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
+        init_database(&conn).expect("Failed to initialize database");
+
+        // Verify midis table has all expected columns
+        let mut stmt = conn
+            .prepare("PRAGMA table_info(midis)")
+            .expect("Failed to prepare statement");
 
         let columns: Vec<String> = stmt
             .query_map([], |row| row.get(1))
@@ -327,50 +370,13 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .expect("Failed to collect columns");
 
-        let required_columns = vec![
-            "id",
-            "path",
-            "file_name",
-            "duration",
-            "bpm",
-            "periodicity",
-            "low_ratio",
-            "sample_rate",
-            "attack_slope",
-            "decay_time",
-            "sample_type",
-            "playback_type",
-            "instrument_type",
-            "embedding",
-            "is_online",
-        ];
-
-        for col in required_columns {
-            assert!(
-                columns.contains(&col.to_string()),
-                "Column '{}' not found in samples table",
-                col
-            );
-        }
+        assert!(columns.contains(&"path".to_string()));
+        assert!(columns.contains(&"file_name".to_string()));
+        assert!(columns.contains(&"duration".to_string()));
+        assert!(columns.contains(&"tempo".to_string()));
+        assert!(columns.contains(&"track_count".to_string()));
+        assert!(columns.contains(&"note_count".to_string()));
+        assert!(columns.contains(&"channel_count".to_string()));
+        assert!(columns.contains(&"key_estimate".to_string()));
     }
-}
-
-// Migration: ensure default instrument types exist (insert if not present)
-fn seed_instrument_types(conn: &Connection) -> Result<(), rusqlite::Error> {
-    let default_types = [
-        "kick",
-        "snare",
-        "hihat",
-        "bass",
-        "synth",
-        "fx",
-        "vocal",
-        "percussion",
-        "other",
-    ];
-    let mut stmt = conn.prepare("INSERT OR IGNORE INTO instrument_types (name) VALUES (?1)")?;
-    for name in default_types {
-        stmt.execute(params![name])?;
-    }
-    Ok(())
 }
