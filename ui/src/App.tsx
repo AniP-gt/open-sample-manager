@@ -132,7 +132,10 @@ export function App() {
   const [viewMode, setViewMode] = useState<'sample' | 'midi'>('sample');
   const [midis, setMidis] = useState<Midi[]>([]);
   const [selectedMidi, setSelectedMidi] = useState<Midi | null>(null);
-  const [timidityStatus, setTimidityStatus] = useState<TimidityStatus | null>(null);
+  // Keep TiMidity status available for tests and future use, but currently
+  // the bottom preview bar that used it has been removed. Use `_timidityStatus`
+  // to avoid unused variable TypeScript errors while keeping the value in state.
+  const [_timidityStatus, setTimidityStatus] = useState<TimidityStatus | null>(null);
   const [isMidiPlaying, setIsMidiPlaying] = useState(false);
   // keep error state for tests / debugging but avoid unused variable error
   const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
@@ -1282,6 +1285,7 @@ export function App() {
                       }
                     }
                   }}
+                  timidityStatus={_timidityStatus}
                 />
               </div>
             )}

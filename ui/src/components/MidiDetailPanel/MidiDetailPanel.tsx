@@ -1,4 +1,4 @@
-import type { Midi, MidiTagRow } from "../../types/midi";
+import type { Midi, MidiTagRow, TimidityStatus } from "../../types/midi";
 // No React default import required (new JSX transform). Keep file lean.
 interface MidiDetailPanelProps {
   midi: Midi;
@@ -10,9 +10,10 @@ interface MidiDetailPanelProps {
   // Playback controls: render play/stop button inside the panel
   isPlaying?: boolean;
   onTogglePlay?: () => Promise<void> | void;
+  timidityStatus?: TimidityStatus | null;
 }
 
-export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0, isPlaying = false, onTogglePlay }: MidiDetailPanelProps) {
+export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0, isPlaying = false, onTogglePlay, timidityStatus }: MidiDetailPanelProps) {
   const currentTagName = tagFilterId ? midiTags.find((t) => t.id === tagFilterId)?.name ?? "" : "";
 
   return (
@@ -33,11 +34,13 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
       }}
     >
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: `${12 + bottomInset}px`, boxSizing: "border-box" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
           <div style={{ fontSize: 16, color: "#d1d5db", fontWeight: 700 }}>{midi.file_name}</div>
-          {/* Playback button moved into the tag/detail sidebar */}
-          <div>
-            {typeof onTogglePlay === "function" ? (
+
+          {/* Prominent Play/Stop button placed under the filename. Size and weight
+              chosen to match other prominent action buttons in the UI (eg. "Load more"). */}
+          {typeof onTogglePlay === "function" ? (
+            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
                 type="button"
                 onClick={async (e) => {
@@ -48,21 +51,42 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
                     console.error("Playback toggle failed:", err);
                   }
                 }}
+                aria-pressed={isPlaying}
+                aria-label={isPlaying ? "Stop MIDI playback" : "Play MIDI"}
+                title={isPlaying ? "Stop playback" : "Play"}
                 style={{
+                  minWidth: 140,
                   background: isPlaying ? "#ef4444" : "#3b82f6",
-                  border: "none",
+                  border: "1px solid rgba(255,255,255,0.03)",
                   color: "white",
-                  padding: "6px 12px",
-                  borderRadius: "4px",
+                  padding: "10px 16px",
+                  borderRadius: 6,
                   cursor: "pointer",
-                  fontSize: "12px",
-                  fontFamily: "'Courier New', monospace",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  boxShadow: isPlaying ? "0 6px 18px rgba(239,68,68,0.18)" : "0 6px 18px rgba(59,130,246,0.18)",
+                  transition: "transform 120ms ease, box-shadow 120ms ease",
                 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0px)'; }}
               >
                 {isPlaying ? "Stop" : "Play"}
               </button>
-            ) : null}
-          </div>
+
+              {/* TiMidity prompt remains visible below the control when not installed */}
+              {timidityStatus && !timidityStatus.installed && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: "#fca5a5", fontSize: "12px", fontFamily: "'Courier New', monospace" }}>TiMidity not installed</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(timidityStatus.install_command || "")}
+                    style={{ background: "#374151", border: "1px solid #4b5563", color: "#9ca3af", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontFamily: "'Courier New', monospace" }}
+                  >
+                    Copy Install Command
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div style={{ marginTop: 8 }}>
