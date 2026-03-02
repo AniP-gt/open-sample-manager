@@ -1,6 +1,5 @@
 import type { Midi, MidiTagRow } from "../../types/midi";
-import React from "react";
-
+// No React default import required (new JSX transform). Keep file lean.
 interface MidiDetailPanelProps {
   midi: Midi;
   midiTags: MidiTagRow[];

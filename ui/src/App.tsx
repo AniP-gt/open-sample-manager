@@ -7,7 +7,7 @@ import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } fr
 import type { ScanProgress } from "./types/scan";
 import type { Midi, MidiTagRow } from "./types/midi";
 import type { TimidityStatus } from "./types/midi";
-import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, MidiTagManagementModal, MidiTagEditModal, type PlayerBarHandle, type MidiListHandle } from "./components";
+import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, MidiTagManagementModal, MidiTagEditModal, MidiDetailPanel, type PlayerBarHandle, type MidiListHandle } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -136,6 +136,7 @@ export function App() {
   const [isMidiPlaying, setIsMidiPlaying] = useState(false);
   // keep error state for tests / debugging but avoid unused variable error
   const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
+  const [midiTagFilterId, setMidiTagFilterId] = useState<number | null>(null);
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
   const [midiTagEditTarget, setMidiTagEditTarget] = useState<Midi | null>(null);
@@ -942,6 +943,24 @@ export function App() {
         setScanned(true);
         await runSearch(filters.search);
         await fetchAllSamplePaths();
+
+        // If a single MIDI file was dropped while the app is in MIDI view,
+        // also trigger a MIDI-specific scan so the MIDI list refreshes.
+        try {
+          const lower = filePath.toLowerCase();
+          if (viewMode === 'midi' && (lower.endsWith('.mid') || lower.endsWith('.midi'))) {
+            const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+            const folderPath = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
+            await invoke<number>('scan_midi_directory', { path: folderPath });
+            const midiList = await invoke<Midi[]>('list_midis_paginated', { limit: pageLimit, offset: 0 });
+            setMidis(midiList);
+            setLastFetchCountMidi(midiList.length);
+            await fetchAllMidiPaths();
+          }
+        } catch (mErr) {
+          // Non-fatal: log and continue
+          console.warn('MIDI fast-path scan failed:', mErr);
+        }
       } catch (e) {
         handleInvokeError(e);
       } finally {
@@ -1169,45 +1188,56 @@ export function App() {
             canLoadMore={lastFetchCount === null ? true : lastFetchCount === pageLimit}
           />
         ) : (
-          <MidiList
-            ref={midiListRef}
-            midis={midis}
-            selectedMidi={selectedMidi}
-            onMidiSelect={(midi) => {
-              if (isMidiPlaying) {
-                void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
-              }
-              setSelectedMidi(midi);
-              requestAnimationFrame(() => {
-                midiListRef.current?.focusSelected?.();
-              });
-            }}
-            onTagBadgeClick={(midi) => { setMidiTagEditTarget(midi); setMidiTagEditOpen(true); }}
-            onTrashMidi={(id) => { requestTrashMidi(id); }}
-            onLoadMore={async () => {
-              setIsLoadingMoreMidi(true);
-              try {
-                const limit = pageLimit;
-                const offset = midis.length;
-                const rows = await invoke<Midi[]>('list_midis_paginated', { limit, offset });
-                // append unique
-                setMidis((prev) => {
-                  const existing = new Set(prev.map((m) => m.id));
-                  const fresh = rows.filter((r) => !existing.has(r.id));
-                  return [...prev, ...fresh];
+          <>
+            <MidiList
+              ref={midiListRef}
+              midis={midiTagFilterId ? midis.filter(m => m.tag_name === (midiTags.find(t => t.id === midiTagFilterId)?.name ?? '')) : midis}
+              selectedMidi={selectedMidi}
+              onMidiSelect={(midi) => {
+                if (isMidiPlaying) {
+                  void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
+                }
+                setSelectedMidi(midi);
+                requestAnimationFrame(() => {
+                  midiListRef.current?.focusSelected?.();
                 });
-                setLastFetchCountMidi(rows.length);
-              } catch (e) {
-                handleInvokeError(e);
-              } finally {
-                setIsLoadingMoreMidi(false);
-              }
-            }}
-            isLoadingMore={isLoadingMoreMidi}
-            canLoadMore={lastFetchCountMidi === null ? true : lastFetchCountMidi === pageLimit}
-            onImportPaths={handleImportPaths}
-            externalIsDragOver={isDragOver}
-          />
+              }}
+              onTagBadgeClick={(midi) => { setMidiTagEditTarget(midi); setMidiTagEditOpen(true); }}
+              midiTags={midiTags}
+              onTagFilterChange={(id: number | null) => setMidiTagFilterId(id)}
+              tagFilterId={midiTagFilterId}
+              onTrashMidi={(id) => { requestTrashMidi(id); }}
+              onLoadMore={async () => {
+                setIsLoadingMoreMidi(true);
+                try {
+                  const limit = pageLimit;
+                  const offset = midis.length;
+                  const rows = await invoke<Midi[]>('list_midis_paginated', { limit, offset });
+                  // append unique
+                  setMidis((prev) => {
+                    const existing = new Set(prev.map((m) => m.id));
+                    const fresh = rows.filter((r) => !existing.has(r.id));
+                    return [...prev, ...fresh];
+                  });
+                  setLastFetchCountMidi(rows.length);
+                } catch (e) {
+                  handleInvokeError(e);
+                } finally {
+                  setIsLoadingMoreMidi(false);
+                }
+              }}
+              isLoadingMore={isLoadingMoreMidi}
+              canLoadMore={lastFetchCountMidi === null ? true : lastFetchCountMidi === pageLimit}
+              onImportPaths={handleImportPaths}
+              externalIsDragOver={isDragOver}
+            />
+          
+            {selectedMidi && viewMode === 'midi' && (
+              <div style={{ position: 'relative', width: 'min(260px, 40vw)' }}>
+                <MidiDetailPanel midi={selectedMidi} midiTags={midiTags} tagFilterId={midiTagFilterId ?? null} onTagFilterChange={(id: number | null) => setMidiTagFilterId(id)} onManageTags={() => setMidiTagModalOpen(true)} bottomInset={160} />
+              </div>
+            )}
+          </>
         )}
         {/* MIDI Preview Bar - show when MIDI is selected */}
         {selectedMidi && viewMode === 'midi' && (
