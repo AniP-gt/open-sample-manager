@@ -6,6 +6,7 @@ import "./styles/global.css";
 import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
 import type { Midi } from "./types/midi";
+import type { TimidityStatus } from "./types/midi";
 import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, type PlayerBarHandle } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
@@ -127,6 +128,14 @@ export function App() {
   const [viewMode, setViewMode] = useState<'sample' | 'midi'>('sample');
   const [midis, setMidis] = useState<Midi[]>([]);
   const [selectedMidi, setSelectedMidi] = useState<Midi | null>(null);
+  const [timidityStatus, setTimidityStatus] = useState<TimidityStatus | null>(null);
+
+  // Check TiMidity status on mount
+  useEffect(() => {
+    invoke<TimidityStatus>('check_timidity')
+      .then(setTimidityStatus)
+      .catch(console.error);
+  }, []);
 
   // Load MIDI list when switching to MIDI view
   useEffect(() => {
@@ -964,6 +973,62 @@ export function App() {
             selectedMidi={selectedMidi}
             onMidiSelect={setSelectedMidi}
           />
+        )}
+        {/* MIDI Preview Bar - show when MIDI is selected */}
+        {selectedMidi && viewMode === 'midi' && (
+          <div
+            style={{
+              padding: "12px 20px",
+              background: timidityStatus?.installed ? "#1f2937" : "#7f1d1d",
+              borderTop: "1px solid #374151",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ color: "#e2e8f0", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
+              ▶ {selectedMidi.file_name}
+            </div>
+            {timidityStatus?.installed ? (
+              <button
+                style={{
+                  background: "#3b82f6",
+                  border: "none",
+                  color: "white",
+                  padding: "6px 16px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontFamily: "'Courier New', monospace",
+                }}
+              >
+                Play
+              </button>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ color: "#fca5a5", fontSize: "12px", fontFamily: "'Courier New', monospace" }}>
+                  TiMidity not installed
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(timidityStatus?.install_command || "");
+                  }}
+                  style={{
+                    background: "#374151",
+                    border: "1px solid #4b5563",
+                    color: "#9ca3af",
+                    padding: "4px 12px",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    fontFamily: "'Courier New', monospace",
+                  }}
+                >
+                  Copy Install Command
+                </button>
+              </div>
+            )}
+          </div>
         )}
         {selected && viewMode === 'sample' && (
           <DetailPanel
