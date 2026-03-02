@@ -20,3 +20,4 @@ export { ConfirmModal } from "./ConfirmModal/ConfirmModal";
 export { InstrumentTypeManagementModal } from "./InstrumentTypeManagementModal/InstrumentTypeManagementModal";
 export { MidiTagManagementModal } from "./MidiTagManagementModal/MidiTagManagementModal";
 export { MidiTagEditModal } from "./MidiTagEditModal/MidiTagEditModal";
+export { RescanPrompt } from "./RescanPrompt/RescanPrompt";

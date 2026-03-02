@@ -7,7 +7,7 @@ import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } fr
 import type { ScanProgress } from "./types/scan";
 import type { Midi, MidiTagRow } from "./types/midi";
 import type { TimidityStatus } from "./types/midi";
-import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, MidiTagManagementModal, MidiTagEditModal, MidiDetailPanel, type PlayerBarHandle, type MidiListHandle } from "./components";
+import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, MidiTagManagementModal, MidiTagEditModal, MidiDetailPanel, type PlayerBarHandle, type MidiListHandle, RescanPrompt } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -120,6 +120,8 @@ export function App() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const [rescanPromptOpen, setRescanPromptOpen] = useState(false);
+  const [rescanPendingPath, setRescanPendingPath] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(180);
   const [isResizing, setIsResizing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -519,44 +521,60 @@ export function App() {
 
       const scanPath = typeof selectedPath === "string" ? selectedPath : selectedPath[0];
 
-      setScanning(true);
-      setScanProgress(null);
-      setError(null);
-
-      const unlisten = await listen<ScanProgress>("scan-progress", (event) => {
-        setScanProgress(event.payload);
-      });
-
-        try {
-          await invoke<number>("scan_directory", { path: scanPath });
-          setScanned(true);
-          await runSearch(filters.search);
-          await fetchAllSamplePaths();
-
-          // Also scan for MIDI files in the same directory. Keep failures
-          // isolated so a MIDI scan error doesn't undo the sample scan result.
-          try {
-            await invoke<number>("scan_midi_directory", { path: scanPath });
-            if (viewMode === 'midi') {
-              const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
-              setMidis(midiList);
-              setLastFetchCountMidi(midiList.length);
-              await fetchAllMidiPaths();
-            }
-          } catch (midiErr) {
-            // Non-fatal: log and continue
-            // eslint-disable-next-line no-console
-            console.warn("MIDI scan failed:", midiErr);
-          }
-      } catch (e) {
-        handleInvokeError(e);
-      } finally {
-        unlisten();
-        setScanning(false);
-        setScanProgress(null);
+      // If there is already scanned data in the DB, prompt the user whether
+      // to rescan or skip. We use allSamplePaths (populated on mount) to
+      // determine if any scanned data exists.
+      if (allSamplePaths && allSamplePaths.length > 0) {
+        setRescanPendingPath(scanPath);
+        setRescanPromptOpen(true);
+        return;
       }
+
+      // No existing data - proceed with scan immediately
+      await performScan(scanPath);
     } catch (e) {
       handleInvokeError(new Error("Dialog not available. Please run the app via 'npm run tauri:dev' instead of 'npm run dev'."));
+    }
+  };
+
+  // Helper to perform the scan flow for a given path. Extracted so it can be
+  // called from both the immediate flow and from the rescan confirmation.
+  const performScan = async (scanPath: string) => {
+    setScanning(true);
+    setScanProgress(null);
+    setError(null);
+
+    const unlisten = await listen<ScanProgress>("scan-progress", (event) => {
+      setScanProgress(event.payload);
+    });
+
+    try {
+      await invoke<number>("scan_directory", { path: scanPath });
+      setScanned(true);
+      await runSearch(filters.search);
+      await fetchAllSamplePaths();
+
+      // Also scan for MIDI files in the same directory. Keep failures
+      // isolated so a MIDI scan error doesn't undo the sample scan result.
+      try {
+        await invoke<number>("scan_midi_directory", { path: scanPath });
+        if (viewMode === 'midi') {
+          const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
+          setMidis(midiList);
+          setLastFetchCountMidi(midiList.length);
+          await fetchAllMidiPaths();
+        }
+      } catch (midiErr) {
+        // Non-fatal: log and continue
+        // eslint-disable-next-line no-console
+        console.warn("MIDI scan failed:", midiErr);
+      }
+    } catch (e) {
+      handleInvokeError(e);
+    } finally {
+      try { unlisten(); } catch {}
+      setScanning(false);
+      setScanProgress(null);
     }
   };
 
@@ -1078,6 +1096,25 @@ export function App() {
         onSettingsClick={() => setSettingsOpen(true)}
         onReload={() => {
           void handleSearch(filters.search);
+        }}
+      />
+
+      {/* Lazy-import RescanPrompt from components barrel to avoid bundling issues */}
+      {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+      {/* @ts-ignore */}
+      <RescanPrompt
+        isOpen={rescanPromptOpen}
+        path={rescanPendingPath}
+        onRescan={async () => {
+          if (!rescanPendingPath) return;
+          setRescanPromptOpen(false);
+          await performScan(rescanPendingPath);
+          setRescanPendingPath(null);
+        }}
+        onSkip={() => {
+          // Skip scanning: clear pending and close prompt
+          setRescanPendingPath(null);
+          setRescanPromptOpen(false);
         }}
       />
 
