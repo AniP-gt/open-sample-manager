@@ -1,4 +1,5 @@
 
+import { useEffect, useRef } from "react";
 import type { Midi } from "../../types/midi";
 import type { MidiTagRow } from "../../types/midi";
 
@@ -16,6 +17,31 @@ interface MidiListProps {
 }
 
 export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore }: MidiListProps) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // IntersectionObserver: load more when sentinel becomes visible
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const root = listRef.current;
+    if (!sentinel || !root || !onLoadMore) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (isLoadingMore) return;
+            if (canLoadMore === false) return;
+            void onLoadMore();
+          }
+        }
+      },
+      { root, rootMargin: "200px", threshold: 0.1 }
+    );
+
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [onLoadMore, isLoadingMore, canLoadMore]);
   if (midis.length === 0) {
     return (
       <div
@@ -156,7 +182,34 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
         </tbody>
       </table>
 
-      <LoadMoreControl onLoadMore={onLoadMore} isLoadingMore={isLoadingMore} canLoadMore={canLoadMore} />
+      {/* Sentinel element observed by IntersectionObserver to trigger loading more */}
+      <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
+
+      <div style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af" }}>
+        {isLoadingMore ? (
+          <div style={{ fontSize: 13 }}>Loading...</div>
+        ) : canLoadMore === false ? (
+          <div style={{ fontSize: 13 }}>No more results</div>
+        ) : (
+          onLoadMore ? (
+            <button
+              type="button"
+              onClick={() => { if (onLoadMore) void onLoadMore(); }}
+              style={{
+                background: "#111827",
+                border: "1px solid #1f2937",
+                color: "#f97316",
+                padding: "6px 10px",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontFamily: "'Courier New', monospace",
+              }}
+            >
+              Load more
+            </button>
+          ) : null
+        )}
+      </div>
 
     </div>
   );
