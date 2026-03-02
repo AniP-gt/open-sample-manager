@@ -114,9 +114,9 @@ fn midi_insert_duplicate_path_returns_error_without_panic() {
     let first = insert_midi(&conn, &midi).expect("first insert should succeed");
     assert!(first > 0, "first insert should return a valid rowid");
 
-    // Duplicate path: INSERT OR IGNORE returns Ok(0) without error or panic.
+    // Duplicate path: UPSERT updates the existing row and returns its rowid.
     let duplicate = insert_midi(&conn, &midi).expect("duplicate insert should not error");
-    assert_eq!(duplicate, 0, "duplicate path should return rowid 0 (ignored)");
+    assert!(duplicate > 0, "duplicate path upsert should return a valid rowid");
 }
 
 #[test]
@@ -158,10 +158,11 @@ fn manager_scan_midi_directory_happy_path_and_duplicate_error_path() {
         .expect("first midi scan should succeed");
     assert_eq!(first_count, 2);
 
+    // Second scan: UPSERT updates existing rows (metadata refresh), so count == 2.
     let second_count = manager
         .scan_midi_directory(dir.path())
-        .expect("second midi scan should succeed and skip duplicates");
-    assert_eq!(second_count, 0);
+        .expect("second midi scan should succeed and upsert duplicates");
+    assert_eq!(second_count, 2);
 
     let rows = manager
         .list_midis_paginated(10, 0)
@@ -183,4 +184,76 @@ fn manager_scan_midi_directory_nonexistent_path_returns_zero() {
         .scan_midi_directory(Path::new("/tmp/__nonexistent_midi_scan_dir__"))
         .expect("scan should not fail for missing directory");
     assert_eq!(count, 0);
+}
+
+
+#[test]
+fn parse_midi_extracts_metadata_from_minimal_smf() {
+    // Minimal SMF format-0 (single track), 480 tpq, 120 BPM (500_000 µs/beat).
+    // The byte layout follows the Standard MIDI Files 1.0 spec.
+    //
+    // MThd header (14 bytes):
+    //   "MThd" length=6 format=0 ntrks=1 division=480(0x01E0)
+    // MTrk chunk:
+    //   Tempo: delta=0, FF 51 03 07 A1 20  (500_000 µs = 120 BPM)
+    //   TimeSig: delta=0, FF 58 04 04 02 18 08  (4/4)
+    //   NoteOn ch0 C4 vel=64: delta=0, 90 3C 40
+    //   NoteOff ch0 C4 vel=0: delta=480, 80 3C 00
+    //   NoteOn ch0 E4 vel=64: delta=0, 90 40 40
+    //   NoteOff ch0 E4 vel=0: delta=480, 80 40 00
+    //   End of Track: delta=0, FF 2F 00
+    #[rustfmt::skip]
+    let smf_bytes: &[u8] = &[
+        // MThd
+        b'M', b'T', b'h', b'd',
+        0x00, 0x00, 0x00, 0x06, // chunk length = 6
+        0x00, 0x00,             // format 0
+        0x00, 0x01,             // 1 track
+        0x01, 0xE0,             // 480 tpq
+        // MTrk
+        b'M', b'T', b'r', b'k',
+        0x00, 0x00, 0x00, 0x25, // chunk length = 37
+        // delta=0, Tempo 500_000 (0x07A120)
+        0x00, 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20,
+        // delta=0, TimeSignature 4/4
+        0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08,
+        // delta=0, NoteOn ch0, C4 (0x3C), vel=64
+        0x00, 0x90, 0x3C, 0x40,
+        // delta=480 (0x83 0x60), NoteOff ch0, C4, vel=0
+        0x83, 0x60, 0x80, 0x3C, 0x00,
+        // delta=0, NoteOn ch0, E4 (0x40), vel=64
+        0x00, 0x90, 0x40, 0x40,
+        // delta=480 (0x83 0x60), NoteOff ch0, E4, vel=0
+        0x83, 0x60, 0x80, 0x40, 0x00,
+        // delta=0, End of Track
+        0x00, 0xFF, 0x2F, 0x00,
+    ];
+
+    // Write to a temp file so parse_midi can read it from disk.
+    let dir = TempDir::new().expect("temp dir");
+    let midi_path = dir.path().join("test.mid");
+    std::fs::write(&midi_path, smf_bytes).expect("write test midi");
+
+    let result = open_sample_manager_core::analysis::midi::parse_midi(&midi_path)
+        .expect("parse_midi should succeed on valid SMF");
+
+    // 2 quarter-notes at 120 BPM = 1 second
+    let duration = result.duration.expect("duration should be Some");
+    assert!(
+        (duration - 1.0).abs() < 0.05,
+        "expected ~1.0s duration, got {duration}"
+    );
+
+    let tempo = result.tempo.expect("tempo should be Some");
+    assert!(
+        (tempo - 120.0).abs() < 0.5,
+        "expected ~120 BPM, got {tempo}"
+    );
+
+    assert_eq!(result.time_signature_numerator, Some(4));
+    assert_eq!(result.time_signature_denominator, Some(4));
+    assert_eq!(result.track_count, Some(1));
+    assert_eq!(result.note_count, Some(2), "2 NoteOn events with vel>0");
+    assert_eq!(result.channel_count, Some(1));
+    assert!(result.key_estimate.is_some(), "key estimate should be populated");
 }

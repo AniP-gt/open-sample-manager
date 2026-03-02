@@ -440,22 +440,47 @@ fn row_to_midi(row: &rusqlite::Row) -> rusqlite::Result<MidiRow> {
 
 pub fn insert_midi(conn: &Connection, input: &MidiInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT OR IGNORE INTO midis (path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO midis (path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+         ON CONFLICT(path) DO UPDATE SET \
+           file_name = excluded.file_name, \
+           duration = excluded.duration, \
+           tempo = excluded.tempo, \
+           time_signature_numerator = excluded.time_signature_numerator, \
+           time_signature_denominator = excluded.time_signature_denominator, \
+           track_count = excluded.track_count, \
+           note_count = excluded.note_count, \
+           channel_count = excluded.channel_count, \
+           key_estimate = excluded.key_estimate, \
+           file_size = excluded.file_size, \
+           modified_at = CURRENT_TIMESTAMP",
     )?;
-    let changed = stmt.execute(params![
+    stmt.execute(params![
         input.path, input.file_name, input.duration, input.tempo,
         input.time_signature_numerator.unwrap_or(4),
         input.time_signature_denominator.unwrap_or(4),
         input.track_count, input.note_count, input.channel_count,
         input.key_estimate, input.file_size,
     ])?;
-    // changed == 0 means the path already existed (UNIQUE conflict was ignored).
-    if changed == 0 {
-        return Ok(0);
-    }
     let rowid = conn.last_insert_rowid();
-    let mut fts_stmt = conn.prepare_cached("INSERT OR IGNORE INTO midis_fts (rowid, file_name) VALUES (?1, ?2)")?;
-    fts_stmt.execute(params![rowid, input.file_name])?;
+    // rowid == 0 means it was an UPDATE (conflict), not a fresh INSERT.
+    // Either way we want FTS to be in sync.
+    if rowid > 0 {
+        let mut fts_stmt = conn.prepare_cached("INSERT OR IGNORE INTO midis_fts (rowid, file_name) VALUES (?1, ?2)")?;
+        fts_stmt.execute(params![rowid, input.file_name])?;
+    } else {
+        // UPDATE path: refresh FTS entry by re-fetching the real rowid.
+        let real_id: i64 = conn.query_row(
+            "SELECT id FROM midis WHERE path = ?1",
+            params![input.path],
+            |row| row.get(0),
+        )?;
+        conn.execute(
+            "INSERT OR REPLACE INTO midis_fts (rowid, file_name) VALUES (?1, ?2)",
+            params![real_id, input.file_name],
+        )?;
+        return Ok(real_id);
+    }
     Ok(rowid)
 }
 
