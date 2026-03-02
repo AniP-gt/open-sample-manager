@@ -5,9 +5,9 @@ import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
-import type { Midi } from "./types/midi";
+import type { Midi, MidiTagRow } from "./types/midi";
 import type { TimidityStatus } from "./types/midi";
-import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, type PlayerBarHandle } from "./components";
+import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, MidiTagManagementModal, MidiTagEditModal, type PlayerBarHandle } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -129,6 +129,11 @@ export function App() {
   const [midis, setMidis] = useState<Midi[]>([]);
   const [selectedMidi, setSelectedMidi] = useState<Midi | null>(null);
   const [timidityStatus, setTimidityStatus] = useState<TimidityStatus | null>(null);
+  const [isMidiPlaying, setIsMidiPlaying] = useState(false);
+  const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
+  const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
+  const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
+  const [midiTagEditTarget, setMidiTagEditTarget] = useState<Midi | null>(null);
 
   // Check TiMidity status on mount
   useEffect(() => {
@@ -143,9 +148,17 @@ export function App() {
       invoke<Midi[]>('list_midis_paginated', { limit: 100, offset: 0 })
         .then(setMidis)
         .catch(console.error);
+      invoke<MidiTagRow[]>('get_midi_tags')
+        .then(setMidiTags)
+        .catch(console.error);
     }
   }, [viewMode]);
+
   const handleViewModeChange = (mode: 'sample' | 'midi') => {
+    // Stop any playing MIDI when switching views
+    if (isMidiPlaying) {
+      void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
+    }
     setViewMode(mode);
   };
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
@@ -642,6 +655,47 @@ export function App() {
       setError(`Failed to update instrument type: ${e}`);
     }
   };
+
+  // MIDI tag management functions
+  const handleAddMidiTag = async (name: string) => {
+    try {
+      await invoke<number>('add_midi_tag', { name });
+      const updated = await invoke<MidiTagRow[]>('get_midi_tags');
+      setMidiTags(updated ?? []);
+    } catch (e) {
+      setError(`Failed to add MIDI tag: ${e}`);
+    }
+  };
+
+  const handleDeleteMidiTag = async (id: number) => {
+    try {
+      await invoke<number>('delete_midi_tag', { id });
+      const updated = await invoke<MidiTagRow[]>('get_midi_tags');
+      setMidiTags(updated ?? []);
+    } catch (e) {
+      setError(`Failed to delete MIDI tag: ${e}`);
+    }
+  };
+
+  const handleUpdateMidiTag = async (id: number, name: string) => {
+    try {
+      await invoke<number>('update_midi_tag', { id, name });
+      const updated = await invoke<MidiTagRow[]>('get_midi_tags');
+      setMidiTags(updated ?? []);
+    } catch (e) {
+      setError(`Failed to update MIDI tag: ${e}`);
+    }
+  };
+
+  const handleMidiTagChange = async (midiId: number, tagId: number | null) => {
+    try {
+      await invoke('set_midi_file_tag', { midiId, tagId });
+      const tagName = tagId != null ? (midiTags.find(t => t.id === tagId)?.name ?? '') : '';
+      setMidis(prev => prev.map(m => m.id === midiId ? { ...m, tag_name: tagName } : m));
+    } catch (e) {
+      setError(`Failed to set MIDI tag: ${e}`);
+    }
+  };
   useEffect(() => {
     void handleSearch(filters.search);
   }, [filters.search]);
@@ -998,7 +1052,8 @@ export function App() {
           <MidiList
             midis={midis}
             selectedMidi={selectedMidi}
-            onMidiSelect={setSelectedMidi}
+            onMidiSelect={(midi) => { if (isMidiPlaying) { void invoke('stop_midi').finally(() => setIsMidiPlaying(false)); } setSelectedMidi(midi); }}
+            onTagBadgeClick={(midi) => { setMidiTagEditTarget(midi); setMidiTagEditOpen(true); }}
           />
         )}
         {/* MIDI Preview Bar - show when MIDI is selected */}
@@ -1018,8 +1073,18 @@ export function App() {
             </div>
             {timidityStatus?.installed ? (
               <button
+                type="button"
+                onClick={() => {
+                  if (isMidiPlaying) {
+                    void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
+                  } else {
+                    void invoke('play_midi', { path: selectedMidi.path })
+                      .then(() => setIsMidiPlaying(true))
+                      .catch((e) => setError(getErrorMessage(e)));
+                  }
+                }}
                 style={{
-                  background: "#3b82f6",
+                  background: isMidiPlaying ? "#ef4444" : "#3b82f6",
                   border: "none",
                   color: "white",
                   padding: "6px 16px",
@@ -1029,7 +1094,7 @@ export function App() {
                   fontFamily: "'Courier New', monospace",
                 }}
               >
-                Play
+                {isMidiPlaying ? "Stop" : "Play"}
               </button>
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1076,7 +1141,17 @@ export function App() {
         )}
       </div>
 
-      {selected && <PlayerBar ref={playerBarRef} sample={selected} path={samplePaths[selected.id]} />}
+      {selected && (
+        <PlayerBar
+          ref={playerBarRef}
+          sample={selected}
+          path={samplePaths[selected.id]}
+          onClose={() => {
+            playerBarRef.current?.stop();
+            setSelected(null);
+          }}
+        />
+      )}
 
           <SettingsModal
             isOpen={settingsOpen}
@@ -1118,6 +1193,24 @@ export function App() {
         onDelete={handleDeleteInstrumentType}
         onUpdate={handleUpdateInstrumentType}
         onClose={() => setInstrumentTypeModalOpen(false)}
+      />
+
+      <MidiTagManagementModal
+        isOpen={midiTagModalOpen}
+        midiTags={midiTags}
+        onAdd={handleAddMidiTag}
+        onDelete={handleDeleteMidiTag}
+        onUpdate={handleUpdateMidiTag}
+        onClose={() => setMidiTagModalOpen(false)}
+      />
+
+      <MidiTagEditModal
+        isOpen={midiTagEditOpen}
+        midi={midiTagEditTarget}
+        midiTags={midiTags}
+        onSave={handleMidiTagChange}
+        onClose={() => setMidiTagEditOpen(false)}
+        onManageClick={() => { setMidiTagEditOpen(false); setMidiTagModalOpen(true); }}
       />
 
     </div>

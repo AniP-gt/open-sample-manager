@@ -7,19 +7,31 @@ import { TypeBadge } from "../TypeBadge/TypeBadge";
 interface PlayerBarProps {
   sample: Sample;
   path?: string;
+  onClose?: () => void;
 }
 
 export interface PlayerBarHandle {
   stop: () => void;
 }
 
-export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path }: PlayerBarProps, ref) {
+export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose }: PlayerBarProps, ref) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const handleClose = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setLoadError(null);
+    if (onClose) onClose();
+  };
 
   // Reset state when path changes
   useEffect(() => {
@@ -242,8 +254,30 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
         </div>
       </div>
 
-      {/* Waveform */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+        <div style={{ position: "absolute", top: 8, right: 8, zIndex: 200 }}>
+          <button
+            aria-label="Close waveform UI"
+            title="Close waveform UI"
+            onClick={handleClose}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#9ca3af",
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+
         <WaveSurferPlayer
           sample={sample}
           filePath={path || ""}

@@ -8,6 +8,7 @@ vi.mock('@tauri-apps/api/core', () => {
   const invoke = vi.fn((cmd: string) => {
     if (cmd === 'check_timidity') return Promise.resolve(timidityStatus)
     if (cmd === 'list_midis_paginated') return Promise.resolve(mockedMidis)
+    if (cmd === 'get_midi_tags') return Promise.resolve([])
     return Promise.resolve(null)
   })
   return { invoke }
@@ -52,6 +53,7 @@ describe('MidiList component', () => {
       file_size: 1000,
       created_at: '',
       modified_at: '',
+      tag_name: '',
     },
   ]
 
@@ -99,6 +101,7 @@ describe('TiMidity prompt in App', () => {
         file_size: 500,
         created_at: '',
         modified_at: '',
+        tag_name: '',
       },
     ]
 

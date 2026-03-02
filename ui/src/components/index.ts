@@ -16,3 +16,5 @@ export { SettingsModal } from "./SettingsModal/SettingsModal";
 export { ClassificationEditModal } from "./ClassificationEditModal/ClassificationEditModal";
 export { ConfirmModal } from "./ConfirmModal/ConfirmModal";
 export { InstrumentTypeManagementModal } from "./InstrumentTypeManagementModal/InstrumentTypeManagementModal";
+export { MidiTagManagementModal } from "./MidiTagManagementModal/MidiTagManagementModal";
+export { MidiTagEditModal } from "./MidiTagEditModal/MidiTagEditModal";

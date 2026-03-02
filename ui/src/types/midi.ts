@@ -15,6 +15,15 @@ export interface Midi {
   file_size: number | null;
   created_at: string;
   modified_at: string;
+  /** Currently assigned tag name (empty string if none). */
+  tag_name: string;
+}
+
+/// A row from the `midi_tags` table.
+export interface MidiTagRow {
+  id: number;
+  name: string;
+  created_at: string;
 }
 
 /// Response for TiMidity availability check.

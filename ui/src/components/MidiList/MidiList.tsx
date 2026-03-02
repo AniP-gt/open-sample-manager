@@ -1,13 +1,17 @@
 
 import type { Midi } from "../../types/midi";
+import type { MidiTagRow } from "../../types/midi";
 
 interface MidiListProps {
   midis: Midi[];
   selectedMidi: Midi | null;
   onMidiSelect: (midi: Midi) => void;
+  onTagBadgeClick?: (midi: Midi) => void;
+  midiTags?: MidiTagRow[];
+  onMidiTagChange?: (midiId: number, tagName: string | null) => void;
 }
 
-export function MidiList({ midis, selectedMidi, onMidiSelect }: MidiListProps) {
+export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick }: MidiListProps) {
   if (midis.length === 0) {
     return (
       <div
@@ -54,6 +58,9 @@ export function MidiList({ midis, selectedMidi, onMidiSelect }: MidiListProps) {
             <th style={{ padding: "8px 12px", textAlign: "left", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
               FILE NAME
             </th>
+            <th style={{ padding: "8px 12px", textAlign: "left", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
+              TAG
+            </th>
             <th style={{ padding: "8px 12px", textAlign: "right", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
               TEMPO
             </th>
@@ -95,6 +102,31 @@ export function MidiList({ midis, selectedMidi, onMidiSelect }: MidiListProps) {
               >
                 <td style={{ padding: "8px 12px", color: "#e2e8f0", borderBottom: "1px solid #1f2937" }}>
                   {midi.file_name}
+                </td>
+                <td
+                  style={{ padding: "8px 8px", borderBottom: "1px solid #1f2937" }}
+                  onClick={(e) => { e.stopPropagation(); onTagBadgeClick?.(midi); }}
+                >
+                  <span
+                    style={{
+                      display: "inline-block",
+                      background: midi.tag_name ? "#22d3ee18" : "transparent",
+                      border: `1px solid ${midi.tag_name ? "#22d3ee55" : "#1f2937"}`,
+                      borderRadius: "2px",
+                      color: midi.tag_name ? "#22d3ee" : "#4b5563",
+                      fontSize: "11px",
+                      fontFamily: "'Courier New', monospace",
+                      fontWeight: 600,
+                      letterSpacing: "0.05em",
+                      textTransform: "uppercase",
+                      padding: "3px 8px",
+                      cursor: "pointer",
+                      minWidth: "64px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {midi.tag_name || "+ tag"}
+                  </span>
                 </td>
                 <td style={{ padding: "8px 12px", color: "#22d3ee", textAlign: "right", borderBottom: "1px solid #1f2937" }}>
                   {midi.tempo ? `${midi.tempo.toFixed(1)} BPM` : "—"}
