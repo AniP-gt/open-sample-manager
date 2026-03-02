@@ -8,6 +8,9 @@ use rusqlite::{params, Connection};
 /// Audio file extensions supported by the scanner (lowercase).
 const AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "flac", "ogg", "aiff"];
 
+/// MIDI file extensions supported by the scanner (lowercase).
+const MIDI_EXTENSIONS: &[&str] = &["mid", "midi"];
+
 /// Scanner that watches a set of root paths for audio files.
 pub struct Scanner {
     /// Directory paths being monitored for audio files.
