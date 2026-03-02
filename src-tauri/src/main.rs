@@ -575,6 +575,15 @@ pub struct TimidityStatus {
     pub install_command: String,
 }
 
+fn timidity_install_command(os: &str) -> &'static str {
+    match os {
+        "macos" => "brew install timidity",
+        "linux" => "sudo apt-get install -y timidity (Debian/Ubuntu) or sudo dnf install timidity (Fedora)",
+        "windows" => "choco install timidity (or enable WSL and run a Linux installer)",
+        _ => "Install TiMidity++ via your distribution's package manager",
+    }
+}
+
 /// Check if TiMidity is installed and return OS-specific install guidance.
 #[tauri::command]
 fn check_timidity() -> TimidityStatus {
@@ -584,21 +593,40 @@ fn check_timidity() -> TimidityStatus {
     let installed = timidity_path.is_ok();
     
     // Get OS-specific install command
-    #[cfg(target_os = "macos")]
-    let install_command = "brew install timidity".to_string();
-    
-    #[cfg(target_os = "linux")]
-    let install_command = "sudo apt-get install timidity (Debian/Ubuntu) or sudo dnf install timidity (Fedora)".to_string();
-    
-    #[cfg(target_os = "windows")]
-    let install_command = "Use Cygwin or MSYS2 to install timidity: pacman -S timidity".to_string();
-    
-    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-    let install_command = "Install TiMidity++ via your distribution's package manager".to_string();
+    let install_command = timidity_install_command(std::env::consts::OS).to_string();
     
     TimidityStatus {
         installed,
         install_command,
+    }
+}
+
+#[cfg(test)]
+mod timidity_tests {
+    use super::timidity_install_command;
+
+    #[test]
+    fn macos_command_matches_brew() {
+        assert_eq!(timidity_install_command("macos"), "brew install timidity");
+    }
+
+    #[test]
+    fn linux_command_mentions_apt_and_dnf() {
+        assert!(timidity_install_command("linux").contains("apt-get"));
+        assert!(timidity_install_command("linux").contains("dnf"));
+    }
+
+    #[test]
+    fn windows_command_references_choco() {
+        assert!(timidity_install_command("windows").contains("choco"));
+    }
+
+    #[test]
+    fn fallback_command_suggests_package_manager() {
+        assert_eq!(
+            timidity_install_command("solaris"),
+            "Install TiMidity++ via your distribution's package manager"
+        );
     }
 }
 
