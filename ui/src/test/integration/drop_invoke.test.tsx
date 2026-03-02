@@ -6,8 +6,12 @@ import { render, fireEvent, waitFor } from '@testing-library/react';
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(async (cmd: string) => {
     if (cmd === 'check_timidity') return { installed: true, install_command: {} };
+    if (cmd === 'get_instrument_types') return [];
+    if (cmd === 'list_all_sample_paths') return [];
+    if (cmd === 'list_samples_paginated') return [];
     if (cmd === 'search_samples') return [];
     if (cmd === 'scan_directory') return 1;
+    if (cmd === 'import_file') return 1;
     return null;
   }),
 }));
@@ -31,8 +35,9 @@ describe('App drag/drop integration', () => {
 
     // Wait for initial search to settle. The app now runs several startup invokes
     // (check_timidity, get_instrument_types, etc.) before searching; assert that
-    // search_samples was called at some point during startup.
-    await waitFor(() => expect((invoke as any).mock.calls.some((c: any[]) => c[0] === 'search_samples')).toBeTruthy());
+    // The app may call either a legacy 'search_samples' command or the
+    // current 'list_samples_paginated' during startup. Accept either.
+    await waitFor(() => expect((invoke as any).mock.calls.some((c: any[]) => c[0] === 'search_samples' || c[0] === 'list_samples_paginated')).toBeTruthy());
 
     // Find the sample list container by role: it's the main content area with position: relative
     const list = container.querySelector('div[style*="position: relative"]');
