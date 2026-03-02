@@ -1204,6 +1204,8 @@ export function App() {
             }}
             isLoadingMore={isLoadingMoreMidi}
             canLoadMore={lastFetchCountMidi === null ? true : lastFetchCountMidi === pageLimit}
+            onImportPaths={handleImportPaths}
+            externalIsDragOver={isDragOver}
           />
         )}
         {/* MIDI Preview Bar - show when MIDI is selected */}
