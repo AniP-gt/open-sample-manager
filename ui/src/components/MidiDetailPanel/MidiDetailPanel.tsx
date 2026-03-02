@@ -7,6 +7,9 @@ interface MidiDetailPanelProps {
   onTagFilterChange: (tagId: number | null) => void;
   onManageTags?: () => void;
   bottomInset?: number;
+  // Playback controls: render play/stop button inside the panel
+  isPlaying?: boolean;
+  onTogglePlay?: () => Promise<void> | void;
 }
 
 export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0 }: MidiDetailPanelProps) {
@@ -32,6 +35,34 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: `${12 + bottomInset}px`, boxSizing: "border-box" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 16, color: "#d1d5db", fontWeight: 700 }}>{midi.file_name}</div>
+          {/* Playback button moved into the tag/detail sidebar */}
+          <div>
+            {typeof onTogglePlay === "function" ? (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await onTogglePlay?.();
+                  } catch (err) {
+                    console.error("Playback toggle failed:", err);
+                  }
+                }}
+                style={{
+                  background: isPlaying ? "#ef4444" : "#3b82f6",
+                  border: "none",
+                  color: "white",
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontFamily: "'Courier New', monospace",
+                }}
+              >
+                {isPlaying ? "Stop" : "Play"}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div style={{ marginTop: 8 }}>

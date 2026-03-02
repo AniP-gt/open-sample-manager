@@ -137,6 +137,7 @@ export function App() {
   // keep error state for tests / debugging but avoid unused variable error
   const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
   const [midiTagFilterId, setMidiTagFilterId] = useState<number | null>(null);
+  const [midiSearch, setMidiSearch] = useState("");
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
   const [midiTagEditTarget, setMidiTagEditTarget] = useState<Midi | null>(null);
@@ -181,7 +182,8 @@ export function App() {
       // Clear selected sample so the PlayerBar and DetailPanel hide
       setSelected(null);
     }
-
+    // Reset MIDI search when switching away from MIDI view
+    setMidiSearch("");
     setViewMode(mode);
   };
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
@@ -359,6 +361,21 @@ export function App() {
     setMidiScannedPaths(Array.from(uniqueDirs).sort());
   }, [allMidiPaths, viewMode]);
 
+  const runMidiSearch = async (query: string) => {
+    try {
+      if (query.trim()) {
+        const rows = await invoke<Midi[]>('search_midis', { query });
+        setMidis(rows);
+        setLastFetchCountMidi(rows.length);
+      } else {
+        const rows = await invoke<Midi[]>('list_midis_paginated', { limit: pageLimit, offset: 0 });
+        setMidis(rows);
+        setLastFetchCountMidi(rows.length);
+      }
+    } catch (e) {
+      console.error('MIDI search failed:', e);
+    }
+  };
   // Load more results (append next page) - exposed for SampleList to render a "Load more" control
   const loadMore = async () => {
     setIsLoadingMore(true);
@@ -798,6 +815,7 @@ export function App() {
   useEffect(() => {
     void handleSearch(filters.search);
   }, [filters.search]);
+  useEffect(() => { if (viewMode === 'midi') { void runMidiSearch(midiSearch); } }, [midiSearch, viewMode]);
 
   // Fallback: Listen to Tauri-native drag/drop events when running inside
   // the Tauri webview. This is deterministic for obtaining full filesystem
@@ -1230,6 +1248,8 @@ export function App() {
               canLoadMore={lastFetchCountMidi === null ? true : lastFetchCountMidi === pageLimit}
               onImportPaths={handleImportPaths}
               externalIsDragOver={isDragOver}
+              midiSearch={midiSearch}
+              onMidiSearchChange={setMidiSearch}
             />
           
             {selectedMidi && viewMode === 'midi' && (
