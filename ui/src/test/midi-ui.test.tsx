@@ -8,6 +8,7 @@ vi.mock('@tauri-apps/api/core', () => {
   const invoke = vi.fn((cmd: string) => {
     if (cmd === 'check_timidity') return Promise.resolve(timidityStatus)
     if (cmd === 'list_midis_paginated') return Promise.resolve(mockedMidis)
+    if (cmd === 'get_all_midi_paths') return Promise.resolve(mockedMidis.map((m) => m.path))
     if (cmd === 'get_midi_tags') return Promise.resolve([])
     return Promise.resolve(null)
   })

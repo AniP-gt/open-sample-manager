@@ -531,6 +531,7 @@ fn main() {
         stop_midi,
         scan_midi_directory,
         list_midis_paginated,
+        get_all_midi_paths,
         get_midi,
         delete_midi,
         search_midis,
@@ -726,6 +727,58 @@ async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<()
     let pid = child.id();
     *state.timidity_pid.lock().unwrap() = Some(pid);
     Ok(())
+}
+
+/// Render a MIDI file to a temporary WAV file using TiMidity++ and return the
+/// generated file path. This allows the frontend to load and seek within the
+/// rendered audio using the browser's audio APIs.
+#[tauri::command]
+async fn render_midi_to_wav(path: String) -> Result<String, CommandError> {
+    // Generate a unique temp path
+    let mut out = std::env::temp_dir();
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    out.push(format!("rendered_midi_{}.wav", ts));
+
+    // Locate timidity
+    let timidity = which::which("timidity").map_err(|_| CommandError {
+        code: "timidity_not_found".to_string(),
+        message: "TiMidity++ is not installed or not in PATH".to_string(),
+        details: None,
+    })?;
+
+    // Run: timidity -Ow -o <out> <path>
+    let status = std::process::Command::new(timidity)
+        .arg("-Ow")
+        .arg("-o")
+        .arg(out.to_string_lossy().to_string())
+        .arg(path)
+        .status()
+        .map_err(|e| CommandError {
+            code: "timidity_render_error".to_string(),
+            message: format!("failed to spawn timidity for render: {}", e),
+            details: None,
+        })?;
+
+    if !status.success() {
+        return Err(CommandError {
+            code: "timidity_render_failed".to_string(),
+            message: format!("timidity failed with exit code: {:?}", status.code()),
+            details: None,
+        });
+    }
+
+    Ok(out.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn delete_file(path: String) -> Result<bool, CommandError> {
+    match std::fs::remove_file(&path) {
+        Ok(_) => Ok(true),
+        Err(e) => Err(CommandError { code: "io_error".to_string(), message: format!("failed to delete file {}: {}", path, e), details: None }),
+    }
 }
 
 /// Stop the currently playing MIDI file (kills timidity process).

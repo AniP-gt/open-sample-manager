@@ -8,7 +8,7 @@ use rusqlite::{params, Connection};
 /// - `sample_tags` table: junction table for many-to-many sample-tag relationship
 /// - `watched_paths` table: stores directory paths being monitored
 /// - `midis` table: stores MIDI file metadata
-/// - indices: for efficient querying on bpm, `sample_type`, `playback_type`, `instrument_type`
+/// - `midi_tags` table: user-defined tags for MIDI files (id, name, created_at)
 /// - `samples_fts`: FTS5 virtual table for full-text search on `file_name`
 /// - `midis_fts`: FTS5 virtual table for MIDI file name search
 ///
@@ -86,6 +86,20 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             modified_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS midi_tags (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS midi_file_tags (
+            midi_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (midi_id, tag_id),
+            FOREIGN KEY (midi_id) REFERENCES midis(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES midi_tags(id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
 
@@ -94,6 +108,7 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 
         CREATE INDEX IF NOT EXISTS idx_midis_tempo ON midis(tempo);
         CREATE INDEX IF NOT EXISTS idx_midis_track_count ON midis(track_count);
+        CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS samples_fts USING fts5(file_name);
         CREATE VIRTUAL TABLE IF NOT EXISTS midis_fts USING fts5(file_name);
@@ -102,9 +117,13 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     // Run migrations to add newer columns to legacy DBs, then seed defaults.
     run_migrations(conn)?;
-
     // Seed default instrument types
     seed_instrument_types(conn)?;
+
+    // Seed default MIDI tags
+    seed_midi_tags(conn)?;
+    // Seed default instrument types
+
 
     Ok(())
 }
@@ -192,6 +211,24 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         [],
     );
 
+    // Migration: create midi_tags and midi_file_tags tables for existing DBs
+    // that were created before these tables existed.
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS midi_tags (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS midi_file_tags (
+            midi_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (midi_id, tag_id),
+            FOREIGN KEY (midi_id) REFERENCES midis(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES midi_tags(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);"
+    );
+
     Ok(())
 }
 
@@ -211,6 +248,44 @@ fn seed_instrument_types(conn: &Connection) -> Result<(), rusqlite::Error> {
     for name in instrument_types {
         conn.execute(
             "INSERT OR IGNORE INTO instrument_types (name) VALUES (?1)",
+            params![name],
+        )?;
+    }
+
+    Ok(())
+}
+
+fn seed_midi_tags(conn: &Connection) -> Result<(), rusqlite::Error> {
+    // Musical role / purpose tags
+    let midi_tags = [
+        // Musical roles
+        "melody",
+        "chord",
+        "bass",
+        "arp",
+        "lead",
+        "pad",
+        "drum",
+        "transition",
+        "fx",
+        "intro",
+        "outro",
+        "loop",
+        "oneshot",
+        // Instrument categories
+        "piano",
+        "guitar",
+        "strings",
+        "brass",
+        "synth",
+        "percussion",
+        "vocal",
+        "other",
+    ];
+
+    for name in midi_tags {
+        conn.execute(
+            "INSERT OR IGNORE INTO midi_tags (name) VALUES (?1)",
             params![name],
         )?;
     }

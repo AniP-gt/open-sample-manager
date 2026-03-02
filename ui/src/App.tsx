@@ -134,6 +134,15 @@ export function App() {
   const [selectedMidi, setSelectedMidi] = useState<Midi | null>(null);
   const [timidityStatus, setTimidityStatus] = useState<TimidityStatus | null>(null);
   const [isMidiPlaying, setIsMidiPlaying] = useState(false);
+  const [midiPreviewPath, setMidiPreviewPath] = useState<string | null>(null);
+  const midiPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [midiPreviewPlaying, setMidiPreviewPlaying] = useState(false);
+  const [midiPreviewLoading, setMidiPreviewLoading] = useState(false);
+  const [midiPreviewCurrentTime, setMidiPreviewCurrentTime] = useState(0);
+  const [midiPreviewDuration, setMidiPreviewDuration] = useState<number | null>(null);
+  // keep error state for tests / debugging but avoid unused variable error
+  const [midiPreviewError, setMidiPreviewError] = useState<string | null>(null);
+  void midiPreviewError;
   const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
@@ -1224,30 +1233,116 @@ export function App() {
               ▶ {selectedMidi.file_name}
             </div>
             {timidityStatus?.installed ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (isMidiPlaying) {
-                    void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
-                  } else {
-                    void invoke('play_midi', { path: selectedMidi.path })
-                      .then(() => setIsMidiPlaying(true))
-                      .catch((e) => setError(getErrorMessage(e)));
-                  }
-                }}
-                style={{
-                  background: isMidiPlaying ? "#ef4444" : "#3b82f6",
-                  border: "none",
-                  color: "white",
-                  padding: "6px 16px",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  fontFamily: "'Courier New', monospace",
-                }}
-              >
-                {isMidiPlaying ? "Stop" : "Play"}
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    // If we have an in-renderer preview, toggle play/pause
+                    try {
+                      if (midiPreviewPlaying) {
+                        // Pause playback and cleanup the temporary WAV produced for preview.
+                        midiPreviewAudioRef.current?.pause();
+                        setMidiPreviewPlaying(false);
+                        setIsMidiPlaying(false);
+
+                        // If we have a rendered temp WAV, request backend to delete it and
+                        // release the audio element reference so future play attempts will
+                        // re-render the MIDI to a fresh WAV.
+                        if (midiPreviewPath) {
+                          try {
+                            await invoke<boolean>("delete_file", { path: midiPreviewPath });
+                          } catch (delErr) {
+                            // Non-fatal: log and surface minimal error to debug state
+                            console.warn("Failed to delete temp MIDI preview WAV:", delErr);
+                            setMidiPreviewError(getErrorMessage(delErr));
+                          }
+                          setMidiPreviewPath(null);
+                        }
+
+                        // Release audio element
+                        try {
+                          if (midiPreviewAudioRef.current) {
+                            midiPreviewAudioRef.current.src = "";
+                          }
+                        } catch {}
+                        midiPreviewAudioRef.current = null;
+
+                        return;
+                      }
+
+                      // If audio already rendered, play it
+                      if (midiPreviewPath && midiPreviewAudioRef.current) {
+                        await midiPreviewAudioRef.current.play();
+                        setMidiPreviewPlaying(true);
+                        setIsMidiPlaying(true);
+                        return;
+                      }
+
+                      // Otherwise render MIDI to WAV (backend) and play in-app
+                      setMidiPreviewLoading(true);
+                      setMidiPreviewError(null);
+                      const outPath = await invoke<string>("render_midi_to_wav", { path: selectedMidi.path });
+                      setMidiPreviewPath(outPath);
+
+                      // Create audio element and play
+                      const audio = new Audio("file://" + outPath);
+                      audio.onloadedmetadata = () => {
+                        setMidiPreviewDuration(audio.duration);
+                      };
+                      audio.ontimeupdate = () => setMidiPreviewCurrentTime(audio.currentTime);
+                      audio.onended = () => {
+                        setMidiPreviewPlaying(false);
+                        setIsMidiPlaying(false);
+                      };
+                      midiPreviewAudioRef.current = audio;
+                      await audio.play();
+                      setMidiPreviewPlaying(true);
+                      setIsMidiPlaying(true);
+                    } catch (e) {
+                      setMidiPreviewError(getErrorMessage(e));
+                      // surface as top-level error too
+                      setError(getErrorMessage(e));
+                      setMidiPreviewPlaying(false);
+                      setIsMidiPlaying(false);
+                    } finally {
+                      setMidiPreviewLoading(false);
+                    }
+                  }}
+                  style={{
+                    background: midiPreviewPlaying ? "#ef4444" : "#3b82f6",
+                    border: "none",
+                    color: "white",
+                    padding: "6px 16px",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontFamily: "'Courier New', monospace",
+                  }}
+                >
+                  {midiPreviewPlaying ? "Stop" : midiPreviewLoading ? "Rendering..." : "Play"}
+                </button>
+
+                {/* Timeline for preview playback */}
+                <div style={{ flex: 1 }}>
+                  {/* lazy-load Timeline to avoid circular imports; inline simple slider */}
+                  <div style={{ height: 28 }}>
+                    <div
+                      onClick={(e) => {
+                        if (!midiPreviewAudioRef.current || !midiPreviewDuration) return;
+                        const rect = (e.target as HTMLDivElement).getBoundingClientRect();
+                        const x = (e.clientX - rect.left);
+                        const t = (x / rect.width) * midiPreviewDuration;
+                        midiPreviewAudioRef.current.currentTime = t;
+                        setMidiPreviewCurrentTime(t);
+                      }}
+                    >
+                      <div style={{ width: "100%", height: "6px", background: "#0f172a", borderRadius: 4, position: "relative" }}>
+                        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${(midiPreviewCurrentTime / (midiPreviewDuration || 1)) * 100}%`, background: "linear-gradient(90deg,#ef4444,#f97316)", borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ color: "#fca5a5", fontSize: "12px", fontFamily: "'Courier New', monospace" }}>

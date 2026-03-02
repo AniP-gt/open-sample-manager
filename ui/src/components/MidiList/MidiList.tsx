@@ -11,6 +11,10 @@ interface MidiListProps {
   onTagBadgeClick?: (midi: Midi) => void;
   midiTags?: MidiTagRow[];
   onMidiTagChange?: (midiId: number, tagName: string | null) => void;
+  // Optional: called when files/folders are dropped/imported from sidebar
+  onImportPaths?: (paths: string[]) => void;
+  // When running inside Tauri, the host may indicate a drag-over state
+  externalIsDragOver?: boolean;
   // Pagination handlers
   onLoadMore?: () => Promise<void> | void;
   isLoadingMore?: boolean;
@@ -99,6 +103,7 @@ export const MidiList = forwardRef(function MidiList(
         flex: 1,
         overflowY: "auto",
         background: "#0a0c12",
+        position: "relative",
       }}
     >
       <table
