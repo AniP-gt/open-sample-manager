@@ -1,5 +1,6 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { Midi } from "../../types/midi";
 import type { MidiTagRow } from "../../types/midi";
 
@@ -14,11 +15,21 @@ interface MidiListProps {
   onLoadMore?: () => Promise<void> | void;
   isLoadingMore?: boolean;
   canLoadMore?: boolean;
+  // Called to request that a midi be sent to trash (parent handles actual deletion)
+  onTrashMidi?: (id: number) => void;
 }
 
-export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore }: MidiListProps) {
+export type MidiListHandle = {
+  focusSelected: () => void;
+};
+
+export const MidiList = forwardRef(function MidiList(
+  { midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore, onTrashMidi }: MidiListProps,
+  ref: React.Ref<MidiListHandle>,
+) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [toast, setToast] = useState<{ message: string; visible: boolean; midiId: number | null }>({ message: "", visible: false, midiId: null });
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
@@ -43,6 +54,26 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
     obs.observe(sentinel);
     return () => obs.disconnect();
   }, [onLoadMore, isLoadingMore, canLoadMore]);
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.querySelector<HTMLTableRowElement>("tr.midi-row.active");
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [selectedMidi]);
+
+  useImperativeHandle(ref, () => ({
+    focusSelected: () => {
+      if (!listRef.current) return;
+      const el = listRef.current.querySelector<HTMLTableRowElement>("tr.midi-row.active");
+      if (!el) return;
+      if (typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    },
+  }));
+
   if (midis.length === 0) {
     return (
       <div
@@ -111,6 +142,9 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
             <th style={{ padding: "8px 12px", textAlign: "right", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
               DURATION
             </th>
+            <th style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
+              
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -119,6 +153,7 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
             return (
               <tr
                 key={midi.id}
+                className={`midi-row ${isSelected ? "active" : ""}`}
                 onClick={() => onMidiSelect(midi)}
                 style={{
                   background: isSelected ? "#3b82f620" : "transparent",
@@ -178,6 +213,76 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
                 <td style={{ padding: "8px 12px", color: "#9ca3af", textAlign: "right", borderBottom: "1px solid #1f2937" }}>
                   {midi.duration ? formatDuration(midi.duration) : "—"}
                 </td>
+                <td style={{ padding: "8px 12px", borderBottom: "1px solid #1f2937", display: "flex", gap: 6, justifyContent: "center", position: "relative" }} onMouseDown={(e) => e.stopPropagation()}>
+                  <button
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const path = midi.path;
+                      if (path) {
+                        let folderPath = path;
+                        const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\\\"));
+                        if (lastSlash > 0) {
+                          folderPath = path.substring(0, lastSlash);
+                        }
+                        try {
+                          await invoke("open_folder", { path: folderPath });
+                        } catch (err) {
+                          console.error("Failed to open folder:", err);
+                        }
+                      }
+                    }}
+                    style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
+                    title="Show in Finder"
+                  >
+                    📂
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const path = midi.path;
+                      if (path) {
+                        try {
+                          await invoke("copy_to_clipboard", { text: path });
+                          setToast({ message: "Path copied!", visible: true, midiId: midi.id });
+                        } catch (err) {
+                          console.error("Clipboard write failed:", err);
+                          setToast({ message: "Copy failed", visible: true, midiId: midi.id });
+                        }
+                        setTimeout(() => {
+                          setToast((prev) => ({ ...prev, visible: false, midiId: null }));
+                        }, 1500);
+                      }
+                    }}
+                    style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
+                    title="Copy Full Path"
+                  >
+                    📋
+                  </button>
+                  {toast.visible && toast.midiId === midi.id && (
+                    <div style={{ position: "absolute", right: "60px", background: "#1f2937", color: "#22c55e", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontFamily: "'Courier New', monospace", zIndex: 100, border: "1px solid #22c55e", whiteSpace: "nowrap", animation: "fadeIn 0.15s ease" }}>
+                      {toast.message}
+                    </div>
+                  )}
+                  <button
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTrashMidi?.(midi.id);
+                    }}
+                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }}
+                    title="Send to Trash"
+                  >
+                    🗑
+                  </button>
+                </td>
               </tr>
             );
           })}
@@ -215,7 +320,7 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
 
     </div>
   );
-}
+});
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);

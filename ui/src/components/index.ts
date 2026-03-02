@@ -7,6 +7,7 @@ export { Header } from "./Header/Header";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { SampleList } from "./SampleList/SampleList";
 export { MidiList } from "./MidiList/MidiList";
+export type { MidiListHandle } from "./MidiList/MidiList";
 export { DetailPanel } from "./DetailPanel/DetailPanel";
 export { PlayerBar } from "./PlayerBar/PlayerBar";
 export type { PlayerBarHandle } from "./PlayerBar/PlayerBar";

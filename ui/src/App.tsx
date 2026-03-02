@@ -7,7 +7,7 @@ import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } fr
 import type { ScanProgress } from "./types/scan";
 import type { Midi, MidiTagRow } from "./types/midi";
 import type { TimidityStatus } from "./types/midi";
-import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, MidiTagManagementModal, MidiTagEditModal, type PlayerBarHandle } from "./components";
+import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, MidiTagManagementModal, MidiTagEditModal, type PlayerBarHandle, type MidiListHandle } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -110,6 +110,7 @@ export function App() {
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);
+  const [midiScannedPaths, setMidiScannedPaths] = useState<string[]>([]);
   // All sample paths from database (independent of filters/pagination)
   const [allSamplePaths, setAllSamplePaths] = useState<string[]>([]);
   const [allMidiPaths, setAllMidiPaths] = useState<string[]>([]);
@@ -123,6 +124,7 @@ export function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const sampleListRef = useRef<SampleListHandle | null>(null);
+  const midiListRef = useRef<MidiListHandle | null>(null);
   const playerBarRef = useRef<PlayerBarHandle | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoadingMoreMidi, setIsLoadingMoreMidi] = useState(false);
@@ -165,6 +167,19 @@ export function App() {
     if (isMidiPlaying) {
       void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
     }
+    // When switching to MIDI view, ensure any sample waveform UI / player is closed
+    if (mode === 'midi') {
+      try {
+        // Stop and reset the PlayerBar if it's active
+        playerBarRef.current?.stop();
+      } catch (e) {
+        // defensive: log but don't throw
+        console.warn('Failed to stop PlayerBar when switching to MIDI view', e);
+      }
+      // Clear selected sample so the PlayerBar and DetailPanel hide
+      setSelected(null);
+    }
+
     setViewMode(mode);
   };
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
@@ -180,6 +195,8 @@ export function App() {
   // Confirm modal state for trash actions
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrashSampleId, setPendingTrashSampleId] = useState<number | null>(null);
+  // For pending MIDI trash actions
+  const [pendingTrashMidiId, setPendingTrashMidiId] = useState<number | null>(null);
   // Instrument type management
   const [instrumentTypes, setInstrumentTypes] = useState<InstrumentTypeRow[]>([]);
   const [instrumentTypeModalOpen, setInstrumentTypeModalOpen] = useState(false);
@@ -292,6 +309,54 @@ export function App() {
     }
   };
 
+  const requestTrashMidi = (id: number) => {
+    // Open confirm modal and record pending midi id
+    setPendingTrashMidiId(id);
+    setConfirmOpen(true);
+  };
+
+  const confirmTrashMidi = async () => {
+    if (pendingTrashMidiId == null) return;
+    const midiRow = midis.find((m) => m.id === pendingTrashMidiId);
+    const path = midiRow?.path;
+    if (!path) {
+      setConfirmOpen(false);
+      setPendingTrashMidiId(null);
+      return;
+    }
+
+    try {
+      await invoke<string>("send_to_trash", { path });
+      // refresh midi list
+      const rows = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
+      setMidis(rows);
+      setLastFetchCountMidi(rows.length);
+      await fetchAllMidiPaths();
+      if (selectedMidi?.id === pendingTrashMidiId) setSelectedMidi(null);
+    } catch (e) {
+      handleInvokeError(e);
+    } finally {
+      setConfirmOpen(false);
+      setPendingTrashMidiId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode !== 'midi') return;
+    const uniqueDirs = new Set<string>();
+    for (const fullPath of allMidiPaths) {
+      const pathParts = fullPath.split("/");
+      if (pathParts.length > 1) {
+        let currentPath = "";
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          currentPath += "/" + pathParts[i];
+          uniqueDirs.add(currentPath);
+        }
+      }
+    }
+    setMidiScannedPaths(Array.from(uniqueDirs).sort());
+  }, [allMidiPaths, viewMode]);
+
   // Load more results (append next page) - exposed for SampleList to render a "Load more" control
   const loadMore = async () => {
     setIsLoadingMore(true);
@@ -401,6 +466,20 @@ export function App() {
       }
     } catch (e) {
       console.error("Failed to load sample:", e);
+    }
+  };
+
+  const loadMidiByPath = async (path: string) => {
+    try {
+      const row = await invoke<Midi | null>("get_midi", { path });
+      if (!row) return;
+      setMidis((prev) => (prev.some((m) => m.id === row.id) ? prev : [row, ...prev]));
+      setSelectedMidi(row);
+      requestAnimationFrame(() => {
+        midiListRef.current?.focusSelected?.();
+      });
+    } catch (e) {
+      console.error("Failed to load MIDI:", e);
     }
   };
 
@@ -1011,7 +1090,7 @@ export function App() {
         }}
       >
         <FilterSidebar
-          scannedPaths={scannedPaths}
+          scannedPaths={viewMode === 'midi' ? midiScannedPaths : scannedPaths}
           filePaths={viewMode === 'midi' ? allMidiPaths : allSamplePaths}
           selectedPath={viewMode === 'midi'
             ? (selectedMidi ? selectedMidi.path : null)
@@ -1028,6 +1107,11 @@ export function App() {
                   void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
                 }
                 setSelectedMidi(matchingMidi);
+                requestAnimationFrame(() => {
+                  midiListRef.current?.focusSelected?.();
+                });
+              } else {
+                void loadMidiByPath(path);
               }
               return;
             }
@@ -1085,6 +1169,7 @@ export function App() {
           />
         ) : (
           <MidiList
+            ref={midiListRef}
             midis={midis}
             selectedMidi={selectedMidi}
             onMidiSelect={(midi) => {
@@ -1092,8 +1177,12 @@ export function App() {
                 void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
               }
               setSelectedMidi(midi);
+              requestAnimationFrame(() => {
+                midiListRef.current?.focusSelected?.();
+              });
             }}
             onTagBadgeClick={(midi) => { setMidiTagEditTarget(midi); setMidiTagEditOpen(true); }}
+            onTrashMidi={(id) => { requestTrashMidi(id); }}
             onLoadMore={async () => {
               setIsLoadingMoreMidi(true);
               try {
@@ -1223,15 +1312,15 @@ export function App() {
       {/* Confirm modal for trashing samples */}
       <ConfirmModal
         isOpen={confirmOpen}
-        title={pendingTrashSampleId === -1 ? "Clear All Samples" : "Move to Trash"}
+        title={pendingTrashSampleId === -1 ? "Clear All Samples" : (pendingTrashMidiId ? "Move MIDI to Trash" : "Move to Trash")}
         message={
           pendingTrashSampleId === -1
             ? "Are you sure you want to clear all samples from the library index? This will remove all samples from the application's index (your sample files on disk will NOT be deleted). This action cannot be undone in the app."
-            : `Are you sure you want to move '${samples.find(s => s.id === pendingTrashSampleId)?.file_name ?? 'this file'}' to the Trash?`
+            : pendingTrashMidiId ? `Are you sure you want to move '${midis.find(m => m.id === pendingTrashMidiId)?.file_name ?? 'this MIDI file'}' to the Trash?` : `Are you sure you want to move '${samples.find(s => s.id === pendingTrashSampleId)?.file_name ?? 'this file'}' to the Trash?`
         }
         danger={pendingTrashSampleId === -1}
-        onConfirm={async () => { await confirmTrash(); }}
-        onCancel={() => { cancelTrash(); }}
+        onConfirm={async () => { if (pendingTrashMidiId) { await confirmTrashMidi(); } else { await confirmTrash(); } }}
+        onCancel={() => { if (pendingTrashMidiId) { setPendingTrashMidiId(null); setConfirmOpen(false); } else { cancelTrash(); } }}
       />
 
       <ClassificationEditModal
