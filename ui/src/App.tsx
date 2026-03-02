@@ -1254,85 +1254,40 @@ export function App() {
           
             {selectedMidi && viewMode === 'midi' && (
               <div style={{ position: 'relative', width: 'min(260px, 40vw)' }}>
-                <MidiDetailPanel midi={selectedMidi} midiTags={midiTags} tagFilterId={midiTagFilterId ?? null} onTagFilterChange={(id: number | null) => setMidiTagFilterId(id)} onManageTags={() => setMidiTagModalOpen(true)} bottomInset={160} />
+                <MidiDetailPanel
+                  midi={selectedMidi}
+                  midiTags={midiTags}
+                  tagFilterId={midiTagFilterId ?? null}
+                  onTagFilterChange={(id: number | null) => setMidiTagFilterId(id)}
+                  onManageTags={() => setMidiTagModalOpen(true)}
+                  bottomInset={160}
+                  isPlaying={isMidiPlaying}
+                  onTogglePlay={async () => {
+                    if (!selectedMidi) return;
+                    if (isMidiPlaying) {
+                      try {
+                        await invoke("stop_midi");
+                      } catch (e) {
+                        console.error("stop_midi failed:", e);
+                      } finally {
+                        setIsMidiPlaying(false);
+                      }
+                    } else {
+                      try {
+                        await invoke("play_midi", { path: selectedMidi.path });
+                        setIsMidiPlaying(true);
+                      } catch (e) {
+                        setError(getErrorMessage(e));
+                        setIsMidiPlaying(false);
+                      }
+                    }
+                  }}
+                />
               </div>
             )}
           </>
         )}
-        {/* MIDI Preview Bar - show when MIDI is selected */}
-        {selectedMidi && viewMode === 'midi' && (
-          <div
-            style={{
-              padding: "12px 20px",
-              background: timidityStatus?.installed ? "#1f2937" : "#7f1d1d",
-              borderTop: "1px solid #374151",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ color: "#e2e8f0", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
-              ▶ {selectedMidi.file_name}
-            </div>
-            {timidityStatus?.installed ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      if (isMidiPlaying) {
-                        await invoke("stop_midi");
-                        setIsMidiPlaying(false);
-                      } else {
-                        await invoke("play_midi", { path: selectedMidi.path });
-                        setIsMidiPlaying(true);
-                      }
-                    } catch (e) {
-                      setError(getErrorMessage(e));
-                      setIsMidiPlaying(false);
-                    }
-                  }}
-                  style={{
-                    background: isMidiPlaying ? "#ef4444" : "#3b82f6",
-                    border: "none",
-                    color: "white",
-                    padding: "6px 16px",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontFamily: "'Courier New', monospace",
-                  }}
-                >
-                  {isMidiPlaying ? "Stop" : "Play"}
-                </button>
-
-              </div>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ color: "#fca5a5", fontSize: "12px", fontFamily: "'Courier New', monospace" }}>
-                  TiMidity not installed
-                </span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(timidityStatus?.install_command || "");
-                  }}
-                  style={{
-                    background: "#374151",
-                    border: "1px solid #4b5563",
-                    color: "#9ca3af",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "11px",
-                    fontFamily: "'Courier New', monospace",
-                  }}
-                >
-                  Copy Install Command
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {/* MIDI preview bar removed — playback controls are now in the right-side MidiDetailPanel */}
         {selected && viewMode === 'sample' && (
           <DetailPanel
             sample={selected}

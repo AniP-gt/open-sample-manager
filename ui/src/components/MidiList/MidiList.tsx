@@ -1,5 +1,6 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
+import type React from "react";
 import type { MidiTagRow } from "../../types/midi";
 import { invoke } from "@tauri-apps/api/core";
 // Reuse the robust extractor implemented for SampleList
@@ -58,11 +59,17 @@ export const MidiList = forwardRef(function MidiList(
   void tagFilterId;
 
   // Resizable columns state and helpers (mirror SampleList behavior)
-  const [colWidths, setColWidths] = useState<string[]>(["36px", "1fr", "110px", "86px", "86px", "60px", "60px", "64px", "86px", "88px"]);
+  const defaultColWidths = ["36px", "1fr", "110px", "86px", "86px", "60px", "60px", "64px", "86px", "88px"];
+  const STORAGE_KEY = "midiListColWidths_v1";
+  const [colWidths, setColWidths] = useState<string[]>(defaultColWidths);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
   const draggedColumnRef = useRef<number | null>(null);
   const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
+
+  // Shared min/max width constraints (px) for keyboard + mouse handlers
+  const minWidths = [20, 120, 60, 60, 40, 40, 30, 40, 60, 40];
+  const maxWidths = [400, 1600, 800, 800, 400, 400, 400, 400, 800, 400];
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -70,9 +77,6 @@ export const MidiList = forwardRef(function MidiList(
       if (!active) return;
       const dx = e.clientX - active.startX;
       let next = Math.max(10, Math.round(active.startWidth + dx));
-      // min widths per column (px)
-      const minWidths = [20, 120, 60, 60, 40, 40, 30, 40, 60, 40];
-      const maxWidths = [400, 1600, 800, 800, 400, 400, 400, 400, 800, 400];
       const min = minWidths[active.index] ?? 20;
       const max = maxWidths[active.index] ?? 2000;
       next = Math.max(min, Math.min(max, next));
@@ -107,6 +111,82 @@ export const MidiList = forwardRef(function MidiList(
       document.removeEventListener("mouseup", onUp);
     };
   }, []);
+
+  // Load persisted widths from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as string[];
+        if (Array.isArray(parsed) && parsed.length === defaultColWidths.length) {
+          setColWidths(parsed);
+        }
+      }
+    } catch (err) {
+      // ignore and fall back to defaults
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist widths when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(colWidths));
+    } catch (err) {
+      // ignore storage failures
+    }
+  }, [colWidths]);
+
+  // Helper for keyboard resizing
+  const adjustColumnWidth = (index: number, deltaPx: number) => {
+    const el = headerRefs.current[index];
+    const currentPx = (() => {
+      const val = colWidths[index];
+      if (typeof val === "string" && val.endsWith("px")) return parseInt(val, 10) || 0;
+      if (el) return Math.round(el.getBoundingClientRect().width);
+      return 120;
+    })();
+    const min = minWidths[index] ?? 20;
+    const max = maxWidths[index] ?? 2000;
+    const next = Math.max(min, Math.min(max, Math.round(currentPx + deltaPx)));
+    setColWidths((prev) => {
+      const copy = [...prev];
+      copy[index] = `${next}px`;
+      return copy;
+    });
+  };
+
+  const onResizerKeyDown = (e: React.KeyboardEvent, index: number) => {
+    e.stopPropagation();
+    const key = e.key;
+    if (key === "ArrowLeft") {
+      adjustColumnWidth(index, -8);
+      e.preventDefault();
+    } else if (key === "ArrowRight") {
+      adjustColumnWidth(index, 8);
+      e.preventDefault();
+    } else if (key === "PageDown") {
+      adjustColumnWidth(index, -32);
+      e.preventDefault();
+    } else if (key === "PageUp") {
+      adjustColumnWidth(index, 32);
+      e.preventDefault();
+    } else if (key === "Home") {
+      setColWidths((prev) => {
+        const copy = [...prev];
+        copy[index] = `${maxWidths[index] ?? 800}px`;
+        return copy;
+      });
+      e.preventDefault();
+    } else if (key === "End") {
+      setColWidths((prev) => {
+        const copy = [...prev];
+        copy[index] = `${minWidths[index] ?? 20}px`;
+        return copy;
+      });
+      e.preventDefault();
+    }
+  };
 
   
   // Client-side filter by filename
@@ -248,70 +328,130 @@ export const MidiList = forwardRef(function MidiList(
               <div style={{ position: "relative", cursor: hoveredCol === 0 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => { const el = headerRefs.current[0]; if (!el) return; activeResize.current = { index: 0, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[0]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 0 : h === 0 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 0 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#374151" }}>#</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 0 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 0 || draggedColumnRef.current === 0 ? "#f97316" : hoveredCol === 0 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 0)}
+                    style={{ width: hoveredCol === 0 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 0 || draggedColumnRef.current === 0 ? "#f97316" : hoveredCol === 0 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 1 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => { const el = headerRefs.current[1]; if (!el) return; activeResize.current = { index: 1, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[1]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 1 : h === 1 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af", letterSpacing: "0.06em" }}>FILENAME</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 1 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 1 || draggedColumnRef.current === 1 ? "#f97316" : hoveredCol === 1 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 1)}
+                    style={{ width: hoveredCol === 1 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 1 || draggedColumnRef.current === 1 ? "#f97316" : hoveredCol === 1 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
         <div style={{ position: "relative", cursor: hoveredCol === 2 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[2] = el)} onMouseDown={(e) => { const el = headerRefs.current[2]; if (!el) return; activeResize.current = { index: 2, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[2]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 2 : h === 2 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af" }}>TAG</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 2 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 2 || draggedColumnRef.current === 2 ? "#f97316" : hoveredCol === 2 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 2)}
+                    style={{ width: hoveredCol === 2 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 2 || draggedColumnRef.current === 2 ? "#f97316" : hoveredCol === 2 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 3 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[3] = el)} onMouseDown={(e) => { const el = headerRefs.current[3]; if (!el) return; activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[3]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 3 : h === 3 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>TEMPO</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 3 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 3 || draggedColumnRef.current === 3 ? "#f97316" : hoveredCol === 3 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 3)}
+                    style={{ width: hoveredCol === 3 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 3 || draggedColumnRef.current === 3 ? "#f97316" : hoveredCol === 3 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 4 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[4] = el)} onMouseDown={(e) => { const el = headerRefs.current[4]; if (!el) return; activeResize.current = { index: 4, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[4]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 4 : h === 4 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center" }}>TIME SIG</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 4 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 4 || draggedColumnRef.current === 4 ? "#f97316" : hoveredCol === 4 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 4)}
+                    style={{ width: hoveredCol === 4 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 4 || draggedColumnRef.current === 4 ? "#f97316" : hoveredCol === 4 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 5 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[5] = el)} onMouseDown={(e) => { const el = headerRefs.current[5]; if (!el) return; activeResize.current = { index: 5, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[5]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 5 : h === 5 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>TRACKS</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 5 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 5 || draggedColumnRef.current === 5 ? "#f97316" : hoveredCol === 5 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 5)}
+                    style={{ width: hoveredCol === 5 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 5 || draggedColumnRef.current === 5 ? "#f97316" : hoveredCol === 5 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 6 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[6] = el)} onMouseDown={(e) => { const el = headerRefs.current[6]; if (!el) return; activeResize.current = { index: 6, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[6]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 6 : h === 6 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>NOTES</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 6 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 6 || draggedColumnRef.current === 6 ? "#f97316" : hoveredCol === 6 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 6)}
+                    style={{ width: hoveredCol === 6 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 6 || draggedColumnRef.current === 6 ? "#f97316" : hoveredCol === 6 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 7 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[7] = el)} onMouseDown={(e) => { const el = headerRefs.current[7]; if (!el) return; activeResize.current = { index: 7, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[7]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 7 : h === 7 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center" }}>KEY</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 7 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 7 || draggedColumnRef.current === 7 ? "#f97316" : hoveredCol === 7 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 7)}
+                    style={{ width: hoveredCol === 7 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 7 || draggedColumnRef.current === 7 ? "#f97316" : hoveredCol === 7 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 8 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[8] = el)} onMouseDown={(e) => { const el = headerRefs.current[8]; if (!el) return; activeResize.current = { index: 8, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[8]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 8 : h === 8 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>DURATION</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 8 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 8 || draggedColumnRef.current === 8 ? "#f97316" : hoveredCol === 8 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 8)}
+                    style={{ width: hoveredCol === 8 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 8 || draggedColumnRef.current === 8 ? "#f97316" : hoveredCol === 8 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
 
               <div style={{ position: "relative", cursor: hoveredCol === 9 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[9] = el)} onMouseDown={(e) => { const el = headerRefs.current[9]; if (!el) return; activeResize.current = { index: 9, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[9]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 9 : h === 9 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 9 ? null : h))}>
                 <div />
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div title="Resize column" style={{ width: hoveredCol === 9 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 9 || draggedColumnRef.current === 9 ? "#f97316" : hoveredCol === 9 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }} />
+                  <div
+                    title="Resize column"
+                    role="separator"
+                    tabIndex={0}
+                    onKeyDown={(e) => onResizerKeyDown(e, 9)}
+                    style={{ width: hoveredCol === 9 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 9 || draggedColumnRef.current === 9 ? "#f97316" : hoveredCol === 9 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
+                  />
                 </div>
               </div>
             </div>

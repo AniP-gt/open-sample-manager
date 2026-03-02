@@ -12,7 +12,7 @@ interface MidiDetailPanelProps {
   onTogglePlay?: () => Promise<void> | void;
 }
 
-export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0 }: MidiDetailPanelProps) {
+export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0, isPlaying = false, onTogglePlay }: MidiDetailPanelProps) {
   const currentTagName = tagFilterId ? midiTags.find((t) => t.id === tagFilterId)?.name ?? "" : "";
 
   return (
