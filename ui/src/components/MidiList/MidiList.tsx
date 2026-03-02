@@ -36,7 +36,8 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
           }
         }
       },
-      { root, rootMargin: "200px", threshold: 0.1 }
+      // Only trigger when the sentinel is fully within view (i.e. scrolled to the bottom)
+      { root, rootMargin: "0px", threshold: 1.0 }
     );
 
     obs.observe(sentinel);
@@ -62,9 +63,10 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
 
   return (
     <div
+      ref={listRef}
       style={{
         flex: 1,
-        overflow: "auto",
+        overflowY: "auto",
         background: "#0a0c12",
       }}
     >
@@ -211,31 +213,6 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
         )}
       </div>
 
-    </div>
-  );
-}
-
-// Render load more control below the table when provided
-function LoadMoreControl({ onLoadMore, isLoadingMore, canLoadMore }: { onLoadMore?: () => Promise<void> | void; isLoadingMore?: boolean; canLoadMore?: boolean; }) {
-  if (!onLoadMore) return null;
-  return (
-    <div style={{ padding: "8px 12px", borderTop: "1px solid #111827", display: "flex", justifyContent: "center" }}>
-      <button
-        type="button"
-        onClick={() => { if (onLoadMore) void onLoadMore(); }}
-        disabled={isLoadingMore || !canLoadMore}
-        style={{
-          background: "#3b82f6",
-          color: "white",
-          border: "none",
-          padding: "6px 12px",
-          borderRadius: "4px",
-          cursor: isLoadingMore || !canLoadMore ? "not-allowed" : "pointer",
-          fontFamily: "'Courier New', monospace",
-        }}
-      >
-        {isLoadingMore ? "Loading..." : canLoadMore ? "Load more" : "No more"}
-      </button>
     </div>
   );
 }
