@@ -7,9 +7,12 @@ export interface ConfirmModalProps {
   onConfirm: () => Promise<void> | void;
   onCancel: () => void;
   danger?: boolean;
+  // Optional labels for the buttons. Defaults preserve previous behavior.
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
-export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onConfirm, onCancel, danger }) => {
+export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onConfirm, onCancel, danger, confirmLabel, cancelLabel }) => {
   const [loading, setLoading] = React.useState(false);
 
   if (!isOpen) return null;
@@ -50,7 +53,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, messa
             disabled={loading}
             style={{ background: "transparent", border: "1px solid #374151", color: "#cbd5e1", padding: "6px 12px", cursor: loading ? "default" : "pointer", borderRadius: "3px", opacity: loading ? 0.6 : 1 }}
           >
-            No
+            {cancelLabel ?? "No"}
           </button>
 
           <button
@@ -58,7 +61,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, messa
             disabled={loading}
             style={confirmButtonStyle}
           >
-            {loading ? "Working..." : "Yes"}
+            {loading ? "Working..." : (confirmLabel ?? "Yes")}
           </button>
         </div>
       </div>

@@ -828,17 +828,22 @@ impl SampleManager {
                 .ok()
                 .map(|m| m.len() as i64);
             use crate::db::operations::MidiInput;
+            let parsed = crate::analysis::midi::parse_midi(&file_path)
+                .map_err(|e| {
+                    eprintln!("[MIDI scan] failed to parse {:?}: {e}", file_path);
+                })
+                .ok();
             let input = MidiInput {
                 path: file_path.to_string_lossy().to_string(),
                 file_name,
-                duration: None,
-                tempo: None,
-                time_signature_numerator: None,
-                time_signature_denominator: None,
-                track_count: None,
-                note_count: None,
-                channel_count: None,
-                key_estimate: None,
+                duration: parsed.as_ref().and_then(|p| p.duration),
+                tempo: parsed.as_ref().and_then(|p| p.tempo),
+                time_signature_numerator: parsed.as_ref().and_then(|p| p.time_signature_numerator),
+                time_signature_denominator: parsed.as_ref().and_then(|p| p.time_signature_denominator),
+                track_count: parsed.as_ref().and_then(|p| p.track_count),
+                note_count: parsed.as_ref().and_then(|p| p.note_count),
+                channel_count: parsed.as_ref().and_then(|p| p.channel_count),
+                key_estimate: parsed.as_ref().and_then(|p| p.key_estimate.clone()),
                 file_size,
             };
             match crate::db::operations::insert_midi(&self.conn, &input) {
