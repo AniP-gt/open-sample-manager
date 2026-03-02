@@ -122,6 +122,11 @@ export function App() {
   const sampleListRef = useRef<SampleListHandle | null>(null);
   const playerBarRef = useRef<PlayerBarHandle | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // Sample/MIDI view mode
+  const [viewMode, setViewMode] = useState<'sample' | 'midi'>('sample');
+  const handleViewModeChange = (mode: 'sample' | 'midi') => {
+    setViewMode(mode);
+  };
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
   const pageLimit = 20;
   
@@ -823,6 +828,8 @@ export function App() {
         sampleCount={samples.length}
         scanned={scanned}
         isDragOver={isDragOver}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
         onScanClick={() => {
           void handleScanClick();
         }}

@@ -6,9 +6,12 @@ interface HeaderProps {
   onReload?: () => void;
   // When true, show the import drop affordance (app-level drag is active)
   isDragOver?: boolean;
+  // View mode toggle
+  viewMode: 'sample' | 'midi';
+  onViewModeChange: (mode: 'sample' | 'midi') => void;
 }
 
-export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, isDragOver }: HeaderProps) {
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, isDragOver, viewMode, onViewModeChange }: HeaderProps) {
   return (
     <div
       style={{
@@ -61,6 +64,44 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {/* Sample/MIDI View Toggle */}
+        <div style={{ display: "flex", gap: "2px", background: "#1f2937", padding: "2px", borderRadius: "4px" }}>
+          <button
+            onClick={() => onViewModeChange('sample')}
+            style={{
+              background: viewMode === 'sample' ? "#3b82f6" : "transparent",
+              border: "none",
+              color: viewMode === 'sample' ? "white" : "#9ca3af",
+              padding: "6px 12px",
+              borderRadius: "3px",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontFamily: "'Courier New', monospace",
+              letterSpacing: "0.05em",
+              transition: "all 0.15s ease",
+            }}
+          >
+            Sample List
+          </button>
+          <button
+            onClick={() => onViewModeChange('midi')}
+            style={{
+              background: viewMode === 'midi' ? "#3b82f6" : "transparent",
+              border: "none",
+              color: viewMode === 'midi' ? "white" : "#9ca3af",
+              padding: "6px 12px",
+              borderRadius: "3px",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontFamily: "'Courier New', monospace",
+              letterSpacing: "0.05em",
+              transition: "all 0.15s ease",
+            }}
+          >
+            MIDI List
+          </button>
+        </div>
+
         {scanned && (
           <div
             style={{
