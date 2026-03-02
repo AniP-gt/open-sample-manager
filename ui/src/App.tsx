@@ -402,6 +402,20 @@ export function App() {
         setScanned(true);
         await runSearch(filters.search);
         await fetchAllSamplePaths();
+
+        // Also scan for MIDI files in the same directory. Keep failures
+        // isolated so a MIDI scan error doesn't undo the sample scan result.
+        try {
+          await invoke<number>("scan_midi_directory", { path: scanPath });
+          if (viewMode === 'midi') {
+            const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: 100, offset: 0 });
+            setMidis(midiList);
+          }
+        } catch (midiErr) {
+          // Non-fatal: log and continue
+          // eslint-disable-next-line no-console
+          console.warn("MIDI scan failed:", midiErr);
+        }
       } catch (e) {
         handleInvokeError(e);
       } finally {
@@ -820,6 +834,19 @@ export function App() {
         setScanned(true);
         await runSearch(filters.search);
         await fetchAllSamplePaths();
+
+        // Also scan for MIDI files in this directory. Keep failures isolated
+        // so MIDI errors don't undo the successful sample scan.
+        try {
+          await invoke<number>("scan_midi_directory", { path: dir });
+          if (viewMode === 'midi') {
+            const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: 100, offset: 0 });
+            setMidis(midiList);
+          }
+        } catch (midiErr) {
+          // eslint-disable-next-line no-console
+          console.warn("MIDI scan failed:", midiErr);
+        }
       } catch (e) {
         handleInvokeError(e);
       } finally {
