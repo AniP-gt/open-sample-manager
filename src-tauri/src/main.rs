@@ -522,6 +522,13 @@ fn main() {
         prepare_drag_file,
         debug_start_drag,
         debug_try_deserialize,
+        // MIDI commands
+        check_timidity,
+        scan_midi_directory,
+        list_midis_paginated,
+        get_midi,
+        delete_midi,
+        search_midis,
     ]);
 
     builder
