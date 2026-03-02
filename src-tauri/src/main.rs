@@ -4,6 +4,7 @@
 use open_sample_manager_core::{healthcheck, SampleManager, ScanProgress, ScanStage};
 use serde::Serialize;
 use std::error::Error as _;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
 
 /// Progress event sent to frontend
@@ -368,6 +369,8 @@ fn update_sample_classification(
 #[derive(Debug, Clone)]
 struct AppState {
     db_path: Option<std::path::PathBuf>,
+    /// PID of the currently running timidity process, if any.
+    timidity_pid: Arc<Mutex<Option<u32>>>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -493,7 +496,7 @@ fn main() {
             Err(_) => None,
         };
 
-        app.manage(AppState { db_path });
+        app.manage(AppState { db_path, timidity_pid: Arc::new(Mutex::new(None)) });
         Ok(())
     });
 
@@ -524,11 +527,20 @@ fn main() {
         debug_try_deserialize,
         // MIDI commands
         check_timidity,
+        play_midi,
+        stop_midi,
         scan_midi_directory,
         list_midis_paginated,
         get_midi,
         delete_midi,
         search_midis,
+        // MIDI tag commands
+        get_midi_tags,
+        add_midi_tag,
+        delete_midi_tag,
+        update_midi_tag,
+        set_midi_file_tag,
+        get_midi_file_tags,
     ]);
 
     builder
@@ -573,6 +585,64 @@ fn update_instrument_type(
 }
 
 
+// === MIDI Tag Commands ===
+
+#[tauri::command]
+fn get_midi_tags(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::MidiTagRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.get_all_midi_tags().map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn add_midi_tag(
+    name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<i64, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.add_midi_tag(&name).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn delete_midi_tag(
+    id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.delete_midi_tag(id).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn update_midi_tag(
+    id: i64,
+    name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.update_midi_tag(id, &name).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn set_midi_file_tag(
+    midi_id: i64,
+    tag_id: Option<i64>,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.set_midi_file_tag(midi_id, tag_id).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn get_midi_file_tags(
+    midi_id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::MidiTagRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.get_midi_file_tags(midi_id).map_err(CommandError::from)
+}
+
+
 // === MIDI Commands ===
 
 /// Response for TiMidity availability check.
@@ -606,6 +676,69 @@ fn check_timidity() -> TimidityStatus {
         installed,
         install_command,
     }
+}
+
+/// Play a MIDI file using TiMidity++. Kills any previously running timidity process first.
+#[tauri::command]
+async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<(), CommandError> {
+    // Kill any previously running timidity process
+    {
+        let mut pid_lock = state.timidity_pid.lock().unwrap();
+        if let Some(pid) = pid_lock.take() {
+            // Best-effort kill; ignore errors (process may have already exited)
+            let _ = std::process::Command::new("kill")
+                .arg("-TERM")
+                .arg(pid.to_string())
+                .output();
+        }
+    }
+
+    // Locate timidity executable
+    let timidity = which::which("timidity").map_err(|_| CommandError {
+        code: "timidity_not_found".to_string(),
+        message: "TiMidity++ is not installed or not in PATH".to_string(),
+        details: None,
+    })?;
+
+    // Select the audio output flag based on OS:
+    //   macOS  → -Od  (CoreAudio PCM device)
+    //   other  → -OO  (Libao, works on Linux/Windows with libao installed)
+    let output_flag = if cfg!(target_os = "macos") {
+        "-Od"
+    } else {
+        "-OO"
+    };
+
+    // Spawn timidity as a background process (non-blocking)
+    let child = std::process::Command::new(timidity)
+        .arg(output_flag)
+        .arg(&path)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| CommandError {
+            code: "timidity_spawn_error".to_string(),
+            message: format!("Failed to start TiMidity++: {}", e),
+            details: None,
+        })?;
+
+    let pid = child.id();
+    *state.timidity_pid.lock().unwrap() = Some(pid);
+    Ok(())
+}
+
+/// Stop the currently playing MIDI file (kills timidity process).
+#[tauri::command]
+fn stop_midi(state: tauri::State<'_, AppState>) -> Result<(), CommandError> {
+    let mut pid_lock = state.timidity_pid.lock().unwrap();
+    if let Some(pid) = pid_lock.take() {
+        let _ = std::process::Command::new("kill")
+            .arg("-TERM")
+            .arg(pid.to_string())
+            .output();
+    }
+    Ok(())
 }
 
 #[cfg(test)]
