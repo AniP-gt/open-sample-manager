@@ -8,11 +8,18 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
   font-size: 1rem;
   line-height: 1.5;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 ::-webkit-scrollbar {

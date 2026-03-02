@@ -1,8 +1,12 @@
 
 import { useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
+// DragEvent type imported where used inline below to avoid unused import warnings
 import { invoke } from "@tauri-apps/api/core";
+// Reuse the robust extractor implemented for SampleList
+import { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 import type { Midi } from "../../types/midi";
 import type { MidiTagRow } from "../../types/midi";
+ 
 
 interface MidiListProps {
   midis: Midi[];
@@ -28,12 +32,16 @@ export type MidiListHandle = {
 };
 
 export const MidiList = forwardRef(function MidiList(
-  { midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore, onTrashMidi }: MidiListProps,
+  { midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore, onTrashMidi, onImportPaths, externalIsDragOver }: MidiListProps,
   ref: React.Ref<MidiListHandle>,
 ) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [toast, setToast] = useState<{ message: string; visible: boolean; midiId: number | null }>({ message: "", visible: false, midiId: null });
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounter = useRef(0);
+
+  
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
@@ -96,16 +104,42 @@ export const MidiList = forwardRef(function MidiList(
     );
   }
 
+  
+
   return (
     <div
       ref={listRef}
+      data-testid="midi-list-root"
       style={{
         flex: 1,
         overflowY: "auto",
         background: "#0a0c12",
         position: "relative",
       }}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        dragCounter.current += 1;
+        setIsDragOver(true);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = 'copy'; } catch {}
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        dragCounter.current -= 1;
+        if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragOver(false); }
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        dragCounter.current = 0;
+        setIsDragOver(false);
+        const paths = extractPathsFromDataTransfer(e.dataTransfer ?? null);
+        if (paths.length > 0) onImportPaths?.(paths);
+      }}
     >
+      
+
       <table
         style={{
           width: "100%",
@@ -293,6 +327,40 @@ export const MidiList = forwardRef(function MidiList(
           })}
         </tbody>
       </table>
+
+      {/* Local HTML5 drag overlay. Render when either the parent forces an
+          external app-level drag (externalIsDragOver) or this component sees
+          a native HTML5 drag (isDragOver). Render markup to match SampleList
+          so integration tests can find a single element with text 'IMPORT'. */}
+
+      {(externalIsDragOver || isDragOver) && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(2,6,23,0.65)",
+            zIndex: 40,
+            pointerEvents: "none",
+            transition: "opacity 160ms ease",
+          }}
+          aria-hidden={!isDragOver}
+        >
+          <div style={{ textAlign: "center", color: "#f1f5f9", transform: isDragOver ? 'scale(1)' : 'scale(0.98)', transition: 'transform 140ms ease' }}>
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8 }} aria-hidden>
+              <path d="M12 3v10" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 7l4-4 4 4" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <rect x="3" y="11" width="18" height="10" rx="2" stroke="#f97316" strokeWidth="1.2" />
+            </svg>
+            <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>IMPORT</div>
+            <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>Drop files or folders to import into the library</div>
+          </div>
+        </div>
+      )}
 
       {/* Sentinel element observed by IntersectionObserver to trigger loading more */}
       <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
