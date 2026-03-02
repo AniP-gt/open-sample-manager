@@ -17,6 +17,7 @@ rustfft = "6.4"
 realfft = "3.3"
 crossbeam-channel = "0.5"
 walkdir = "2.5"
+midly = "0.5"
 
 [dev-dependencies]
 tempfile = "3.10"

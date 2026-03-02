@@ -1,3 +1,6 @@
+/// MIDI file metadata extraction (tempo, duration, time signature, key, etc.).
+pub mod midi;
+
 /// Algorithms for BPM estimation from audio signals.
 pub mod bpm;
 /// Audio decoding support for various formats (WAV, MP3, FLAC, Ogg Vorbis).
