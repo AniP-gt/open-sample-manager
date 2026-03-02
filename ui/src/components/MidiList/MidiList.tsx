@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 // Reuse the robust extractor implemented for SampleList
 import { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 import type { Midi } from "../../types/midi";
+import { MidiDetailPanel } from "../MidiDetailPanel/MidiDetailPanel";
 
 // Minimal transparent PNG used as drag icon (same as SampleList)
 const TRANSPARENT_PNG =
@@ -17,6 +18,8 @@ interface MidiListProps {
   onMidiSelect: (midi: Midi) => void;
   onTagBadgeClick?: (midi: Midi) => void;
   midiTags?: MidiTagRow[];
+  onTagFilterChange?: (tagId: number | null) => void;
+  tagFilterId?: number | null;
   onMidiTagChange?: (midiId: number, tagName: string | null) => void;
   // Optional: called when files/folders are dropped/imported from sidebar
   onImportPaths?: (paths: string[]) => void;
@@ -35,7 +38,7 @@ export type MidiListHandle = {
 };
 
 export const MidiList = forwardRef(function MidiList(
-  { midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore, onTrashMidi, onImportPaths, externalIsDragOver }: MidiListProps,
+  { midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore, onTrashMidi, onImportPaths, externalIsDragOver, midiTags = [], onTagFilterChange, tagFilterId }: MidiListProps,
   ref: React.Ref<MidiListHandle>,
 ) {
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -145,6 +148,183 @@ export const MidiList = forwardRef(function MidiList(
     >
       
 
+      {/* Render a SampleList-like grid for MIDI rows to match appearance.
+          Keep the original table markup wrapped in a disabled conditional
+          so tests and existing code paths remain available for reference. */}
+      {(() => {
+        const colWidths = ["36px", "1fr", "110px", "86px", "86px", "60px", "60px", "64px", "86px", "88px"] as string[];
+        return (
+          <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: colWidths.join(" "),
+                padding: "6px 12px",
+                borderBottom: "1px solid #0f1117",
+                fontSize: "13px",
+                letterSpacing: "0.14em",
+                color: "#374151",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ fontSize: 13, color: "#374151" }}>#</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", letterSpacing: "0.06em" }}>FILENAME</div>
+              <div style={{ fontSize: 13, color: "#9ca3af" }}>TAG</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>TEMPO</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center" }}>TIME SIG</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>TRACKS</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>NOTES</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center" }}>KEY</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>DURATION</div>
+              <div />
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
+              {/* Right detail panel for MIDI (filter controls & path) */}
+              {selectedMidi && (
+                <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "min(260px,40vw)" }}>
+                  <MidiDetailPanel midi={selectedMidi} midiTags={midiTags} tagFilterId={tagFilterId ?? null} onTagFilterChange={onTagFilterChange ?? (() => {})} onManageTags={() => { /* parent opens modal via App */ }} bottomInset={0} />
+                </div>
+              )}
+              {midis.map((midi, idx) => {
+                const isSelected = selectedMidi?.id === midi.id;
+                return (
+                  <div
+                    key={midi.id}
+                    className={`midi-row ${isSelected ? "active" : ""}`}
+                    draggable={!!midi.path}
+                    onClick={() => onMidiSelect(midi)}
+                    onMouseDown={(e) => {
+                      if (!midi.path || e.button !== 0) return;
+                      const startX = e.clientX;
+                      const startY = e.clientY;
+                      const handleMouseMove = (moveEvent: MouseEvent) => {
+                        const dx = Math.abs(moveEvent.clientX - startX);
+                        const dy = Math.abs(moveEvent.clientY - startY);
+                        if (dx > 5 || dy > 5) {
+                          document.removeEventListener("mousemove", handleMouseMove);
+                          document.removeEventListener("mouseup", handleMouseUp);
+                          (async () => {
+                            const originalPath = midi.path;
+                            if (!originalPath) return;
+                            try {
+                              const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((err) => {
+                                console.warn("prepare_drag_file failed:", err);
+                                return null;
+                              });
+                              const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
+                              if (p) preparedPathsRef.current[midi.id] = p;
+                              const platformStr = ((navigator as any)?.platform || "") + (navigator.userAgent || "");
+                              const isMac = /Mac|iPhone|iPad|Macintosh/.test(platformStr);
+                              if (!isMac) return;
+                              const usable = p || originalPath;
+                              try {
+                                await startDrag({ item: [usable], icon: TRANSPARENT_PNG });
+                              } catch (err) {
+                                console.warn("[midi-dragout] startDrag failed:", err);
+                              }
+                            } catch (err) {
+                              console.warn("onMouseDown handler error:", err);
+                            }
+                          })();
+                        }
+                      };
+                      const handleMouseUp = () => {
+                        document.removeEventListener("mousemove", handleMouseMove);
+                        document.removeEventListener("mouseup", handleMouseUp);
+                      };
+                      document.addEventListener("mousemove", handleMouseMove);
+                      document.addEventListener("mouseup", handleMouseUp);
+                    }}
+                    onDragStart={(e) => {
+                      const originalPath = midi.path;
+                      if (!originalPath) return;
+                      const prepared = preparedPathsRef.current[midi.id];
+                      const usablePath = prepared ?? originalPath;
+                      const isWindows = usablePath.match(/^[A-Z]:/);
+                      const fileUrl = isWindows ? `file:///${usablePath.replace(/\\/g, "/")}` : `file://${usablePath}`;
+                      try {
+                        e.dataTransfer.setData("text/uri-list", fileUrl);
+                        e.dataTransfer.setData("text/plain", fileUrl);
+                        e.dataTransfer.effectAllowed = "copy";
+                      } catch {}
+                    }}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: colWidths.join(" "),
+                      padding: "8px 12px",
+                      borderBottom: "1px solid #0d0f16",
+                      borderLeft: isSelected ? "2px solid #f97316" : "2px solid transparent",
+                      background: isSelected ? "#111827" : "transparent",
+                      alignItems: "center",
+                      animation: `fadeIn 0.2s ease ${idx * 0.02}s both`,
+                      transition: "background 0.1s",
+                      cursor: midi.path ? "grab" : "default",
+                    }}
+                  >
+                    <div style={{ fontSize: "14px", color: "#374151" }}>{midi.id}</div>
+                    <div>
+                      <div style={{ fontSize: "16px", color: "#d1d5db", letterSpacing: "0.02em", marginBottom: 3, wordBreak: "break-word" }}>{midi.file_name}</div>
+                    </div>
+                    <div onClick={(e) => { e.stopPropagation(); onTagBadgeClick?.(midi); }}>
+                      <span style={{ display: "inline-block", background: midi.tag_name ? "#22d3ee18" : "transparent", border: `1px solid ${midi.tag_name ? "#22d3ee55" : "#1a1f2e"}`, borderRadius: 2, color: midi.tag_name ? "#22d3ee" : "#4b5563", fontSize: 11, fontFamily: "'Courier New', monospace", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", padding: "3px 8px", cursor: "pointer", minWidth: 64, textAlign: "center" }}>{midi.tag_name || "+ tag"}</span>
+                    </div>
+                    <div style={{ fontSize: 14, color: midi.tempo ? "#22d3ee" : "#374151", textAlign: "right", fontWeight: midi.tempo ? 700 : 400 }}>{midi.tempo ? `${midi.tempo.toFixed(1)} BPM` : "—"}</div>
+                    <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "center" }}>{midi.time_signature_numerator}/{midi.time_signature_denominator}</div>
+                    <div style={{ fontSize: 14, color: "#a78bfa", textAlign: "right" }}>{midi.track_count ?? "—"}</div>
+                    <div style={{ fontSize: 14, color: "#34d399", textAlign: "right" }}>{midi.note_count ?? "—"}</div>
+                    <div style={{ fontSize: 14, color: "#fbbf24", textAlign: "center" }}>{midi.key_estimate ?? "—"}</div>
+                    <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "right" }}>{midi.duration ? formatDuration(midi.duration) : "—"}</div>
+                    <div style={{ display: "flex", gap: 6, justifyContent: "center", position: "relative" }} onMouseDown={(e) => e.stopPropagation()}>
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const path = midi.path;
+                          if (path) {
+                            let folderPath = path;
+                            const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+                            if (lastSlash > 0) folderPath = path.substring(0, lastSlash);
+                            try { await invoke("open_folder", { path: folderPath }); } catch (err) { console.error("Failed to open folder:", err); }
+                          }
+                        }}
+                        style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
+                        title="Show in Finder"
+                      >📂</button>
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const path = midi.path;
+                          if (path) {
+                            try { await invoke("copy_to_clipboard", { text: path }); setToast({ message: "Path copied!", visible: true, midiId: midi.id }); }
+                            catch (err) { console.error("Clipboard write failed:", err); setToast({ message: "Copy failed", visible: true, midiId: midi.id }); }
+                            setTimeout(() => setToast((p) => ({ ...p, visible: false, midiId: null })), 1500);
+                          }
+                        }}
+                        style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
+                        title="Copy Full Path"
+                      >📋</button>
+                      {toast.visible && toast.midiId === midi.id && (
+                        <div style={{ position: "absolute", right: "60px", background: "#1f2937", color: "#22c55e", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace", zIndex: 100, border: "1px solid #22c55e", whiteSpace: "nowrap", animation: "fadeIn 0.15s ease" }}>{toast.message}</div>
+                      )}
+                      <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onTrashMidi?.(midi.id); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }} title="Send to Trash">🗑</button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
+            </div>
+          </>
+        );
+      })()}
+
+      {false && (
       <table
         style={{
           width: "100%",
@@ -390,6 +570,7 @@ export const MidiList = forwardRef(function MidiList(
           })}
         </tbody>
       </table>
+      )}
 
       {/* Local HTML5 drag overlay. Render when either the parent forces an
           external app-level drag (externalIsDragOver) or this component sees
