@@ -155,6 +155,9 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, o
           })}
         </tbody>
       </table>
+
+      <LoadMoreControl onLoadMore={onLoadMore} isLoadingMore={isLoadingMore} canLoadMore={canLoadMore} />
+
     </div>
   );
 }
