@@ -75,25 +75,14 @@ describe('MidiList component', () => {
 
 describe('TiMidity prompt in App', () => {
   beforeEach(() => {
-    const core = require('@tauri-apps/api/core')
-    // setup default invoke behavior
-    core.invoke.mockImplementation((cmd) => {
-      if (cmd === 'check_timidity') {
-        return Promise.resolve({ installed: false, install_command: 'brew install timidity' })
-      }
-      if (cmd === 'list_midis_paginated') return Promise.resolve([])
-      return Promise.resolve(null)
-    })
+    // reset mocked return values used by the module-level vi.mock
+    mockedMidis = []
+    timidityStatus = { installed: false, install_command: 'brew install timidity' }
   })
 
   it('shows install prompt when timidity not installed', async () => {
-    render(<App />)
-    // switch to midi view via header toggle button
-    const midiButton = await screen.findByText('MIDI List')
-    fireEvent.click(midiButton)
-
     // select none (midis empty) but ensure component asked check_timidity and bar prompt would render when MIDI selected
-    // Instead, simulate selecting a midi by setting selectedMidi via invoking list_midis_paginated to return one and re-render
+    // Instead, simulate selecting a midi by setting selectedMidi via invoking list_midis_paginated to return one and render the app
     mockedMidis = [
       {
         id: 2,
@@ -117,8 +106,8 @@ describe('TiMidity prompt in App', () => {
     render(<App />)
 
     // Click MIDI List to trigger loading midis
-    const midiButton = await screen.findByText('MIDI List')
-    fireEvent.click(midiButton)
+    const midiButton2 = await screen.findByText('MIDI List')
+    fireEvent.click(midiButton2)
 
     const midiRow = await screen.findByText('b.mid')
     expect(midiRow).toBeInTheDocument()
