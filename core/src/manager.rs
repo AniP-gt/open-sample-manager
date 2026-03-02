@@ -209,16 +209,54 @@ impl SampleManager {
             current_file: "Scanning directory...".to_string(),
         });
 
-        let files = scan_directory(dir);
+        let all_files = scan_directory(dir);
+        let total_discovered = all_files.len();
+        // Filter out files already in the database to avoid redundant analysis.
+        let existing_paths: std::collections::HashSet<String> = {
+            let mut stmt = self
+                .conn
+                .prepare_cached("SELECT path FROM samples")
+                .map_err(ManagerError::Db)?;
+            let paths: std::collections::HashSet<String> = stmt
+                .query_map([], |row| row.get::<_, String>(0))
+                .map_err(ManagerError::Db)?
+                .filter_map(|r| r.ok())
+                .collect();
+            paths
+        };
+        let files: Vec<PathBuf> = all_files
+            .into_iter()
+            .filter(|p| {
+                p.to_str()
+                    .map(|s| !existing_paths.contains(s))
+                    .unwrap_or(true)
+            })
+            .collect();
         let total_files = files.len();
+        let skipped = total_discovered.saturating_sub(total_files);
 
         // Emit discovery complete with total count
         progress(ScanProgress {
             stage: ScanStage::Discovering,
             current: 0,
             total: total_files,
-            current_file: format!("Found {} audio files", total_files),
+            current_file: if skipped > 0 {
+                format!("Found {} audio files ({} already indexed, skipping)", total_files, skipped)
+            } else {
+                format!("Found {} audio files", total_files)
+            },
         });
+
+        // Nothing new to scan — emit completion and return immediately.
+        if total_files == 0 {
+            progress(ScanProgress {
+                stage: ScanStage::Complete,
+                current: 0,
+                total: 0,
+                current_file: format!("All {} files already indexed", total_discovered),
+            });
+            return Ok(0);
+        }
 
         // Stage 2: Analyzing files
         // Stream analysis results from parallel workers to a single DB writer
@@ -803,8 +841,10 @@ impl SampleManager {
                 key_estimate: None,
                 file_size,
             };
-            if crate::db::operations::insert_midi(&self.conn, &input).is_ok() {
-                count += 1;
+            match crate::db::operations::insert_midi(&self.conn, &input) {
+                Ok(rowid) if rowid > 0 => count += 1,
+                Ok(_) => {} // duplicate path, silently skipped
+                Err(e) => eprintln!("[MIDI scan] failed to insert {:?}: {e}", file_path),
             }
         }
         Ok(count)
@@ -844,6 +884,45 @@ impl SampleManager {
     pub fn search_midis(&self, query: &str) -> Result<Vec<crate::db::operations::MidiRow>, ManagerError> {
         let results = crate::db::operations::search_midis(&self.conn, query)?;
         Ok(results)
+    }
+
+    // === MIDI Tag Management Methods ===
+
+    /// Get all MIDI tags.
+    pub fn get_all_midi_tags(&self) -> Result<Vec<crate::db::operations::MidiTagRow>, ManagerError> {
+        let tags = crate::db::operations::get_all_midi_tags(&self.conn)?;
+        Ok(tags)
+    }
+
+    /// Add a new MIDI tag.
+    pub fn add_midi_tag(&self, name: &str) -> Result<i64, ManagerError> {
+        let id = crate::db::operations::insert_midi_tag(&self.conn, name)?;
+        Ok(id)
+    }
+
+    /// Delete a MIDI tag by ID.
+    pub fn delete_midi_tag(&self, id: i64) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::delete_midi_tag(&self.conn, id)?;
+        Ok(count)
+    }
+
+    /// Update a MIDI tag's name.
+    pub fn update_midi_tag(&self, id: i64, name: &str) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::update_midi_tag(&self.conn, id, name)?;
+        Ok(count)
+    }
+
+    /// Set the tag for a MIDI file (single-tag selection, clears previous).
+    /// Pass `tag_id = None` to clear the tag.
+    pub fn set_midi_file_tag(&self, midi_id: i64, tag_id: Option<i64>) -> Result<(), ManagerError> {
+        crate::db::operations::set_midi_tag(&self.conn, midi_id, tag_id)?;
+        Ok(())
+    }
+
+    /// Get the tag assigned to a specific MIDI file.
+    pub fn get_midi_file_tags(&self, midi_id: i64) -> Result<Vec<crate::db::operations::MidiTagRow>, ManagerError> {
+        let tags = crate::db::operations::get_tags_for_midi(&self.conn, midi_id)?;
+        Ok(tags)
     }
 }
 

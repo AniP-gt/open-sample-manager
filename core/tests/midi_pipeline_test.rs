@@ -111,9 +111,12 @@ fn midi_insert_duplicate_path_returns_error_without_panic() {
         file_size: None,
     };
 
-    insert_midi(&conn, &midi).expect("first insert should succeed");
-    let duplicate = insert_midi(&conn, &midi);
-    assert!(duplicate.is_err(), "duplicate path should return an error");
+    let first = insert_midi(&conn, &midi).expect("first insert should succeed");
+    assert!(first > 0, "first insert should return a valid rowid");
+
+    // Duplicate path: INSERT OR IGNORE returns Ok(0) without error or panic.
+    let duplicate = insert_midi(&conn, &midi).expect("duplicate insert should not error");
+    assert_eq!(duplicate, 0, "duplicate path should return rowid 0 (ignored)");
 }
 
 #[test]

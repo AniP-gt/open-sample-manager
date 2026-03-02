@@ -103,6 +103,8 @@ pub struct MidiRow {
     pub file_size: Option<i64>,
     pub created_at: String,
     pub modified_at: String,
+    /// Tag name assigned via midi_file_tags; empty string if none.
+    pub tag_name: String,
 }
 
 /// Parameters for inserting or updating a MIDI file.
@@ -432,29 +434,34 @@ fn row_to_midi(row: &rusqlite::Row) -> rusqlite::Result<MidiRow> {
         file_size: row.get(11)?,
         created_at: row.get(12)?,
         modified_at: row.get(13)?,
+        tag_name: row.get::<_, Option<String>>(14)?.unwrap_or_default(),
     })
 }
 
 pub fn insert_midi(conn: &Connection, input: &MidiInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO midis (path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT OR IGNORE INTO midis (path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
     )?;
-    stmt.execute(params![
+    let changed = stmt.execute(params![
         input.path, input.file_name, input.duration, input.tempo,
         input.time_signature_numerator.unwrap_or(4),
         input.time_signature_denominator.unwrap_or(4),
         input.track_count, input.note_count, input.channel_count,
         input.key_estimate, input.file_size,
     ])?;
+    // changed == 0 means the path already existed (UNIQUE conflict was ignored).
+    if changed == 0 {
+        return Ok(0);
+    }
     let rowid = conn.last_insert_rowid();
-    let mut fts_stmt = conn.prepare_cached("INSERT INTO midis_fts (rowid, file_name) VALUES (?1, ?2)")?;
+    let mut fts_stmt = conn.prepare_cached("INSERT OR IGNORE INTO midis_fts (rowid, file_name) VALUES (?1, ?2)")?;
     fts_stmt.execute(params![rowid, input.file_name])?;
     Ok(rowid)
 }
 
 pub fn list_midis_paginated(conn: &Connection, limit: usize, offset: usize) -> Result<Vec<MidiRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size, created_at, modified_at FROM midis ORDER BY id LIMIT ?1 OFFSET ?2",
+        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at, COALESCE(t.name, '') as tag_name FROM midis m LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id LEFT JOIN midi_tags t ON t.id = mft.tag_id ORDER BY m.id LIMIT ?1 OFFSET ?2",
     )?;
     let rows = stmt.query_map(params![limit as i64, offset as i64], row_to_midi)?;
     rows.collect()
@@ -468,7 +475,7 @@ pub fn get_all_midi_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::Er
 
 pub fn get_midi_by_path(conn: &Connection, path: &str) -> Result<Option<MidiRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size, created_at, modified_at FROM midis WHERE path = ?1",
+        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at, COALESCE(t.name, '') as tag_name FROM midis m LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id LEFT JOIN midi_tags t ON t.id = mft.tag_id WHERE m.path = ?1",
     )?;
     stmt.query_row(params![path], row_to_midi).optional()
 }
@@ -497,7 +504,7 @@ pub fn search_midis(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusq
         return list_midis_paginated(conn, 1000, 0);
     }
     let mut stmt = conn.prepare_cached(
-        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at FROM midis_fts f JOIN midis m ON m.id = f.rowid WHERE f.file_name MATCH ?1 ORDER BY rank",
+        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at, COALESCE(t.name, '') as tag_name FROM midis_fts f JOIN midis m ON m.id = f.rowid LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id LEFT JOIN midi_tags t ON t.id = mft.tag_id WHERE f.file_name MATCH ?1 ORDER BY rank",
     )?;
     let rows = stmt.query_map(params![query], row_to_midi)?;
     rows.collect()
@@ -508,7 +515,7 @@ pub fn search_midis_paginated(conn: &Connection, query: &str, limit: usize, offs
         return list_midis_paginated(conn, limit, offset);
     }
     let mut stmt = conn.prepare_cached(
-        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at FROM midis_fts f JOIN midis m ON m.id = f.rowid WHERE f.file_name MATCH ?1 ORDER BY rank LIMIT ?2 OFFSET ?3",
+        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at, COALESCE(t.name, '') as tag_name FROM midis_fts f JOIN midis m ON m.id = f.rowid LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id LEFT JOIN midi_tags t ON t.id = mft.tag_id WHERE f.file_name MATCH ?1 ORDER BY rank LIMIT ?2 OFFSET ?3",
     )?;
     let rows = stmt.query_map(params![query, limit as i64, offset as i64], row_to_midi)?;
     rows.collect()
@@ -1212,4 +1219,133 @@ pub fn update_instrument_type(
 ) -> Result<usize, rusqlite::Error> {
     let mut stmt = conn.prepare_cached("UPDATE instrument_types SET name = ?1 WHERE id = ?2")?;
     stmt.execute(params![name, id])
+}
+
+// ============ MIDI Tags CRUD ============
+
+/// A row from the `midi_tags` table.
+#[derive(Debug, Clone, Serialize)]
+pub struct MidiTagRow {
+    pub id: i64,
+    pub name: String,
+    pub created_at: String,
+}
+
+/// Insert a new MIDI tag into the database.
+///
+/// Returns the `rowid` of the newly inserted row.
+///
+/// # Errors
+/// Returns `rusqlite::Error` if the name already exists or any SQL error occurs.
+pub fn insert_midi_tag(conn: &Connection, name: &str) -> Result<i64, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("INSERT INTO midi_tags (name) VALUES (?1)")?;
+    stmt.execute(params![name])?;
+    Ok(conn.last_insert_rowid())
+}
+
+/// Get all MIDI tags from the database, ordered by name.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn get_all_midi_tags(conn: &Connection) -> Result<Vec<MidiTagRow>, rusqlite::Error> {
+    let mut stmt =
+        conn.prepare_cached("SELECT id, name, created_at FROM midi_tags ORDER BY name")?;
+    let rows = stmt.query_map([], |row| {
+        Ok(MidiTagRow {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            created_at: row.get(2)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// Delete a MIDI tag by its ID.
+///
+/// Returns the number of rows deleted (0 or 1).
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn delete_midi_tag(conn: &Connection, id: i64) -> Result<usize, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("DELETE FROM midi_tags WHERE id = ?1")?;
+    stmt.execute(params![id])
+}
+
+/// Update a MIDI tag's name by its ID.
+///
+/// Returns the number of rows modified (0 or 1).
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn update_midi_tag(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+) -> Result<usize, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("UPDATE midi_tags SET name = ?1 WHERE id = ?2")?;
+    stmt.execute(params![name, id])
+}
+
+/// Assign a MIDI tag to a MIDI file (by their IDs).
+///
+/// Silently ignores if the association already exists (INSERT OR IGNORE).
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn assign_midi_tag(conn: &Connection, midi_id: i64, tag_id: i64) -> Result<(), rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "INSERT OR IGNORE INTO midi_file_tags (midi_id, tag_id) VALUES (?1, ?2)",
+    )?;
+    stmt.execute(params![midi_id, tag_id])?;
+    Ok(())
+}
+
+/// Remove a MIDI tag association from a MIDI file.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn remove_midi_tag(conn: &Connection, midi_id: i64, tag_id: i64) -> Result<usize, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "DELETE FROM midi_file_tags WHERE midi_id = ?1 AND tag_id = ?2",
+    )?;
+    stmt.execute(params![midi_id, tag_id])
+}
+
+/// Get all tags assigned to a specific MIDI file.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn get_tags_for_midi(conn: &Connection, midi_id: i64) -> Result<Vec<MidiTagRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT t.id, t.name, t.created_at FROM midi_tags t
+         JOIN midi_file_tags mft ON mft.tag_id = t.id
+         WHERE mft.midi_id = ?1 ORDER BY t.name",
+    )?;
+    let rows = stmt.query_map(params![midi_id], |row| {
+        Ok(MidiTagRow {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            created_at: row.get(2)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// Set the tag for a MIDI file: clears any existing tag associations and assigns the given tag.
+/// Pass `tag_id = None` to clear all tags.
+///
+/// # Errors
+/// Returns `rusqlite::Error` on any SQL error.
+pub fn set_midi_tag(conn: &Connection, midi_id: i64, tag_id: Option<i64>) -> Result<(), rusqlite::Error> {
+    // Clear existing associations
+    let mut del_stmt = conn.prepare_cached("DELETE FROM midi_file_tags WHERE midi_id = ?1")?;
+    del_stmt.execute(params![midi_id])?;
+    // Assign new tag if provided
+    if let Some(tid) = tag_id {
+        let mut ins_stmt = conn.prepare_cached(
+            "INSERT OR IGNORE INTO midi_file_tags (midi_id, tag_id) VALUES (?1, ?2)",
+        )?;
+        ins_stmt.execute(params![midi_id, tid])?;
+    }
+    Ok(())
 }
