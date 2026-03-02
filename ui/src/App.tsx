@@ -5,7 +5,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import "./styles/global.css";
 import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } from "./types/sample";
 import type { ScanProgress } from "./types/scan";
-import { Header, FilterSidebar, SampleList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, type PlayerBarHandle } from "./components";
+import type { Midi } from "./types/midi";
+import { Header, FilterSidebar, SampleList, MidiList, DetailPanel, ScannerOverlay, SettingsModal, PlayerBar, ClassificationEditModal, ConfirmModal, InstrumentTypeManagementModal, type PlayerBarHandle } from "./components";
 import type { SampleListHandle } from "./components/SampleList/SampleList";
 
 type TauriSampleRow = {
@@ -124,6 +125,17 @@ export function App() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   // Sample/MIDI view mode
   const [viewMode, setViewMode] = useState<'sample' | 'midi'>('sample');
+  const [midis, setMidis] = useState<Midi[]>([]);
+  const [selectedMidi, setSelectedMidi] = useState<Midi | null>(null);
+
+  // Load MIDI list when switching to MIDI view
+  useEffect(() => {
+    if (viewMode === 'midi') {
+      invoke<Midi[]>('list_midis_paginated', { limit: 100, offset: 0 })
+        .then(setMidis)
+        .catch(console.error);
+    }
+  }, [viewMode]);
   const handleViewModeChange = (mode: 'sample' | 'midi') => {
     setViewMode(mode);
   };
@@ -927,25 +939,33 @@ export function App() {
           }}
         />
 
-        <SampleList
-          ref={sampleListRef}
-          samples={samples}
-          samplePaths={samplePaths}
-          filters={filters}
-          sort={sort}
-          selectedSample={selected}
-          onSampleSelect={handleSampleSelect}
-          onFilterChange={handleFilterChange}
-          onSortChange={setSort}
-          onDeleteSample={(id) => { void handleDeleteSample(id); }}
-          onTrashSample={(id) => { requestTrash(id); }}
-          onTypeClick={handleTypeClick}
-          onImportPaths={handleImportPaths}
-          onLoadMore={loadMore}
-          isLoadingMore={isLoadingMore}
-          canLoadMore={lastFetchCount === null ? true : lastFetchCount === pageLimit}
-        />
-        {selected && (
+        {viewMode === 'sample' ? (
+          <SampleList
+            ref={sampleListRef}
+            samples={samples}
+            samplePaths={samplePaths}
+            filters={filters}
+            sort={sort}
+            selectedSample={selected}
+            onSampleSelect={handleSampleSelect}
+            onFilterChange={handleFilterChange}
+            onSortChange={setSort}
+            onDeleteSample={(id) => { void handleDeleteSample(id); }}
+            onTrashSample={(id) => { requestTrash(id); }}
+            onTypeClick={handleTypeClick}
+            onImportPaths={handleImportPaths}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
+            canLoadMore={lastFetchCount === null ? true : lastFetchCount === pageLimit}
+          />
+        ) : (
+          <MidiList
+            midis={midis}
+            selectedMidi={selectedMidi}
+            onMidiSelect={setSelectedMidi}
+          />
+        )}
+        {selected && viewMode === 'sample' && (
           <DetailPanel
             sample={selected}
             path={samplePaths[selected.id]}
