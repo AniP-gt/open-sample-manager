@@ -1,10 +1,14 @@
-
+import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
 // DragEvent type imported where used inline below to avoid unused import warnings
 import { invoke } from "@tauri-apps/api/core";
 // Reuse the robust extractor implemented for SampleList
 import { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 import type { Midi } from "../../types/midi";
+
+// Minimal transparent PNG used as drag icon (same as SampleList)
+const TRANSPARENT_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 import type { MidiTagRow } from "../../types/midi";
  
 
@@ -39,6 +43,9 @@ export const MidiList = forwardRef(function MidiList(
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [toast, setToast] = useState<{ message: string; visible: boolean; midiId: number | null }>({ message: "", visible: false, midiId: null });
   const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounter = useRef(0);
+  // Prepared (backend-copied) paths for drag-out operations
+  const preparedPathsRef = useRef<Record<number, string>>({});
   const dragCounter = useRef(0);
 
   
@@ -116,21 +123,21 @@ export const MidiList = forwardRef(function MidiList(
         background: "#0a0c12",
         position: "relative",
       }}
-      onDragEnter={(e) => {
+      onDragEnter={(e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         dragCounter.current += 1;
         setIsDragOver(true);
       }}
-      onDragOver={(e) => {
+      onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         try { e.dataTransfer.dropEffect = 'copy'; } catch {}
       }}
-      onDragLeave={(e) => {
+      onDragLeave={(e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         dragCounter.current -= 1;
         if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragOver(false); }
       }}
-      onDrop={(e) => {
+      onDrop={(e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         dragCounter.current = 0;
         setIsDragOver(false);
@@ -198,6 +205,122 @@ export const MidiList = forwardRef(function MidiList(
                   background: isSelected ? "#3b82f620" : "transparent",
                   cursor: "pointer",
                   transition: "background 0.1s ease",
+                }}
+                draggable={!!midi.path}
+                onMouseDown={(e) => {
+                  if (!midi.path || e.button !== 0) return;
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const handleMouseMove = (moveEvent: MouseEvent) => {
+                    const dx = Math.abs(moveEvent.clientX - startX);
+                    const dy = Math.abs(moveEvent.clientY - startY);
+                    if (dx > 5 || dy > 5) {
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                      (async () => {
+                        const originalPath = midi.path;
+                        if (!originalPath) return;
+                        try {
+                          const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((err) => {
+                            console.warn("prepare_drag_file failed:", err);
+                            return null;
+                          });
+                          const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
+                          if (p) preparedPathsRef.current[midi.id] = p;
+                          const platformStr = ((navigator as any)?.platform || '') + (navigator.userAgent || '');
+                          const isMac = /Mac|iPhone|iPad|Macintosh/.test(platformStr);
+                          if (!isMac) return;
+                          const usable = p || originalPath;
+                          try {
+                            await startDrag({ item: [usable], icon: TRANSPARENT_PNG });
+                          } catch (err) {
+                            console.warn("[midi-dragout] startDrag failed:", err);
+                          }
+                        } catch (err) {
+                          console.warn("onMouseDown handler error:", err);
+                        }
+                      })();
+                    }
+                  };
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                  };
+                  document.addEventListener('mousemove', handleMouseMove);
+                  document.addEventListener('mouseup', handleMouseUp);
+                }}
+                onDragStart={(e) => {
+                  const originalPath = midi.path;
+                  if (!originalPath) return;
+                  const prepared = preparedPathsRef.current[midi.id];
+                  const usablePath = prepared ?? originalPath;
+                  const isWindows = usablePath.match(/^[A-Z]:/);
+                  const fileUrl = isWindows
+                    ? `file:///${usablePath.replace(/\\/g, '/')}`
+                    : `file://${usablePath}`;
+                  try {
+                    e.dataTransfer.setData("text/uri-list", fileUrl);
+                    e.dataTransfer.setData("text/plain", fileUrl);
+                    e.dataTransfer.effectAllowed = "copy";
+                  } catch {}
+                }}
+                onMouseEnter={(e) => {
+                onMouseDown={(e) => {
+                  if (!midi.path || e.button !== 0) return;
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const handleMouseMove = (moveEvent: MouseEvent) => {
+                    const dx = Math.abs(moveEvent.clientX - startX);
+                    const dy = Math.abs(moveEvent.clientY - startY);
+                    if (dx > 5 || dy > 5) {
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                      (async () => {
+                        const originalPath = midi.path;
+                        if (!originalPath) return;
+                        try {
+                          const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((err) => {
+                            console.warn("prepare_drag_file failed:", err);
+                            return null;
+                          });
+                          const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
+                          if (p) preparedPathsRef.current[midi.id] = p;
+                          const platformStr = ((navigator as any)?.platform || '') + (navigator.userAgent || '');
+                          const isMac = /Mac|iPhone|iPad|Macintosh/.test(platformStr);
+                          if (!isMac) return;
+                          const usable = p || originalPath;
+                          try {
+                            await startDrag({ item: [usable], icon: TRANSPARENT_PNG });
+                          } catch (err) {
+                            console.warn("[midi-dragout] startDrag failed:", err);
+                          }
+                        } catch (err) {
+                          console.warn("onMouseDown handler error:", err);
+                        }
+                      })();
+                    }
+                  };
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                  };
+                  document.addEventListener('mousemove', handleMouseMove);
+                  document.addEventListener('mouseup', handleMouseUp);
+                }}
+                onDragStart={(e) => {
+                  const originalPath = midi.path;
+                  if (!originalPath) return;
+                  const prepared = preparedPathsRef.current[midi.id];
+                  const usablePath = prepared ?? originalPath;
+                  const isWindows = usablePath.match(/^[A-Z]:/);
+                  const fileUrl = isWindows
+                    ? `file:///${usablePath.replace(/\\/g, '/')}`
+                    : `file://${usablePath}`;
+                  try {
+                    e.dataTransfer.setData("text/uri-list", fileUrl);
+                    e.dataTransfer.setData("text/plain", fileUrl);
+                    e.dataTransfer.effectAllowed = "copy";
+                  } catch {}
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected) e.currentTarget.style.background = "#1f2937";
