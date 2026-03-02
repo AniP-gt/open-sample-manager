@@ -9,9 +9,13 @@ interface MidiListProps {
   onTagBadgeClick?: (midi: Midi) => void;
   midiTags?: MidiTagRow[];
   onMidiTagChange?: (midiId: number, tagName: string | null) => void;
+  // Pagination handlers
+  onLoadMore?: () => Promise<void> | void;
+  isLoadingMore?: boolean;
+  canLoadMore?: boolean;
 }
 
-export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick }: MidiListProps) {
+export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore }: MidiListProps) {
   if (midis.length === 0) {
     return (
       <div
@@ -151,6 +155,31 @@ export function MidiList({ midis, selectedMidi, onMidiSelect, onTagBadgeClick }:
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// Render load more control below the table when provided
+function LoadMoreControl({ onLoadMore, isLoadingMore, canLoadMore }: { onLoadMore?: () => Promise<void> | void; isLoadingMore?: boolean; canLoadMore?: boolean; }) {
+  if (!onLoadMore) return null;
+  return (
+    <div style={{ padding: "8px 12px", borderTop: "1px solid #111827", display: "flex", justifyContent: "center" }}>
+      <button
+        type="button"
+        onClick={() => { if (onLoadMore) void onLoadMore(); }}
+        disabled={isLoadingMore || !canLoadMore}
+        style={{
+          background: "#3b82f6",
+          color: "white",
+          border: "none",
+          padding: "6px 12px",
+          borderRadius: "4px",
+          cursor: isLoadingMore || !canLoadMore ? "not-allowed" : "pointer",
+          fontFamily: "'Courier New', monospace",
+        }}
+      >
+        {isLoadingMore ? "Loading..." : canLoadMore ? "Load more" : "No more"}
+      </button>
     </div>
   );
 }
