@@ -772,6 +772,84 @@ fn extract_artist(path: &Path) -> Option<String> {
     None
 }
 
+// === MIDI Management Methods ===
+
+impl SampleManager {
+    /// Scan a directory for MIDI files and import them into the database.
+    pub fn scan_midi_directory(&self, path: impl AsRef<Path>) -> Result<usize, ManagerError> {
+        let dir = path.as_ref();
+        let files = crate::scanner::scan_midi_directory(dir);
+        let mut count = 0usize;
+        for file_path in files {
+            let file_name = file_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let file_size = std::fs::metadata(&file_path)
+                .ok()
+                .map(|m| m.len() as i64);
+            use crate::db::operations::MidiInput;
+            let input = MidiInput {
+                path: file_path.to_string_lossy().to_string(),
+                file_name,
+                duration: None,
+                tempo: None,
+                time_signature_numerator: None,
+                time_signature_denominator: None,
+                track_count: None,
+                note_count: None,
+                channel_count: None,
+                key_estimate: None,
+                file_size,
+            };
+            if crate::db::operations::insert_midi(&self.conn, &input).is_ok() {
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
+
+    /// List MIDI files with pagination.
+    pub fn list_midis_paginated(&self, limit: usize, offset: usize) -> Result<Vec<crate::db::operations::MidiRow>, ManagerError> {
+        let rows = crate::db::operations::list_midis_paginated(&self.conn, limit, offset)?;
+        Ok(rows)
+    }
+
+    /// Get all MIDI paths.
+    pub fn get_all_midi_paths(&self) -> Result<Vec<String>, ManagerError> {
+        let paths = crate::db::operations::get_all_midi_paths(&self.conn)?;
+        Ok(paths)
+    }
+
+    /// Get a MIDI by path.
+    pub fn get_midi(&self, path: &str) -> Result<Option<crate::db::operations::MidiRow>, ManagerError> {
+        let row = crate::db::operations::get_midi_by_path(&self.conn, path)?;
+        Ok(row)
+    }
+
+    /// Delete a MIDI by path.
+    pub fn delete_midi(&self, path: &str) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::delete_midi(&self.conn, path)?;
+        Ok(count)
+    }
+
+    /// Clear all MIDI files.
+    pub fn clear_all_midis(&self) -> Result<usize, ManagerError> {
+        let count = crate::db::operations::clear_all_midis(&self.conn)?;
+        Ok(count)
+    }
+
+    /// Search MIDI files.
+    pub fn search_midis(&self, query: &str) -> Result<Vec<crate::db::operations::MidiRow>, ManagerError> {
+        let results = crate::db::operations::search_midis(&self.conn, query)?;
+        Ok(results)
+    }
+}
+
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

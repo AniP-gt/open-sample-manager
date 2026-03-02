@@ -522,6 +522,13 @@ fn main() {
         prepare_drag_file,
         debug_start_drag,
         debug_try_deserialize,
+        // MIDI commands
+        check_timidity,
+        scan_midi_directory,
+        list_midis_paginated,
+        get_midi,
+        delete_midi,
+        search_midis,
     ]);
 
     builder
@@ -563,4 +570,150 @@ fn update_instrument_type(
 ) -> Result<usize, CommandError> {
     let manager = open_manager(state.db_path.as_deref())?;
     manager.update_instrument_type(id, &name).map_err(CommandError::from)
+}
+
+
+// === MIDI Commands ===
+
+/// Response for TiMidity availability check.
+#[derive(Debug, Clone, Serialize)]
+pub struct TimidityStatus {
+    pub installed: bool,
+    pub install_command: String,
+}
+
+fn timidity_install_command(os: &str) -> &'static str {
+    match os {
+        "macos" => "brew install timidity",
+        "linux" => "sudo apt-get install -y timidity (Debian/Ubuntu) or sudo dnf install timidity (Fedora)",
+        "windows" => "choco install timidity (or enable WSL and run a Linux installer)",
+        _ => "Install TiMidity++ via your distribution's package manager",
+    }
+}
+
+/// Check if TiMidity is installed and return OS-specific install guidance.
+#[tauri::command]
+fn check_timidity() -> TimidityStatus {
+    // Try to find TiMidity in PATH
+    let timidity_path = which::which("timidity");
+    
+    let installed = timidity_path.is_ok();
+    
+    // Get OS-specific install command
+    let install_command = timidity_install_command(std::env::consts::OS).to_string();
+    
+    TimidityStatus {
+        installed,
+        install_command,
+    }
+}
+
+#[cfg(test)]
+mod timidity_tests {
+    use super::timidity_install_command;
+
+    #[test]
+    fn macos_command_matches_brew() {
+        assert_eq!(timidity_install_command("macos"), "brew install timidity");
+    }
+
+    #[test]
+    fn linux_command_mentions_apt_and_dnf() {
+        assert!(timidity_install_command("linux").contains("apt-get"));
+        assert!(timidity_install_command("linux").contains("dnf"));
+    }
+
+    #[test]
+    fn windows_command_references_choco() {
+        assert!(timidity_install_command("windows").contains("choco"));
+    }
+
+    #[test]
+    fn fallback_command_suggests_package_manager() {
+        assert_eq!(
+            timidity_install_command("solaris"),
+            "Install TiMidity++ via your distribution's package manager"
+        );
+    }
+}
+
+/// Scan a directory for MIDI files.
+#[tauri::command]
+async fn scan_midi_directory(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let db_path = state.db_path.clone();
+    
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = open_manager(db_path.as_deref())?;
+        manager.scan_midi_directory(path).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+    
+    result
+}
+
+/// List MIDI files with pagination.
+#[tauri::command]
+fn list_midis_paginated(
+    limit: usize,
+    offset: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.list_midis_paginated(limit, offset).map_err(CommandError::from)
+}
+
+/// Get all MIDI file paths.
+#[tauri::command]
+fn get_all_midi_paths(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.get_all_midi_paths().map_err(CommandError::from)
+}
+
+/// Get a MIDI file by path.
+#[tauri::command]
+fn get_midi(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.get_midi(&path).map_err(CommandError::from)
+}
+
+/// Delete a MIDI file by path.
+#[tauri::command]
+fn delete_midi(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.delete_midi(&path).map_err(CommandError::from)
+}
+
+/// Clear all MIDI files from the database.
+#[tauri::command]
+fn clear_all_midis(
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.clear_all_midis().map_err(CommandError::from)
+}
+
+/// Search MIDI files by name.
+#[tauri::command]
+fn search_midis(
+    query: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.search_midis(&query).map_err(CommandError::from)
 }

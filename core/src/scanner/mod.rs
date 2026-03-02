@@ -8,6 +8,9 @@ use rusqlite::{params, Connection};
 /// Audio file extensions supported by the scanner (lowercase).
 const AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "flac", "ogg", "aiff"];
 
+/// MIDI file extensions supported by the scanner (lowercase).
+const MIDI_EXTENSIONS: &[&str] = &["mid", "midi"];
+
 /// Scanner that watches a set of root paths for audio files.
 pub struct Scanner {
     /// Directory paths being monitored for audio files.
@@ -198,6 +201,37 @@ pub fn scan_directory(path: &Path) -> Vec<PathBuf> {
                 .map(str::to_lowercase);
             match ext {
                 Some(e) if AUDIO_EXTENSIONS.contains(&e.as_str()) => Some(entry.into_path()),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+/// Recursively scan `path` for MIDI files.
+///
+/// Returns an empty `Vec` if the directory does not exist or cannot be read.
+/// Permission errors on individual entries are silently skipped.
+#[must_use]
+pub fn scan_midi_directory(path: &Path) -> Vec<PathBuf> {
+    if !path.exists() {
+        return Vec::new();
+    }
+
+    WalkDir::new(path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            if !entry.file_type().is_file() {
+                return None;
+            }
+            let ext = entry
+                .path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(str::to_lowercase);
+            match ext {
+                Some(e) if MIDI_EXTENSIONS.contains(&e.as_str()) => Some(entry.into_path()),
                 _ => None,
             }
         })

@@ -86,6 +86,41 @@ pub struct SampleInput {
     pub instrument_type: Option<String>,
 }
 
+/// A row from the `midis` table.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MidiRow {
+    pub id: i64,
+    pub path: String,
+    pub file_name: String,
+    pub duration: Option<f64>,
+    pub tempo: Option<f64>,
+    pub time_signature_numerator: i64,
+    pub time_signature_denominator: i64,
+    pub track_count: Option<i64>,
+    pub note_count: Option<i64>,
+    pub channel_count: Option<i64>,
+    pub key_estimate: Option<String>,
+    pub file_size: Option<i64>,
+    pub created_at: String,
+    pub modified_at: String,
+}
+
+/// Parameters for inserting or updating a MIDI file.
+#[derive(Debug, Clone)]
+pub struct MidiInput {
+    pub path: String,
+    pub file_name: String,
+    pub duration: Option<f64>,
+    pub tempo: Option<f64>,
+    pub time_signature_numerator: Option<i64>,
+    pub time_signature_denominator: Option<i64>,
+    pub track_count: Option<i64>,
+    pub note_count: Option<i64>,
+    pub channel_count: Option<i64>,
+    pub key_estimate: Option<String>,
+    pub file_size: Option<i64>,
+}
+
 /// Insert a new sample into the database. Also inserts into the FTS5 index.
 ///
 /// Returns the `rowid` of the newly inserted row.
@@ -376,6 +411,107 @@ pub fn get_all_sample_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::
     let mut stmt = conn.prepare_cached("SELECT path FROM samples ORDER BY id")?;
     let paths = stmt.query_map([], |row| row.get(0))?.collect::<Result<Vec<String>, _>>()?;
     Ok(paths)
+}
+
+
+// === MIDI Operations ===
+
+fn row_to_midi(row: &rusqlite::Row) -> rusqlite::Result<MidiRow> {
+    Ok(MidiRow {
+        id: row.get(0)?,
+        path: row.get(1)?,
+        file_name: row.get(2)?,
+        duration: row.get(3)?,
+        tempo: row.get(4)?,
+        time_signature_numerator: row.get(5)?,
+        time_signature_denominator: row.get(6)?,
+        track_count: row.get(7)?,
+        note_count: row.get(8)?,
+        channel_count: row.get(9)?,
+        key_estimate: row.get(10)?,
+        file_size: row.get(11)?,
+        created_at: row.get(12)?,
+        modified_at: row.get(13)?,
+    })
+}
+
+pub fn insert_midi(conn: &Connection, input: &MidiInput) -> Result<i64, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "INSERT INTO midis (path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+    )?;
+    stmt.execute(params![
+        input.path, input.file_name, input.duration, input.tempo,
+        input.time_signature_numerator.unwrap_or(4),
+        input.time_signature_denominator.unwrap_or(4),
+        input.track_count, input.note_count, input.channel_count,
+        input.key_estimate, input.file_size,
+    ])?;
+    let rowid = conn.last_insert_rowid();
+    let mut fts_stmt = conn.prepare_cached("INSERT INTO midis_fts (rowid, file_name) VALUES (?1, ?2)")?;
+    fts_stmt.execute(params![rowid, input.file_name])?;
+    Ok(rowid)
+}
+
+pub fn list_midis_paginated(conn: &Connection, limit: usize, offset: usize) -> Result<Vec<MidiRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size, created_at, modified_at FROM midis ORDER BY id LIMIT ?1 OFFSET ?2",
+    )?;
+    let rows = stmt.query_map(params![limit as i64, offset as i64], row_to_midi)?;
+    rows.collect()
+}
+
+pub fn get_all_midi_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("SELECT path FROM midis ORDER BY id")?;
+    let paths = stmt.query_map([], |row| row.get(0))?.collect::<Result<Vec<String>, _>>()?;
+    Ok(paths)
+}
+
+pub fn get_midi_by_path(conn: &Connection, path: &str) -> Result<Option<MidiRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size, created_at, modified_at FROM midis WHERE path = ?1",
+    )?;
+    stmt.query_row(params![path], row_to_midi).optional()
+}
+
+pub fn delete_midi(conn: &Connection, path: &str) -> Result<usize, rusqlite::Error> {
+    let (rowid, file_name): (Option<i64>, Option<String>) = conn
+        .query_row("SELECT id, file_name FROM midis WHERE path = ?1", params![path], |row| Ok((row.get(0)?, row.get(1)?)))
+        .optional()?
+        .map(|(id, name)| (Some(id), Some(name)))
+        .unwrap_or((None, None));
+    let deleted = conn.execute("DELETE FROM midis WHERE path = ?1", params![path])?;
+    if let (Some(rid), Some(fname)) = (rowid, file_name) {
+        let _ = conn.execute("DELETE FROM midis_fts WHERE rowid = ?1 AND file_name = ?2", params![rid, fname]);
+    }
+    Ok(deleted)
+}
+
+pub fn clear_all_midis(conn: &Connection) -> Result<usize, rusqlite::Error> {
+    conn.execute("DELETE FROM midis_fts", [])?;
+    let count = conn.execute("DELETE FROM midis", [])?;
+    Ok(count)
+}
+
+pub fn search_midis(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusqlite::Error> {
+    if query.trim().is_empty() {
+        return list_midis_paginated(conn, 1000, 0);
+    }
+    let mut stmt = conn.prepare_cached(
+        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at FROM midis_fts f JOIN midis m ON m.id = f.rowid WHERE f.file_name MATCH ?1 ORDER BY rank",
+    )?;
+    let rows = stmt.query_map(params![query], row_to_midi)?;
+    rows.collect()
+}
+
+pub fn search_midis_paginated(conn: &Connection, query: &str, limit: usize, offset: usize) -> Result<Vec<MidiRow>, rusqlite::Error> {
+    if query.trim().is_empty() {
+        return list_midis_paginated(conn, limit, offset);
+    }
+    let mut stmt = conn.prepare_cached(
+        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo, m.time_signature_numerator, m.time_signature_denominator, m.track_count, m.note_count, m.channel_count, m.key_estimate, m.file_size, m.created_at, m.modified_at FROM midis_fts f JOIN midis m ON m.id = f.rowid WHERE f.file_name MATCH ?1 ORDER BY rank LIMIT ?2 OFFSET ?3",
+    )?;
+    let rows = stmt.query_map(params![query, limit as i64, offset as i64], row_to_midi)?;
+    rows.collect()
 }
 
 fn run_search_samples_query(
