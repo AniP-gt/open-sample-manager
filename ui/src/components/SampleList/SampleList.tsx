@@ -85,12 +85,6 @@ export function extractPathsFromDataTransfer(dataTransfer: DataTransfer | null):
   // Deduplicate while preserving order
   return Array.from(new Set(paths));
 }
-// Minimal transparent PNG as a data URL (1x1). The drag plugin's `image`
-// argument accepts a file path or a data URL; using an inline base64 PNG is
-// reliable across environments and avoids binary serialization edge cases.
-const TRANSPARENT_PNG =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
-
 
 function SortHeader({
   field,
@@ -222,10 +216,17 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
   // mouse down so the async backend copy has time to finish before the
   // synchronous dragstart handler runs (browsers require setData to be sync).
   const preparedPathsRef = useRef<Record<number, string>>({});
+  // Filesystem path to the drag cursor icon (1x1 transparent PNG written to temp by Rust).
+  // Fetched once on mount; tauri-plugin-drag requires a real FS path, not base64.
+  const dragIconPathRef = useRef<string>("");
   const [toast, setToast] = useState<{ message: string; visible: boolean; sampleId: number | null }>({ message: "", visible: false, sampleId: null });
   const dragCounter = useRef(0);
 
-  
+  useEffect(() => {
+    void invoke<string>("get_drag_icon_path").then((p) => {
+      dragIconPathRef.current = p;
+    }).catch(() => {});
+  }, []);
 
   const extractPathsFromDrop = (e: React.DragEvent) => extractPathsFromDataTransfer(e.dataTransfer ?? null);
 
@@ -693,82 +694,26 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
             className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
             draggable={!!samplePaths[s.id]}
             onMouseDown={(e) => {
-              // Only prepare drag if we have a path and left mouse button
-              if (!samplePaths[s.id] || e.button !== 0) return;
-              
-              // Track initial position to distinguish click from drag
-              const startX = e.clientX;
-              const startY = e.clientY;
-              
-              const handleMouseMove = (moveEvent: MouseEvent) => {
-                const dx = Math.abs(moveEvent.clientX - startX);
-                const dy = Math.abs(moveEvent.clientY - startY);
-                
-                // Only initiate drag if moved more than 5px (drag threshold)
-                if (dx > 5 || dy > 5) {
-                  // Remove listener to prevent multiple preparations
-                  document.removeEventListener('mousemove', handleMouseMove);
-                  document.removeEventListener('mouseup', handleMouseUp);
-                  
-                  // Now prepare and start the drag
-                  (async () => {
-                    const originalPath = samplePaths[s.id];
-                    if (!originalPath) return;
-                    try {
-                      const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((e) => {
-                        console.warn("prepare_drag_file failed:", e);
-                        return null;
-                      });
-                      const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
-                      if (p) preparedPathsRef.current[s.id] = p;
-
-                      const platformStr = ((navigator as any)?.platform || '') + (navigator.userAgent || '');
-                      const isMac = /Mac|iPhone|iPad|Macintosh/.test(platformStr);
-                      if (!isMac) return;
-
-                      const usable = p || originalPath;
-                      try {
-                        await startDrag({
-                          item: [usable],
-                          icon: TRANSPARENT_PNG,
-                        });
-                      } catch (err) {
-                        console.warn("[dragout-debug] startDrag failed:", err);
-                      }
-                    } catch (err) {
-                      console.warn("onMouseDown handler error:", err);
-                    }
-                  })();
-                }
-              };
-              
-              const handleMouseUp = () => {
-                // Clean up listeners if mouse released without moving enough to drag
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-              };
-              
-              document.addEventListener('mousemove', handleMouseMove);
-              document.addEventListener('mouseup', handleMouseUp);
+              // Pre-warm the prepared path on mousedown so it may be ready
+              // by the time onDragStart fires.
+              if (samplePaths[s.id] && e.button === 0 && !preparedPathsRef.current[s.id]) {
+                void invoke("prepare_drag_file", { path: samplePaths[s.id] }).then((res) => {
+                  if (typeof res === "string" && res) preparedPathsRef.current[s.id] = res;
+                }).catch(() => {});
+              }
             }}
             onDragStart={(e) => {
               const originalPath = samplePaths[s.id];
-              if (!originalPath) return;
-              const prepared = preparedPathsRef.current[s.id];
-              const usablePath = prepared ?? originalPath;
-
-              // DAW compatible file:// URL (not Tauri asset URL)
-              const isWindows = usablePath.match(/^[A-Z]:/);
-              const fileUrl = isWindows
-                ? `file:///${usablePath.replace(/\\/g, '/')}`
-                : `file://${usablePath}`;
-              try {
-                e.dataTransfer.setData("text/uri-list", fileUrl);
-                e.dataTransfer.setData("text/plain", fileUrl);
-                e.dataTransfer.effectAllowed = "copy";
-              } catch (e) {
-                // Some platforms may restrict dataTransfer usage; ignore failures
-              }
+              if (!originalPath) { e.preventDefault(); return; }
+              // Prevent the HTML5 drag session from taking over.
+              // Logic Pro (and other native macOS apps) require a real
+              // NSDraggingSession — HTML5 dataTransfer payloads are ignored.
+              e.preventDefault();
+              // Use pre-warmed (Desktop-copied) path if ready; fallback to original.
+              const path = preparedPathsRef.current[s.id] || originalPath;
+              void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
+                console.warn("[dragout-debug] startDrag failed:", err);
+              });
             }}
             onClick={() => onSampleSelect(s)}
             style={{

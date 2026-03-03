@@ -249,6 +249,42 @@ fn prepare_drag_file(path: String) -> Result<String, CommandError> {
     }
 }
 
+/// Return an absolute filesystem path to a small drag-cursor PNG icon.
+/// The icon is written to the system temp directory on first call and
+/// reused on subsequent calls. This path is required by tauri-plugin-drag's
+/// `Options.icon` field, which must be a real file path (not base64).
+#[tauri::command]
+fn get_drag_icon_path() -> Result<String, CommandError> {
+    // Minimal 1×1 transparent PNG (68 bytes, PNG spec compliant).
+    // This avoids shipping a binary asset just for the drag cursor.
+    #[rustfmt::skip]
+    const TRANSPARENT_PNG_1X1: &[u8] = &[
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk len + type
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // width=1, height=1
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, // 8-bit RGBA, CRC
+        0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, // IDAT chunk
+        0x54, 0x78, 0x9C, 0x62, 0x00, 0x00, 0x00, 0x02, // zlib data
+        0x00, 0x01, 0xE2, 0x21, 0xBC, 0x33, 0x00, 0x00, // CRC + IEND len
+        0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, // IEND type
+        0x60, 0x82,                                       // IEND CRC
+    ];
+
+    let mut path = std::env::temp_dir();
+    path.push("osm_drag_icon.png");
+
+    // Only write if not already present (avoid redundant I/O)
+    if !path.exists() {
+        std::fs::write(&path, TRANSPARENT_PNG_1X1).map_err(|e| CommandError {
+            code: "io_error".to_string(),
+            message: format!("failed to write drag icon: {}", e),
+            details: None,
+        })?;
+    }
+
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn debug_start_drag(raw: serde_json::Value) -> Result<(), CommandError> {
     // One-line debug helper: print the raw JSON payload the renderer attempted
@@ -523,6 +559,7 @@ fn main() {
         open_folder,
         copy_to_clipboard,
         prepare_drag_file,
+        get_drag_icon_path,
         debug_start_drag,
         debug_try_deserialize,
         // MIDI commands
