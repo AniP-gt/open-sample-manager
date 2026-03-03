@@ -1,11 +1,11 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-24T15:43:13+0900
-**Commit:** edf68d0
+**Generated:** 2026-03-03T06:50:00+0900
+**Commit:** 68204da
 **Branch:** main
 
 ## OVERVIEW
-Desktop sample manager workspace: Rust audio-analysis core, Tauri host, React/Vite UI, and JUCE plugin scaffold.
+Desktop sample manager workspace: Rust audio-analysis core, Tauri host, React/Vite UI, and JUCE plugin scaffold. Also manages MIDI files with tag system.
 
 ## STRUCTURE
 ```text
@@ -23,11 +23,13 @@ open-sample-manager/
 |---|---|---|
 | Core API + orchestration | `core/src/manager.rs` | Scan/analyze/store workflow hub |
 | DB schema + SQL | `core/src/db/schema.rs`, `core/src/db/operations.rs` | WAL, FTS5, embedding search |
-| DSP analysis | `core/src/analysis/` | BPM, onset, kick, loop classification |
+| DSP analysis | `core/src/analysis/` | BPM, onset, kick, loop classification, MIDI decoding |
 | FFI contracts | `core/src/ffi/` | Opaque handle lifecycle + C JSON bridge |
-| Tauri command boundary | `src-tauri/src/main.rs` | `#[tauri::command]` wrappers over core |
-| UI state + invoke calls | `ui/src/App.tsx` | Main state graph and backend integration |
-| UI components | `ui/src/components/` | Per-component folders, barrel export |
+| Tauri command boundary | `src-tauri/src/main.rs` | `#[tauri::command]` wrappers; ~28 commands |
+| UI state + invoke calls | `ui/src/App.tsx` | Main state graph, all IPC wiring, type mapping |
+| UI components | `ui/src/components/` | 23 per-component folders, barrel export via `index.ts` |
+| UI utility logic | `ui/src/utils/` | Import helpers, audio cache, drag-and-drop transfer |
+| MIDI domain types | `ui/src/types/midi.ts` | Midi, MidiTag, MidiTagRow shapes |
 | Dev/bootstrap commands | `README.md`, `scripts/bootstrap.sh` | Canonical setup + run flow |
 
 ## CODE MAP
@@ -36,13 +38,14 @@ open-sample-manager/
 | `SampleManager` | struct | `core/src/manager.rs` | high | Core orchestration entry point |
 | `search_by_embedding` | fn | `core/src/db/operations.rs` + `src-tauri/src/main.rs` | medium | Semantic similarity boundary |
 | `init_database` | fn | `core/src/db/schema.rs` | high | Schema bootstrap + migration gate |
-| `scan_directory` | tauri command | `src-tauri/src/main.rs` | high | UI-triggered long-running scan |
+| `scan_directory` | tauri command | `src-tauri/src/main.rs` | high | UI-triggered long-running sample scan |
+| `scan_midi_directory` | tauri command | `src-tauri/src/main.rs` | medium | UI-triggered MIDI scan |
 | `App` | React component | `ui/src/App.tsx` | high | UI state, filters, IPC wiring |
-
+| `mapRowToSample` | fn | `ui/src/App.tsx` | high | Backend row → UI type normalization |
 ## CONVENTIONS
 - Root scripts delegate to package-specific commands (`npm run ... --prefix ui`, Cargo workspace for Rust).
 - UI build script enforces typecheck before Vite build.
-- Tauri config pins dev URL/port (`5173`) and ignores `src-tauri` in Vite watch.
+- Tauri config pins dev URL/port (`5174`) and ignores `src-tauri` in Vite watch.
 - Rust core exports public modules via `core/src/lib.rs`; cross-layer calls should route through manager/command boundaries.
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -51,7 +54,7 @@ open-sample-manager/
 - Avoid bypassing explicit value mapping between UI and backend payloads in classification/edit flows.
 
 ## UNIQUE STYLES
-- Monorepo but not JS-workspace-based: Rust workspace + standalone UI package + Tauri wrapper.
+- Monorepo but not JS-workspace-based: Rust workspace (`core` + `src-tauri`) + standalone UI npm package.
 - UI components are mostly one-folder/one-file and heavily inline-styled.
 - Current plugin target is scaffold-only; production plugin behavior is not implemented yet.
 
@@ -68,6 +71,8 @@ npm run test --prefix ui
 ```
 
 ## NOTES
-- Project has active user changes in multiple tracked files; avoid broad refactors during focused tasks.
-- Security capability defaults live in `src-tauri/capabilities/default.json` and should stay aligned with invoked plugins.
+- Port is **5174** (Vite + Tauri devUrl both configured to 5174; legacy docs may say 5173).
+- Security capability defaults live in `src-tauri/capabilities/default.json`; fs allows `**` read, drag and clipboard enabled.
 - Embedding search is brute-force O(N) today; treat scale assumptions carefully.
+- Project has active user changes in multiple tracked files; avoid broad refactors during focused tasks.
+- Release builds: strip=true, lto=true, panic=abort (configured in `src-tauri/Cargo.toml`).
