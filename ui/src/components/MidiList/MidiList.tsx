@@ -59,7 +59,7 @@ export const MidiList = forwardRef(function MidiList(
   void tagFilterId;
 
   // Resizable columns state and helpers (mirror SampleList behavior)
-  const defaultColWidths = ["36px", "1fr", "110px", "86px", "86px", "60px", "60px", "64px", "86px", "88px"];
+  const defaultColWidths = ["36px", "400px", "110px", "86px", "86px", "60px", "60px", "64px", "86px", "88px"];
   const STORAGE_KEY = "midiListColWidths_v1";
   const [colWidths, setColWidths] = useState<string[]>(defaultColWidths);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -264,6 +264,7 @@ export const MidiList = forwardRef(function MidiList(
       style={{
         flex: 1,
         overflowY: "auto",
+        overflowX: "auto",
         background: "#0a0c12",
         position: "relative",
       }}
