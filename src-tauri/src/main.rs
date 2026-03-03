@@ -661,14 +661,89 @@ fn timidity_install_command(os: &str) -> &'static str {
         _ => "Install TiMidity++ via your distribution's package manager",
     }
 }
+/// Locate timidity executable, searching common installation paths across platforms.
+fn find_timidity_executable() -> Result<std::path::PathBuf, CommandError> {
+    // First try PATH lookup
+    if let Ok(path) = which::which("timidity") {
+        return Ok(path);
+    }
+
+    // Build list of common installation paths by platform
+    let common_paths: Vec<std::path::PathBuf> = if cfg!(target_os = "macos") {
+        vec![
+            // Homebrew on Apple Silicon
+            std::path::PathBuf::from("/opt/homebrew/bin/timidity"),
+            // Homebrew on Intel
+            std::path::PathBuf::from("/usr/local/bin/timidity"),
+            // MacPorts
+            std::path::PathBuf::from("/opt/local/bin/timidity"),
+        ]
+    } else if cfg!(target_os = "linux") {
+        vec![
+            std::path::PathBuf::from("/usr/bin/timidity"),
+            std::path::PathBuf::from("/usr/local/bin/timidity"),
+            std::path::PathBuf::from("/snap/bin/timidity"),
+            std::path::PathBuf::from("/opt/timidity/bin/timidity"),
+        ]
+    } else if cfg!(target_os = "windows") {
+        vec![
+            std::path::PathBuf::from("C:\\Program Files\\timidity\\timidity.exe"),
+            std::path::PathBuf::from("C:\\Program Files (x86)\\timidity\\timidity.exe"),
+            std::path::PathBuf::from("C:\\msys64\\mingw64\\bin\\timidity.exe"),
+            std::path::PathBuf::from("C:\\chocolatey\\bin\\timidity.exe"),
+        ]
+    } else {
+        vec![]
+    };
+
+    // Check each common path
+    for base_path in common_paths {
+        if base_path.exists() {
+            return Ok(base_path);
+        }
+        // Also try expanding $HOME for linuxbrew
+        if cfg!(target_os = "linux") {
+            let path_str = base_path.to_string_lossy();
+            if path_str.contains("$HOME") {
+                if let Ok(home) = std::env::var("HOME") {
+                    let expanded = path_str.replace("$HOME", &home);
+                    let expanded_path = std::path::PathBuf::from(expanded);
+                    if expanded_path.exists() {
+                        return Ok(expanded_path);
+                    }
+                }
+            }
+        }
+    }
+
+    // Try using Command::new("timidity") directly as last resort
+    if std::process::Command::new("timidity")
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok()
+    {
+        return Ok(std::path::PathBuf::from("timidity"));
+    }
+
+    Err(CommandError {
+        code: "timidity_not_found".to_string(),
+        message: "TiMidity++ is not installed or not in PATH".to_string(),
+        details: Some(format!(
+            "Searched common paths. Install with: {}",
+            timidity_install_command(std::env::consts::OS)
+        )),
+    })
+}
 
 /// Check if TiMidity is installed and return OS-specific install guidance.
 #[tauri::command]
 fn check_timidity() -> TimidityStatus {
-    // Try to find TiMidity in PATH
-    let timidity_path = which::which("timidity");
+    // Try to find TiMidity using comprehensive path search
+    let timidity_result = find_timidity_executable();
     
-    let installed = timidity_path.is_ok();
+    let installed = timidity_result.is_ok();
     
     // Get OS-specific install command
     let install_command = timidity_install_command(std::env::consts::OS).to_string();
@@ -694,12 +769,9 @@ async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<()
         }
     }
 
-    // Locate timidity executable
-    let timidity = which::which("timidity").map_err(|_| CommandError {
-        code: "timidity_not_found".to_string(),
-        message: "TiMidity++ is not installed or not in PATH".to_string(),
-        details: None,
-    })?;
+
+    // Locate timidity executable using comprehensive path search
+    let timidity = find_timidity_executable()?;
 
     // Select the audio output flag based on OS:
     //   macOS  → -Od  (CoreAudio PCM device)
@@ -742,12 +814,9 @@ async fn render_midi_to_wav(path: String) -> Result<String, CommandError> {
         .unwrap_or(0);
     out.push(format!("rendered_midi_{}.wav", ts));
 
-    // Locate timidity
-    let timidity = which::which("timidity").map_err(|_| CommandError {
-        code: "timidity_not_found".to_string(),
-        message: "TiMidity++ is not installed or not in PATH".to_string(),
-        details: None,
-    })?;
+    // Locate timidity using comprehensive path search
+    let timidity = find_timidity_executable()?;
+
 
     // Run: timidity -Ow -o <out> <path>
     let status = std::process::Command::new(timidity)
