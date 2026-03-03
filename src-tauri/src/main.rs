@@ -534,6 +534,7 @@ fn main() {
         get_all_midi_paths,
         get_midi,
         delete_midi,
+        clear_all_midis,
         search_midis,
         // MIDI tag commands
         get_midi_tags,
@@ -543,7 +544,6 @@ fn main() {
         set_midi_file_tag,
         get_midi_file_tags,
     ]);
-
     builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -612,11 +612,15 @@ export function App() {
   const handleClearAllSamples = async () => {
     try {
       await invoke<number>("clear_all_samples");
+      await invoke<number>("clear_all_midis");
       setSamples([]);
       setSamplePaths({});
       setSelected(null);
       setScanned(false);
       setScannedPaths([]);
+      // Also clear MIDI data
+      setMidis([]);
+      setSelectedMidi(null);
     } catch (e) {
       handleInvokeError(e);
     }
@@ -1369,10 +1373,10 @@ export function App() {
       {/* Confirm modal for trashing samples */}
       <ConfirmModal
         isOpen={confirmOpen}
-        title={pendingTrashSampleId === -1 ? "Clear All Samples" : (pendingTrashMidiId ? "Move MIDI to Trash" : "Move to Trash")}
+        title={pendingTrashSampleId === -1 ? "Clear All Data" : (pendingTrashMidiId ? "Move MIDI to Trash" : "Move to Trash")}
         message={
           pendingTrashSampleId === -1
-            ? "Are you sure you want to clear all samples from the library index? This will remove all samples from the application's index (your sample files on disk will NOT be deleted). This action cannot be undone in the app."
+            ? "Are you sure you want to clear all samples and MIDI files from the library index? This will remove all samples and MIDI files from the application's index (your files on disk will NOT be deleted). This action cannot be undone in the app."
             : pendingTrashMidiId ? `Are you sure you want to move '${midis.find(m => m.id === pendingTrashMidiId)?.file_name ?? 'this MIDI file'}' to the Trash?` : `Are you sure you want to move '${samples.find(s => s.id === pendingTrashSampleId)?.file_name ?? 'this file'}' to the Trash?`
         }
         danger={pendingTrashSampleId === -1}
