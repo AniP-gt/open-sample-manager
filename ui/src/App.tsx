@@ -143,6 +143,8 @@ export function App() {
   const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
   const [midiTagFilterId, setMidiTagFilterId] = useState<number | null>(null);
   const [midiSearch, setMidiSearch] = useState("");
+  // Debounced value used for the actual backend search (300 ms delay)
+  const [debouncedMidiSearch, setDebouncedMidiSearch] = useState("");
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
   const [midiTagEditTarget, setMidiTagEditTarget] = useState<Midi | null>(null);
@@ -840,7 +842,13 @@ export function App() {
   useEffect(() => {
     void handleSearch(filters.search);
   }, [filters.search]);
-  useEffect(() => { if (viewMode === 'midi') { void runMidiSearch(midiSearch); } }, [midiSearch, viewMode]);
+  // Debounce midiSearch → debouncedMidiSearch so each keystroke does not
+  // immediately fire a backend invoke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedMidiSearch(midiSearch), 300);
+    return () => clearTimeout(id);
+  }, [midiSearch]);
+  useEffect(() => { if (viewMode === 'midi') { void runMidiSearch(debouncedMidiSearch); } }, [debouncedMidiSearch, viewMode]);
 
   // Fallback: Listen to Tauri-native drag/drop events when running inside
   // the Tauri webview. This is deterministic for obtaining full filesystem
