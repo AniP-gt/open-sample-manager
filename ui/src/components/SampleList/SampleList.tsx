@@ -714,6 +714,17 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
               void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
                 console.warn("[dragout-debug] startDrag failed:", err);
               });
+              // Schedule cleanup of the prepared file after the native drag has
+              // had a chance to complete. Use a short timeout to avoid racing
+              // with the host app accepting the file. If no prepared path exists
+              // the delete_file invoke is skipped.
+              setTimeout(() => {
+                const prepared = preparedPathsRef.current[s.id];
+                if (prepared) {
+                  void invoke("delete_file", { path: prepared }).catch(() => {});
+                  delete preparedPathsRef.current[s.id];
+                }
+              }, 1500);
             }}
             onClick={() => onSampleSelect(s)}
             style={{

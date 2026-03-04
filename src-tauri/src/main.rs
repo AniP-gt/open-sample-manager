@@ -216,20 +216,12 @@ fn prepare_drag_file(path: String) -> Result<String, CommandError> {
         }
     };
 
-    // On macOS/desktop environments, placing the prepared file in the user's
-    // Desktop folder increases the chance the receiving native app (Logic,
-    // etc.) will accept the file directly instead of creating a .fileloc
-    // reference. Fall back to temp_dir on any failure.
+    // Always use the system temporary directory for prepared drag files.
+    // Writing into the user's Desktop previously caused leftover files to
+    // accumulate when the host app or the user didn't clean them up. Using
+    // the temp dir keeps the Desktop clean; if a compatibility fallback is
+    // later required for specific host apps we can implement it here.
     let mut target = std::env::temp_dir();
-    if cfg!(target_os = "macos") {
-        if let Ok(home) = std::env::var("HOME") {
-            let mut desktop = std::path::PathBuf::from(home);
-            desktop.push("Desktop");
-            if desktop.exists() && desktop.is_dir() {
-                target = desktop;
-            }
-        }
-    }
     // Use original filename (no prefix)
     target.push(file_name);
 

@@ -513,6 +513,14 @@ export const MidiList = forwardRef(function MidiList(
                       void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
                         console.warn("[midi-dragout] startDrag failed:", err);
                       });
+                      // Schedule cleanup of prepared path after native drag.
+                      setTimeout(() => {
+                        const prepared = preparedPathsRef.current[midi.id];
+                        if (prepared) {
+                          void invoke("delete_file", { path: prepared }).catch(() => {});
+                          delete preparedPathsRef.current[midi.id];
+                        }
+                      }, 1500);
                     }}
                     style={{
                       display: "grid",
