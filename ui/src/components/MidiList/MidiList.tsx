@@ -1,5 +1,5 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from "react";
 import type React from "react";
 import type { MidiTagRow } from "../../types/midi";
 import { invoke } from "@tauri-apps/api/core";
@@ -70,6 +70,9 @@ export const MidiList = forwardRef(function MidiList(
   const draggedColumnRef = useRef<number | null>(null);
   const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
+  // Sorting state: which column and direction
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Shared min/max width constraints (px) for keyboard + mouse handlers
   const minWidths = [20, 120, 60, 60, 40, 40, 30, 40, 60, 40];
@@ -197,6 +200,72 @@ export const MidiList = forwardRef(function MidiList(
   const filteredMidis = midiSearch.trim()
     ? midis.filter((m) => m.file_name.toLowerCase().includes(midiSearch.toLowerCase()))
     : midis;
+
+  // Sorting helpers
+  const headerClick = (key: string) => {
+    if (sortBy === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  };
+
+  const headerKeyDown = (e: React.KeyboardEvent, key: string) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      headerClick(key);
+    }
+  };
+
+  const getSortValue = (m: Midi, key: string): number | string | null => {
+    switch (key) {
+      case "id":
+        return m.id;
+      case "file_name":
+        return m.file_name?.toLowerCase() ?? "";
+      case "tag_name":
+        return m.tag_name?.toLowerCase() ?? null;
+      case "tempo":
+        return m.tempo ?? null;
+      case "time_sig":
+        return m.time_signature_numerator != null ? (m.time_signature_numerator * 1000 + (m.time_signature_denominator ?? 0)) : null;
+      case "track_count":
+        return m.track_count ?? null;
+      case "note_count":
+        return m.note_count ?? null;
+      case "key_estimate":
+        return m.key_estimate?.toLowerCase() ?? null;
+      case "duration":
+        return m.duration ?? null;
+      default:
+        return null;
+    }
+  };
+
+  const sortedMidis = useMemo(() => {
+    if (!sortBy) return filteredMidis;
+    const copy = [...filteredMidis];
+    copy.sort((a, b) => {
+      const av = getSortValue(a, sortBy);
+      const bv = getSortValue(b, sortBy);
+      // null/undefined handling: treat nulls as greater so they appear last
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+
+      if (typeof av === "number" && typeof bv === "number") {
+        return sortDir === "asc" ? av - bv : bv - av;
+      }
+      // string compare
+      const as = String(av);
+      const bs = String(bv);
+      const cmp = as.localeCompare(bs);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return copy;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredMidis, sortBy, sortDir]);
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
@@ -347,8 +416,8 @@ export const MidiList = forwardRef(function MidiList(
                 alignItems: "center",
               }}
             >
-              <div style={{ position: "relative", cursor: hoveredCol === 0 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => { const el = headerRefs.current[0]; if (!el) return; activeResize.current = { index: 0, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[0]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 0 : h === 0 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 0 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#374151" }}>#</div>
+            <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => { const el = headerRefs.current[0]; if (!el) return; activeResize.current = { index: 0, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[0]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 0 : h === 0 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 0 ? null : h))} onClick={() => headerClick("id")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "id")}>
+                <div style={{ fontSize: 13, color: "#374151", userSelect: "none" }}>#{sortBy === "id" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -360,8 +429,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 1 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => { const el = headerRefs.current[1]; if (!el) return; activeResize.current = { index: 1, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[1]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 1 : h === 1 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af", letterSpacing: "0.06em" }}>FILENAME</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => { const el = headerRefs.current[1]; if (!el) return; activeResize.current = { index: 1, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[1]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 1 : h === 1 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))} onClick={() => headerClick("file_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "file_name")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", letterSpacing: "0.06em", userSelect: "none" }}>FILENAME{sortBy === "file_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -373,8 +442,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-        <div style={{ position: "relative", cursor: hoveredCol === 2 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[2] = el)} onMouseDown={(e) => { const el = headerRefs.current[2]; if (!el) return; activeResize.current = { index: 2, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[2]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 2 : h === 2 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af" }}>TAG</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[2] = el)} onMouseDown={(e) => { const el = headerRefs.current[2]; if (!el) return; activeResize.current = { index: 2, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[2]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 2 : h === 2 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))} onClick={() => headerClick("tag_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tag_name")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", userSelect: "none" }}>TAG{sortBy === "tag_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -386,8 +455,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 3 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[3] = el)} onMouseDown={(e) => { const el = headerRefs.current[3]; if (!el) return; activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[3]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 3 : h === 3 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>TEMPO</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[3] = el)} onMouseDown={(e) => { const el = headerRefs.current[3]; if (!el) return; activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[3]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 3 : h === 3 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))} onClick={() => headerClick("tempo")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tempo")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>TEMPO{sortBy === "tempo" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -399,8 +468,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 4 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[4] = el)} onMouseDown={(e) => { const el = headerRefs.current[4]; if (!el) return; activeResize.current = { index: 4, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[4]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 4 : h === 4 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center" }}>TIME SIG</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[4] = el)} onMouseDown={(e) => { const el = headerRefs.current[4]; if (!el) return; activeResize.current = { index: 4, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[4]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 4 : h === 4 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))} onClick={() => headerClick("time_sig")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "time_sig")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", userSelect: "none" }}>TIME SIG{sortBy === "time_sig" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -412,8 +481,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 5 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[5] = el)} onMouseDown={(e) => { const el = headerRefs.current[5]; if (!el) return; activeResize.current = { index: 5, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[5]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 5 : h === 5 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>TRACKS</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[5] = el)} onMouseDown={(e) => { const el = headerRefs.current[5]; if (!el) return; activeResize.current = { index: 5, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[5]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 5 : h === 5 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))} onClick={() => headerClick("track_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "track_count")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>TRACKS{sortBy === "track_count" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -425,8 +494,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 6 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[6] = el)} onMouseDown={(e) => { const el = headerRefs.current[6]; if (!el) return; activeResize.current = { index: 6, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[6]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 6 : h === 6 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>NOTES</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[6] = el)} onMouseDown={(e) => { const el = headerRefs.current[6]; if (!el) return; activeResize.current = { index: 6, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[6]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 6 : h === 6 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))} onClick={() => headerClick("note_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "note_count")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>NOTES{sortBy === "note_count" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -438,8 +507,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 7 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[7] = el)} onMouseDown={(e) => { const el = headerRefs.current[7]; if (!el) return; activeResize.current = { index: 7, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[7]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 7 : h === 7 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center" }}>KEY</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[7] = el)} onMouseDown={(e) => { const el = headerRefs.current[7]; if (!el) return; activeResize.current = { index: 7, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[7]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 7 : h === 7 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))} onClick={() => headerClick("key_estimate")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "key_estimate")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", userSelect: "none" }}>KEY{sortBy === "key_estimate" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -451,8 +520,8 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 8 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[8] = el)} onMouseDown={(e) => { const el = headerRefs.current[8]; if (!el) return; activeResize.current = { index: 8, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[8]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 8 : h === 8 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right" }}>DURATION</div>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[8] = el)} onMouseDown={(e) => { const el = headerRefs.current[8]; if (!el) return; activeResize.current = { index: 8, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[8]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 8 : h === 8 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))} onClick={() => headerClick("duration")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "duration")}>
+                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>DURATION{sortBy === "duration" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
                     title="Resize column"
@@ -480,11 +549,11 @@ export const MidiList = forwardRef(function MidiList(
 
             <div style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
       {/* Right-side detail panel moved to App for consistent layout with Sample DetailPanel */}
-              {filteredMidis.length === 0 && midiSearch.trim() ? (
+              {sortedMidis.length === 0 && midiSearch.trim() ? (
                 <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
                   No results for &apos;{midiSearch}&apos;
                 </div>
-              ) : filteredMidis.map((midi, idx) => {
+              ) : sortedMidis.map((midi, idx) => {
                 const isSelected = selectedMidi?.id === midi.id;
                 return (
                   <div
