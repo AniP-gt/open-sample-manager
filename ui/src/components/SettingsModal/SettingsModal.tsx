@@ -3,12 +3,16 @@ interface SettingsModalProps {
   onClose: () => void;
   onClearAllSamples: () => void;
   sampleCount: number;
+  autoPlayOnSelect: boolean;
+  onAutoPlayChange: (enabled: boolean) => void;
 }
 
 export function SettingsModal({
   isOpen,
   onClose,
   sampleCount,
+  autoPlayOnSelect,
+  onAutoPlayChange,
 }: Omit<SettingsModalProps, 'onClearAllSamples'>) {
   if (!isOpen) return null;
 
@@ -73,6 +77,69 @@ export function SettingsModal({
           >
             ✕
           </button>
+        </div>
+
+        {/* Playback Section */}
+        <div style={{ marginBottom: "24px" }}>
+          <h3
+            style={{
+              fontSize: "14px",
+              letterSpacing: "0.1em",
+              color: "#9ca3af",
+              marginBottom: "12px",
+            }}
+          >
+            PLAYBACK
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px",
+              background: "#080a0f",
+              borderRadius: "2px",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "14px", color: "#d1d5db" }}>
+                Auto-play on select
+              </div>
+              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+                Automatically play audio when a file is selected
+              </div>
+            </div>
+            <button
+              onClick={() => onAutoPlayChange(!autoPlayOnSelect)}
+              style={{
+                width: "44px",
+                height: "24px",
+                borderRadius: "12px",
+                border: "none",
+                cursor: "pointer",
+                background: autoPlayOnSelect ? "#f97316" : "#374151",
+                position: "relative",
+                flexShrink: 0,
+                transition: "background 0.2s",
+              }}
+              aria-checked={autoPlayOnSelect}
+              role="switch"
+              aria-label="Auto-play on select"
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: "3px",
+                  left: autoPlayOnSelect ? "23px" : "3px",
+                  width: "18px",
+                  height: "18px",
+                  borderRadius: "50%",
+                  background: "#fff",
+                  transition: "left 0.2s",
+                }}
+              />
+            </button>
+          </div>
         </div>
 
         {/* Database Section */}

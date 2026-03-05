@@ -8,13 +8,15 @@ interface PlayerBarProps {
   sample: Sample;
   path?: string;
   onClose?: () => void;
+  autoPlay?: boolean;
 }
 
 export interface PlayerBarHandle {
   stop: () => void;
+  play: () => void;
 }
 
-export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose }: PlayerBarProps, ref) {
+export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose, autoPlay }: PlayerBarProps, ref) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -75,6 +77,9 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
         audio.onloadedmetadata = () => setDuration(audio.duration);
         audioRef.current = audio;
         setLoading(false);
+        if (autoPlay) {
+          audio.play().catch(() => {});
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         const isFileNotFound = 
@@ -122,6 +127,11 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
         audioRef.current.currentTime = 0;
         setPlaying(false);
         setCurrentTime(0);
+      }
+    },
+    play: () => {
+      if (audioRef.current && !playing) {
+        audioRef.current.play().catch(() => {});
       }
     },
   }));

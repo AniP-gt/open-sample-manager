@@ -148,6 +148,13 @@ export function App() {
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
   const [midiTagEditTarget, setMidiTagEditTarget] = useState<Midi | null>(null);
+  const [autoPlayOnSelect, setAutoPlayOnSelect] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("osm_autoPlayOnSelect") === "true";
+    } catch {
+      return false;
+    }
+  });
 
   // Check TiMidity status on mount
   useEffect(() => {
@@ -1263,14 +1270,23 @@ export function App() {
               ref={midiListRef}
               midis={midiTagFilterId ? midis.filter(m => m.tag_name === (midiTags.find(t => t.id === midiTagFilterId)?.name ?? '')) : midis}
               selectedMidi={selectedMidi}
-              onMidiSelect={(midi) => {
+              onMidiSelect={async (midi) => {
                 if (isMidiPlaying) {
-                  void invoke('stop_midi').finally(() => setIsMidiPlaying(false));
+                  await invoke('stop_midi').catch(() => {});
+                  setIsMidiPlaying(false);
                 }
                 setSelectedMidi(midi);
                 requestAnimationFrame(() => {
                   midiListRef.current?.focusSelected?.();
                 });
+                if (autoPlayOnSelect && midi.path) {
+                  try {
+                    await invoke("play_midi", { path: midi.path });
+                    setIsMidiPlaying(true);
+                  } catch (e) {
+                    setIsMidiPlaying(false);
+                  }
+                }
               }}
               onTagBadgeClick={(midi) => { setMidiTagEditTarget(midi); setMidiTagEditOpen(true); }}
               midiTags={midiTags}
@@ -1365,6 +1381,7 @@ export function App() {
           ref={playerBarRef}
           sample={selected}
           path={samplePaths[selected.id]}
+          autoPlay={autoPlayOnSelect}
           onClose={() => {
             playerBarRef.current?.stop();
             setSelected(null);
@@ -1376,6 +1393,11 @@ export function App() {
             isOpen={settingsOpen}
             onClose={() => setSettingsOpen(false)}
             sampleCount={samples.length}
+            autoPlayOnSelect={autoPlayOnSelect}
+            onAutoPlayChange={(enabled) => {
+              setAutoPlayOnSelect(enabled);
+              try { localStorage.setItem("osm_autoPlayOnSelect", String(enabled)); } catch {}
+            }}
           />
 
       {/* Confirm modal for trashing samples */}
