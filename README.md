@@ -1,5 +1,7 @@
 # Open Sample Manager
 
+<img width="1680" height="986" alt="README" src="https://github.com/user-attachments/assets/19c99f96-f5c4-43ae-94f8-271d9c8413e0" />
+
 A fast, local-first desktop application for managing audio samples and MIDI files. Built with Rust, Tauri, and React.
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)
@@ -8,6 +10,11 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 ## Features
 
 ### Audio Sample Management
+
+<img width="1680" height="981" alt="Sample-List" src="https://github.com/user-attachments/assets/06af7071-a93a-4733-b5d0-454d84d90860" />
+
+<img width="747" height="671" alt="Similar-list" src="https://github.com/user-attachments/assets/8dda7943-d2e2-4651-b1b6-075ec5665582" />
+
 - **Directory scanning** — recursively scan folders and index WAV, MP3, FLAC, and Ogg files
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
 - **Full-text search** — fast FTS5-powered search over filenames and metadata
@@ -17,6 +24,9 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 - **Drag to DAW** — drag samples directly from the app into your DAW
 
 ### MIDI File Management
+
+<img width="1680" height="989" alt="MIDI-list" src="https://github.com/user-attachments/assets/7758e236-b832-48d2-8635-45e1a527de1a" />
+
 - **MIDI directory scanning** — index MIDI files alongside audio samples
 - **MIDI playback** — play MIDI files via TiMidity++ (see [MIDI Playback Setup](#midi-playback-setup))
 - **Tag system** — create and assign custom tags to MIDI files
