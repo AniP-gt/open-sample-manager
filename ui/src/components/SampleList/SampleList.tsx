@@ -1,9 +1,10 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState } from "react";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
+import { isTextInputElement } from "../../utils/keyboard";
 
 interface SampleListProps {
   samples: Sample[];
@@ -262,46 +263,96 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
     }
   };
 
-  const filtered = samples.filter((s) => {
-    const matchSearch =
-      s.file_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      s.tags.some((t) => t.toLowerCase().includes(filters.search.toLowerCase()));
-    const matchType =
-      filters.filterType === "all" || s.sample_type === filters.filterType;
-    const matchBpmMin =
-      filters.filterBpmMin === "" ||
-      (s.bpm && s.bpm >= parseFloat(filters.filterBpmMin));
-    const matchBpmMax =
-      filters.filterBpmMax === "" ||
-      (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
-    const matchInstrumentType =
-      filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
-    return matchSearch && matchType && matchBpmMin && matchBpmMax && matchInstrumentType;
-  });
+  const filtered = useMemo(() => {
+    return samples.filter((s) => {
+      const matchSearch =
+        s.file_name.toLowerCase().includes(filters.search.toLowerCase()) ||
+        s.tags.some((t) => t.toLowerCase().includes(filters.search.toLowerCase()));
+      const matchType =
+        filters.filterType === "all" || s.sample_type === filters.filterType;
+      const matchBpmMin =
+        filters.filterBpmMin === "" ||
+        (s.bpm && s.bpm >= parseFloat(filters.filterBpmMin));
+      const matchBpmMax =
+        filters.filterBpmMax === "" ||
+        (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
+      const matchInstrumentType =
+        filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
+      return matchSearch && matchType && matchBpmMin && matchBpmMax && matchInstrumentType;
+    });
+  }, [samples, filters]);
 
-      const sorted = [...filtered].sort((a, b) => {
-        const dir = sort.direction === "asc" ? 1 : -1;
-        switch (sort.field) {
-      case "id":
-        return (a.id - b.id) * dir;
-      case "file_name":
-        return a.file_name.localeCompare(b.file_name) * dir;
-      case "sample_type":
-        return a.sample_type.localeCompare(b.sample_type) * dir;
-      case "instrument_type":
-        return a.instrument_type.localeCompare(b.instrument_type) * dir;
-      case "bpm":
-        return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
-      case "duration":
-        return (a.duration - b.duration) * dir;
-      case "sample_rate":
-        // sample_rate sort no longer exposed in UI headers, but keep logic
-        // so external sort state remains functional.
-        return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
-      default:
-        return 0;
-    }
-  });
+  const sorted = useMemo(() => {
+    const copy = [...filtered];
+    const dir = sort.direction === "asc" ? 1 : -1;
+    copy.sort((a, b) => {
+      switch (sort.field) {
+        case "id":
+          return (a.id - b.id) * dir;
+        case "file_name":
+          return a.file_name.localeCompare(b.file_name) * dir;
+        case "sample_type":
+          return a.sample_type.localeCompare(b.sample_type) * dir;
+        case "instrument_type":
+          return a.instrument_type.localeCompare(b.instrument_type) * dir;
+        case "bpm":
+          return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
+        case "duration":
+          return (a.duration - b.duration) * dir;
+        case "sample_rate":
+          // sample_rate sort no longer exposed in UI headers, but keep logic
+          // so external sort state remains functional.
+          return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
+        default:
+          return 0;
+      }
+    });
+    return copy;
+  }, [filtered, sort]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const listRoot = listRef.current;
+      if (!listRoot) return;
+      const target = event.target as Element | null;
+      if (isTextInputElement(target)) return;
+      if (target && target !== document.body && target !== document.documentElement && !listRoot.contains(target)) {
+        return;
+      }
+      if (sorted.length === 0) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const currentIndex = selectedSample ? sorted.findIndex((s) => s.id === selectedSample.id) : -1;
+      let nextIndex = currentIndex;
+      if (event.key === "ArrowDown") {
+        if (currentIndex < sorted.length - 1) {
+          nextIndex = currentIndex + 1;
+        } else if (currentIndex === -1) {
+          nextIndex = 0;
+        }
+      } else {
+        if (currentIndex > 0) {
+          nextIndex = currentIndex - 1;
+        } else if (currentIndex === -1) {
+          nextIndex = sorted.length - 1;
+        }
+      }
+
+      if (nextIndex < 0 || nextIndex >= sorted.length) return;
+      const nextSample = sorted[nextIndex];
+      if (!nextSample) return;
+      if (!selectedSample || nextSample.id !== selectedSample.id) {
+        onSampleSelect(nextSample);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sorted, selectedSample, onSampleSelect]);
 
   useEffect(() => {
     if (!listRef.current) return;

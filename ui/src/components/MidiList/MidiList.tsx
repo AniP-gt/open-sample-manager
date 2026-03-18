@@ -5,6 +5,7 @@ import type { MidiTagRow } from "../../types/midi";
 import { invoke } from "@tauri-apps/api/core";
 // Reuse the robust extractor implemented for SampleList
 import { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
+import { isTextInputElement } from "../../utils/keyboard";
 import type { Midi } from "../../types/midi";
 
 
@@ -266,6 +267,50 @@ export const MidiList = forwardRef(function MidiList(
     return copy;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredMidis, sortBy, sortDir]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const listRoot = listRef.current;
+      if (!listRoot) return;
+      const target = event.target as Element | null;
+      if (isTextInputElement(target)) return;
+      if (target && target !== document.body && target !== document.documentElement && !listRoot.contains(target)) {
+        return;
+      }
+      if (sortedMidis.length === 0) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const currentIndex = selectedMidi ? sortedMidis.findIndex((m) => m.id === selectedMidi.id) : -1;
+      let nextIndex = currentIndex;
+      if (event.key === "ArrowDown") {
+        if (currentIndex < sortedMidis.length - 1) {
+          nextIndex = currentIndex + 1;
+        } else if (currentIndex === -1) {
+          nextIndex = 0;
+        }
+      } else {
+        if (currentIndex > 0) {
+          nextIndex = currentIndex - 1;
+        } else if (currentIndex === -1) {
+          nextIndex = sortedMidis.length - 1;
+        }
+      }
+
+      if (nextIndex < 0 || nextIndex >= sortedMidis.length) return;
+      const nextMidi = sortedMidis[nextIndex];
+      if (!nextMidi) return;
+      if (!selectedMidi || nextMidi.id !== selectedMidi.id) {
+        onMidiSelect(nextMidi);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedMidi, onMidiSelect, sortedMidis]);
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
