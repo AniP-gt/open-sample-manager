@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import "./styles/global.css";
 import {
   Header,
@@ -97,6 +97,43 @@ export function App() {
     setSelectedMidi: midiState.setSelectedMidi,
     fetchAllMidiPaths: midiState.fetchAllMidiPaths,
   });
+
+  const handleSpaceKey = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.code !== "Space" || event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        if (target.isContentEditable) {
+          return;
+        }
+        if (target.closest("input,textarea,select,button,a,[role='button'],[role='link'],summary")) {
+          return;
+        }
+      }
+
+      let handled = false;
+
+      if (uiState.viewMode === "sample" && sampleState.selected && playerBarRef.current) {
+        playerBarRef.current.play();
+        handled = true;
+      } else if (uiState.viewMode === "midi" && midiState.selectedMidi) {
+        handled = true;
+        void midiState.togglePlaySelectedMidi();
+      }
+
+      if (handled) {
+        event.preventDefault();
+      }
+    },
+    [uiState.viewMode, sampleState.selected, midiState.selectedMidi, midiState.togglePlaySelectedMidi],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleSpaceKey);
+    return () => window.removeEventListener("keydown", handleSpaceKey);
+  }, [handleSpaceKey]);
 
   sampleApiRef.current = {
     allSamplePaths: sampleState.allSamplePaths,
