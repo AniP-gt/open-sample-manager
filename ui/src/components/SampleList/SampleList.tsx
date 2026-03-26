@@ -1,5 +1,5 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useMemo, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
@@ -140,7 +140,7 @@ export type SampleListHandle = {
   focusSelected: () => void;
 };
 
-export const SampleList = forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
+export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
   const {
     samples,
     samplePaths,
@@ -739,7 +739,7 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
           </div>
         )}
         {/* Scroll container reference used to focus selected sample when modal selection occurs */}
-        {sorted.map((s, idx) => (
+        {sorted.map((s) => (
           <div
             key={s.id}
             className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
@@ -789,7 +789,6 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
                   : "2px solid transparent",
               background: selectedSample?.id === s.id ? "#111827" : "transparent",
               alignItems: "center",
-              animation: `fadeIn 0.2s ease ${idx * 0.03}s both`,
               transition: "background 0.1s",
               cursor: samplePaths[s.id] ? "grab" : "default",
             }}
@@ -1024,4 +1023,4 @@ export const SampleList = forwardRef(function SampleList(props: SampleListProps,
       </div>
     </div>
   );
-});
+}));

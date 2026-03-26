@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use crossbeam_channel::unbounded;
 use rayon::prelude::*;
@@ -99,6 +100,20 @@ pub(super) fn scan_with_progress(
         return Err(ManagerError::Db(e));
     }
 
+    // Throttle progress updates to avoid flooding the UI
+    // Emit at most every 100ms (or on first/last file)
+    let throttle_interval = Duration::from_millis(100);
+    let mut last_emit = Instant::now();
+
+    let should_emit = |current: usize, total: usize, last_emit_time: Instant| -> bool {
+        // Always emit for first file, last file, or complete stage
+        if current == 0 || current == total {
+            return true;
+        }
+        // Emit if enough time has passed
+        last_emit_time.elapsed() >= throttle_interval
+    };
+
     for idx in 0..total_files {
         let (file_path, analysis_res) = match rx.recv() {
             Ok(v) => v,
@@ -111,12 +126,16 @@ pub(super) fn scan_with_progress(
             .unwrap_or("unknown")
             .to_string();
 
-        progress(ScanProgress {
-            stage: ScanStage::Analyzing,
-            current: idx + 1,
-            total: total_files,
-            current_file: file_name.clone(),
-        });
+        // Only emit progress if enough time has passed or it's the last file
+        if should_emit(idx + 1, total_files, last_emit) {
+            progress(ScanProgress {
+                stage: ScanStage::Analyzing,
+                current: idx + 1,
+                total: total_files,
+                current_file: file_name.clone(),
+            });
+            last_emit = Instant::now();
+        }
 
         match analysis_res {
             Ok(input) => match insert_sample(conn, &input) {

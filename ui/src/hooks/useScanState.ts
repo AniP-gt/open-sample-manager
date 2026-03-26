@@ -52,8 +52,15 @@ export function useScanState({
     setScanProgress(null);
     setError(null);
 
+    let lastProgressUpdate = 0;
+    const progressThrottleMs = 100;
+
     const unlisten = await listen<ScanProgress>("scan-progress", (event) => {
-      setScanProgress(event.payload);
+      const now = Date.now();
+      if (now - lastProgressUpdate >= progressThrottleMs) {
+        lastProgressUpdate = now;
+        setScanProgress(event.payload);
+      }
     });
 
     try {

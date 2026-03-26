@@ -598,7 +598,7 @@ export const MidiList = forwardRef(function MidiList(
                 <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
                   No results for &apos;{midiSearch}&apos;
                 </div>
-              ) : sortedMidis.map((midi, idx) => {
+              ) : sortedMidis.map((midi) => {
                 const isSelected = selectedMidi?.id === midi.id;
                 return (
                   <div
@@ -644,7 +644,6 @@ export const MidiList = forwardRef(function MidiList(
                       borderLeft: isSelected ? "2px solid #f97316" : "2px solid transparent",
                       background: isSelected ? "#111827" : "transparent",
                       alignItems: "center",
-                      animation: `fadeIn 0.2s ease ${idx * 0.02}s both`,
                       transition: "background 0.1s",
                       cursor: midi.path ? "grab" : "default",
                     }}
