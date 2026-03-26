@@ -31,6 +31,12 @@ interface SampleListProps {
   isLoadingMore?: boolean;
   // Whether more items can be loaded (parent decides based on last fetch length).
   canLoadMore?: boolean;
+  // Called to request previous page when scrolling to the top.
+  onLoadPrevious?: () => Promise<void>;
+  // Whether the parent is currently loading previous items.
+  isLoadingPrevious?: boolean;
+  // Whether previous items can be loaded.
+  canLoadPrevious?: boolean;
 }
 
 // Helper: extract file system paths from a DataTransfer-like object. Exported
@@ -157,6 +163,9 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       onLoadMore,
       isLoadingMore,
       canLoadMore,
+      onLoadPrevious,
+      isLoadingPrevious,
+      canLoadPrevious,
     } = props;
   // Placeholder state retained for future server-side pagination wiring
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -215,6 +224,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   }, []);
   const [isDragOver, setIsDragOver] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
   // Prepared (backend-copied) paths for drag operations. We start preparing on
   // mouse down so the async backend copy has time to finish before the
   // synchronous dragstart handler runs (browsers require setData to be sync).
@@ -394,6 +404,29 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     obs.observe(sentinel);
     return () => obs.disconnect();
   }, [onLoadMore, isLoadingMore, canLoadMore]);
+
+  // IntersectionObserver: load previous when top sentinel becomes visible
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    const root = listRef.current;
+    if (!sentinel || !root || !onLoadPrevious) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (isLoadingPrevious) return;
+            if (canLoadPrevious === false) return;
+            void onLoadPrevious();
+          }
+        }
+      },
+      { root, rootMargin: "200px", threshold: 0.1 }
+    );
+
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [onLoadPrevious, isLoadingPrevious, canLoadPrevious]);
 
   // Optional: wire a simple Load More footer when the parent exposes the
   // dev helper on window.__osm_load_more. This avoids changing many call
@@ -748,6 +781,12 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             </div>
           </div>
         )}
+        {/* Top sentinel for upward scrolling */}
+        <div
+          ref={topSentinelRef}
+          aria-hidden
+          style={{ height: 1, width: "100%", visibility: "hidden" }}
+        />
         {/* Scroll container reference used to focus selected sample when modal selection occurs */}
         {sorted.map((s) => (
           <div
@@ -1001,6 +1040,32 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           aria-hidden
           style={{ height: 1, width: "100%", visibility: "hidden" }}
         />
+
+        <div style={{ padding: "8px 16px", textAlign: "center", color: "#9ca3af" }}>
+          {isLoadingPrevious ? (
+            <div style={{ fontSize: 13 }}>Loading...</div>
+          ) : canLoadPrevious ? (
+            onLoadPrevious ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void onLoadPrevious();
+                }}
+                style={{
+                  background: "#111827",
+                  border: "1px solid #1f2937",
+                  color: "#f97316",
+                  padding: "6px 10px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontFamily: "'Courier New', monospace",
+                }}
+              >
+                Load previous
+              </button>
+            ) : null
+          ) : null}
+        </div>
 
         <div style={{ padding: "8px 16px", textAlign: "center", color: "#9ca3af" }}>
           {isLoadingMore ? (

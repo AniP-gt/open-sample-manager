@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useRef } from "react";
 import "./styles/global.css";
 import {
   Header,
@@ -24,6 +24,7 @@ import { useSampleState } from "./hooks/useSampleState";
 import { useMidiState } from "./hooks/useMidiState";
 import { useScanState } from "./hooks/useScanState";
 import { useUIState } from "./hooks/useUIState";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSettingsStore } from "./store/useSettingsStore";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
@@ -98,42 +99,12 @@ export function App() {
     fetchAllMidiPaths: midiState.fetchAllMidiPaths,
   });
 
-  const handleSpaceKey = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.code !== "Space" || event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (target) {
-        if (target.isContentEditable) {
-          return;
-        }
-        if (target.closest("input,textarea,select,button,a,[role='button'],[role='link'],summary")) {
-          return;
-        }
-      }
-
-      let handled = false;
-
-      if (uiState.viewMode === "sample" && sampleState.selected && playerBarRef.current) {
-        playerBarRef.current.play();
-        handled = true;
-      } else if (uiState.viewMode === "midi" && midiState.selectedMidi) {
-        handled = true;
-        void midiState.togglePlaySelectedMidi();
-      }
-
-      if (handled) {
-        event.preventDefault();
-      }
-    },
-    [uiState.viewMode, sampleState.selected, midiState.selectedMidi, midiState.togglePlaySelectedMidi],
-  );
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleSpaceKey);
-    return () => window.removeEventListener("keydown", handleSpaceKey);
-  }, [handleSpaceKey]);
+  useKeyboardShortcuts({
+    viewMode: uiState.viewMode,
+    sampleState: { selected: sampleState.selected },
+    midiState: { selectedMidi: midiState.selectedMidi, togglePlaySelectedMidi: midiState.togglePlaySelectedMidi },
+    playerBarRef,
+  });
 
   sampleApiRef.current = {
     allSamplePaths: sampleState.allSamplePaths,
@@ -260,18 +231,7 @@ export function App() {
           onFilterChange={sampleState.handleFilterChange}
           onPathSelect={(path) => {
             if (uiState.viewMode === "midi") {
-              const matchingMidi = midiState.midis.find((m) => m.path === path);
-              if (matchingMidi) {
-                void midiState.handleMidiSelect(matchingMidi);
-              } else {
-                void midiState.loadMidiByPath(path);
-              }
-              return;
-            }
-
-            const matching = sampleState.samples.find((s) => sampleState.samplePaths[s.id] === path);
-            if (matching) {
-              void sampleState.handleSampleSelect(matching);
+              void midiState.loadMidiByPath(path);
               return;
             }
 
@@ -321,6 +281,9 @@ export function App() {
             onLoadMore={sampleState.loadMore}
             isLoadingMore={sampleState.isLoadingMore}
             canLoadMore={sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit}
+            onLoadPrevious={sampleState.loadPrevious}
+            isLoadingPrevious={sampleState.isLoadingPrevious}
+            canLoadPrevious={sampleState.canLoadPrevious}
             onTogglePlayback={sampleState.togglePlayback}
           />
         ) : (
@@ -353,6 +316,9 @@ export function App() {
               canLoadMore={
                 midiState.lastFetchCountMidi === null ? true : midiState.lastFetchCountMidi === uiState.pageLimit
               }
+              onLoadPrevious={midiState.loadPreviousMidi}
+              isLoadingPrevious={midiState.isLoadingPreviousMidi}
+              canLoadPrevious={midiState.canLoadPreviousMidi}
               onImportPaths={scanState.handleImportPaths}
               externalIsDragOver={uiState.isDragOver}
               midiSearch={midiState.midiSearch}

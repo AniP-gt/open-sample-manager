@@ -27,6 +27,9 @@ interface MidiListProps {
   onLoadMore?: () => Promise<void> | void;
   isLoadingMore?: boolean;
   canLoadMore?: boolean;
+  onLoadPrevious?: () => Promise<void> | void;
+  isLoadingPrevious?: boolean;
+  canLoadPrevious?: boolean;
   // Called to request that a midi be sent to trash (parent handles actual deletion)
   onTrashMidi?: (id: number) => void;
   // Search
@@ -48,6 +51,9 @@ export const MidiList = forwardRef(function MidiList(
     onLoadMore,
     isLoadingMore,
     canLoadMore,
+    onLoadPrevious,
+    isLoadingPrevious,
+    canLoadPrevious,
     onTrashMidi,
     onImportPaths,
     externalIsDragOver,
@@ -62,6 +68,7 @@ export const MidiList = forwardRef(function MidiList(
 ) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const [toast, setToast] = useState<{ message: string; visible: boolean; midiId: number | null }>({ message: "", visible: false, midiId: null });
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
@@ -362,6 +369,29 @@ export const MidiList = forwardRef(function MidiList(
     return () => obs.disconnect();
   }, [onLoadMore, isLoadingMore, canLoadMore]);
 
+  // IntersectionObserver: load previous when top sentinel becomes visible
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    const root = listRef.current;
+    if (!sentinel || !root || !onLoadPrevious) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (isLoadingPrevious) return;
+            if (canLoadPrevious === false) return;
+            void onLoadPrevious();
+          }
+        }
+      },
+      { root, rootMargin: "0px", threshold: 1.0 }
+    );
+
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [onLoadPrevious, isLoadingPrevious, canLoadPrevious]);
+
   useEffect(() => {
     if (!listRef.current) return;
     const el = listRef.current.querySelector<HTMLTableRowElement>("tr.midi-row.active");
@@ -619,6 +649,12 @@ export const MidiList = forwardRef(function MidiList(
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
+      {/* Top sentinel for upward scrolling */}
+              <div
+                ref={topSentinelRef}
+                aria-hidden
+                style={{ height: 1, width: "100%", visibility: "hidden" }}
+              />
       {/* Right-side detail panel moved to App for consistent layout with Sample DetailPanel */}
               {sortedMidis.length === 0 && midiSearch.trim() ? (
                 <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
@@ -1020,6 +1056,30 @@ export const MidiList = forwardRef(function MidiList(
 
       {/* Sentinel element observed by IntersectionObserver to trigger loading more */}
       <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
+
+      <div style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af" }}>
+        {isLoadingPrevious ? (
+          <div style={{ fontSize: 13 }}>Loading...</div>
+        ) : canLoadPrevious ? (
+          onLoadPrevious ? (
+            <button
+              type="button"
+              onClick={() => { if (onLoadPrevious) void onLoadPrevious(); }}
+              style={{
+                background: "#111827",
+                border: "1px solid #1f2937",
+                color: "#f97316",
+                padding: "6px 10px",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontFamily: "'Courier New', monospace",
+              }}
+            >
+              Load previous
+            </button>
+          ) : null
+        ) : null}
+      </div>
 
       <div style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af" }}>
         {isLoadingMore ? (

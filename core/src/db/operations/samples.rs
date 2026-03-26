@@ -211,6 +211,20 @@ pub fn list_samples_paginated(
     rows.collect()
 }
 
+pub fn list_samples_around_id(
+    conn: &Connection,
+    target_id: i64,
+    limit: usize,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let half = (limit as i64) / 2;
+    let start_id = (target_id - half).max(1);
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples WHERE id >= ?1 ORDER BY id LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(params![start_id, limit as i64], row_to_sample)?;
+    rows.collect()
+}
+
 pub fn get_all_sample_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached("SELECT path FROM samples ORDER BY id")?;
     let rows = stmt.query_map([], |row| row.get(0))?.collect();

@@ -182,9 +182,28 @@ export function useSampleState({
       const row = await invoke<TauriSampleRow | null>("get_sample", { path });
       if (row) {
         const sample = mapRowToSample(row);
-        setSamples((prev) => (prev.some((s) => s.id === sample.id) ? prev : [sample, ...prev]));
-        setSamplePaths((prev) => ({ ...prev, [row.id]: row.path }));
+        // Load samples around this ID to show in list
+        const aroundRows = await invoke<TauriSampleRow[]>("list_samples_around_id", {
+          targetId: row.id,
+          limit: pageLimit,
+        });
+        const nextSamples = aroundRows.map(mapRowToSample);
+        const nextPaths: Record<number, string> = {};
+        aroundRows.forEach((r) => {
+          nextPaths[r.id] = r.path;
+        });
+        const halfWindow = Math.floor(pageLimit / 2);
+        const aroundOffset = Math.max(0, row.id - halfWindow);
+        setSamples(nextSamples);
+        setSamplePaths(nextPaths);
+        setCurrentOffset(aroundOffset);
+        setLastFetchCount(aroundRows.length);
+        setCanLoadMore(aroundRows.length >= pageLimit);
+        setCanLoadPrevious(aroundOffset > 0);
         setSelected(sample);
+        requestAnimationFrame(() => {
+          sampleListRef.current?.focusSelected?.();
+        });
       }
     } catch (e) {
       console.error("Failed to load sample:", e);
@@ -443,23 +462,20 @@ export function useSampleState({
   };
 
   const loadAround = async (targetIndex: number) => {
-    // Load items around targetIndex (±pageLimit/2 items)
-    const halfWindow = Math.floor(pageLimit / 2);
-    const aroundOffset = Math.max(0, targetIndex - halfWindow);
-    
     setIsLoadingMore(true);
     setIsLoadingPrevious(true);
     try {
-      const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
-        query: filters.search || null,
+      const rows = await invoke<TauriSampleRow[]>("list_samples_around_id", {
+        targetId: targetIndex,
         limit: pageLimit,
-        offset: aroundOffset,
       });
       const nextSamples = rows.map(mapRowToSample);
       const nextPaths: Record<number, string> = {};
       rows.forEach((row) => {
         nextPaths[row.id] = row.path;
       });
+      const halfWindow = Math.floor(pageLimit / 2);
+      const aroundOffset = Math.max(0, targetIndex - halfWindow);
       setSamples(nextSamples);
       setSamplePaths(nextPaths);
       setCurrentOffset(aroundOffset);

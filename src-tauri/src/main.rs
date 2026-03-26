@@ -123,6 +123,16 @@ fn list_samples_paginated(
 }
 
 #[tauri::command]
+fn list_samples_around_id(
+    target_id: i64,
+    limit: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.list_samples_around_id(target_id, limit).map_err(CommandError::from)
+}
+
+#[tauri::command]
 fn get_sample(
     path: String,
     state: tauri::State<'_, AppState>,
@@ -536,6 +546,7 @@ fn main() {
         // currently ignores the `query` parameter and returns a LIMIT/OFFSET
         // paginated listing. Future change will wire server-side FTS filtering.
         list_samples_paginated,
+        list_samples_around_id,
         search_by_embedding,
         get_sample,
         list_all_sample_paths,
@@ -560,6 +571,7 @@ fn main() {
         stop_midi,
         scan_midi_directory,
         list_midis_paginated,
+        list_midis_around_id,
         get_all_midi_paths,
         get_midi,
         delete_midi,
@@ -952,6 +964,17 @@ fn list_midis_paginated(
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
     let manager = open_manager(state.db_path.as_deref())?;
     manager.list_midis_paginated(limit, offset).map_err(CommandError::from)
+}
+
+/// List MIDI files around a specific ID.
+#[tauri::command]
+fn list_midis_around_id(
+    target_id: i64,
+    limit: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
+    let manager = open_manager(state.db_path.as_deref())?;
+    manager.list_midis_around_id(target_id, limit).map_err(CommandError::from)
 }
 
 /// Get all MIDI file paths.

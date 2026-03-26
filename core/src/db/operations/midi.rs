@@ -89,6 +89,21 @@ pub fn list_midis_paginated(
     rows
 }
 
+pub fn list_midis_around_id(
+    conn: &Connection,
+    target_id: i64,
+    limit: usize,
+) -> Result<Vec<MidiRow>, rusqlite::Error> {
+    let half = (limit as i64) / 2;
+    let start_id = (target_id - half).max(1);
+    let sql = format!("{} WHERE m.id >= ?1 ORDER BY m.id LIMIT ?2", MIDI_SELECT);
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt
+        .query_map(params![start_id, limit as i64], row_to_midi)?
+        .collect();
+    rows
+}
+
 pub fn get_all_midi_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached("SELECT path FROM midis ORDER BY id")?;
     let rows = stmt.query_map([], |row| row.get(0))?.collect();

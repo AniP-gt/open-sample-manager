@@ -33,6 +33,10 @@ export function useMidiState({
   const [midiScannedPaths, setMidiScannedPaths] = useState<string[]>([]);
   const [allMidiPaths, setAllMidiPaths] = useState<string[]>([]);
   const [isLoadingMoreMidi, setIsLoadingMoreMidi] = useState(false);
+  const [isLoadingPreviousMidi, setIsLoadingPreviousMidi] = useState(false);
+  const [currentMidiOffset, setCurrentMidiOffset] = useState(0);
+  const [canLoadMoreMidi, setCanLoadMoreMidi] = useState(true);
+  const [canLoadPreviousMidi, setCanLoadPreviousMidi] = useState(false);
   const [lastFetchCountMidi, setLastFetchCountMidi] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrashMidiId, setPendingTrashMidiId] = useState<number | null>(null);
@@ -50,11 +54,33 @@ export function useMidiState({
     try {
       const row = await invoke<Midi | null>("get_midi", { path });
       if (!row) return;
-      setMidis((prev) => (prev.some((m) => m.id === row.id) ? prev : [row, ...prev]));
+      const aroundRows = await invoke<Midi[]>("list_midis_around_id", {
+        targetId: row.id,
+        limit: pageLimit,
+      });
+      setMidis(aroundRows);
+      const halfWindow = Math.floor(pageLimit / 2);
+      const aroundOffset = Math.max(0, row.id - halfWindow);
+      setCurrentMidiOffset(aroundOffset);
+      setLastFetchCountMidi(aroundRows.length);
+      setCanLoadMoreMidi(aroundRows.length >= pageLimit);
+      setCanLoadPreviousMidi(aroundOffset > 0);
       setSelectedMidi(row);
       requestAnimationFrame(() => {
         midiListRef.current?.focusSelected?.();
       });
+      if (autoPlayOnSelect && row.path) {
+        if (isMidiPlaying) {
+          await invoke("stop_midi").catch(() => {});
+          setIsMidiPlaying(false);
+        }
+        try {
+          await invoke("play_midi", { path: row.path });
+          setIsMidiPlaying(true);
+        } catch {
+          setIsMidiPlaying(false);
+        }
+      }
     } catch (e) {
       console.error("Failed to load MIDI:", e);
     }
@@ -66,10 +92,16 @@ export function useMidiState({
         const rows = await invoke<Midi[]>("search_midis", { query });
         setMidis(rows);
         setLastFetchCountMidi(rows.length);
+        setCurrentMidiOffset(0);
+        setCanLoadMoreMidi(false);
+        setCanLoadPreviousMidi(false);
       } else {
         const rows = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
         setMidis(rows);
         setLastFetchCountMidi(rows.length);
+        setCurrentMidiOffset(0);
+        setCanLoadMoreMidi(rows.length >= pageLimit);
+        setCanLoadPreviousMidi(false);
       }
     } catch (e) {
       console.error("MIDI search failed:", e);
@@ -147,22 +179,75 @@ export function useMidiState({
   };
 
   const loadMoreMidi = async () => {
+    if (isLoadingMoreMidi || !canLoadMoreMidi) return;
     setIsLoadingMoreMidi(true);
     try {
+      const nextOffset = currentMidiOffset + midis.length;
       const rows = await invoke<Midi[]>("list_midis_paginated", {
         limit: pageLimit,
-        offset: midis.length,
+        offset: nextOffset,
       });
       setMidis((prev) => {
         const existing = new Set(prev.map((m) => m.id));
         const fresh = rows.filter((r) => !existing.has(r.id));
         return [...prev, ...fresh];
       });
+      setCurrentMidiOffset(nextOffset);
       setLastFetchCountMidi(rows.length);
+      setCanLoadMoreMidi(rows.length >= pageLimit);
+      setCanLoadPreviousMidi(currentMidiOffset > 0);
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
       setIsLoadingMoreMidi(false);
+    }
+  };
+
+  const loadPreviousMidi = async () => {
+    if (isLoadingPreviousMidi || !canLoadPreviousMidi || currentMidiOffset === 0) return;
+    setIsLoadingPreviousMidi(true);
+    try {
+      const prevOffset = Math.max(0, currentMidiOffset - pageLimit);
+      const rows = await invoke<Midi[]>("list_midis_paginated", {
+        limit: pageLimit,
+        offset: prevOffset,
+      });
+      setMidis((prev) => {
+        const existing = new Set(prev.map((m) => m.id));
+        const fresh = rows.filter((r) => !existing.has(r.id));
+        return [...fresh, ...prev];
+      });
+      setCurrentMidiOffset(prevOffset);
+      setLastFetchCountMidi(rows.length);
+      setCanLoadPreviousMidi(prevOffset > 0);
+      setCanLoadMoreMidi(true);
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setIsLoadingPreviousMidi(false);
+    }
+  };
+
+  const loadAroundMidi = async (targetIndex: number) => {
+    setIsLoadingMoreMidi(true);
+    setIsLoadingPreviousMidi(true);
+    try {
+      const rows = await invoke<Midi[]>("list_midis_around_id", {
+        targetId: targetIndex,
+        limit: pageLimit,
+      });
+      const halfWindow = Math.floor(pageLimit / 2);
+      const aroundOffset = Math.max(0, targetIndex - halfWindow);
+      setMidis(rows);
+      setCurrentMidiOffset(aroundOffset);
+      setLastFetchCountMidi(rows.length);
+      setCanLoadMoreMidi(rows.length >= pageLimit);
+      setCanLoadPreviousMidi(aroundOffset > 0);
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setIsLoadingMoreMidi(false);
+      setIsLoadingPreviousMidi(false);
     }
   };
 
@@ -273,6 +358,9 @@ export function useMidiState({
     midiScannedPaths,
     allMidiPaths,
     isLoadingMoreMidi,
+    isLoadingPreviousMidi,
+    canLoadMoreMidi,
+    canLoadPreviousMidi,
     lastFetchCountMidi,
     setLastFetchCountMidi,
     confirmOpen,
@@ -289,6 +377,8 @@ export function useMidiState({
     handleDeleteMidiTag,
     handleUpdateMidiTag,
     loadMoreMidi,
+    loadPreviousMidi,
+    loadAroundMidi,
     handleMidiSelect,
     togglePlaySelectedMidi,
   };

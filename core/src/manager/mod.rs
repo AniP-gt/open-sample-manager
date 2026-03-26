@@ -30,8 +30,8 @@ use rusqlite::Connection;
 
 use crate::analysis::decoder::DecodeError;
 use crate::db::operations::{
-    get_sample_by_path, search_samples, EmbeddingSearchResult, InstrumentTypeRow, MidiRow,
-    MidiTagRow, SampleInput, SampleRow,
+    get_sample_by_path, list_midis_around_id, search_samples, EmbeddingSearchResult,
+    InstrumentTypeRow, MidiRow, MidiTagRow, SampleInput, SampleRow,
 };
 use crate::db::schema::init_database;
 
@@ -101,15 +101,21 @@ impl std::error::Error for ManagerError {
 }
 
 impl From<rusqlite::Error> for ManagerError {
-    fn from(e: rusqlite::Error) -> Self { ManagerError::Db(e) }
+    fn from(e: rusqlite::Error) -> Self {
+        ManagerError::Db(e)
+    }
 }
 
 impl From<DecodeError> for ManagerError {
-    fn from(e: DecodeError) -> Self { ManagerError::Decode(e) }
+    fn from(e: DecodeError) -> Self {
+        ManagerError::Decode(e)
+    }
 }
 
 impl From<std::io::Error> for ManagerError {
-    fn from(e: std::io::Error) -> Self { ManagerError::Io(e) }
+    fn from(e: std::io::Error) -> Self {
+        ManagerError::Io(e)
+    }
 }
 
 /// High-level manager that composes scanner, analysis, and database modules.
@@ -180,12 +186,35 @@ impl SampleManager {
         Ok(search_samples(&self.conn, query)?)
     }
 
-    pub fn list_samples_paginated(&self, limit: usize, offset: usize) -> Result<Vec<SampleRow>, ManagerError> {
-        Ok(crate::db::operations::list_samples_paginated(&self.conn, limit, offset)?)
+    pub fn list_samples_paginated(
+        &self,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<SampleRow>, ManagerError> {
+        Ok(crate::db::operations::list_samples_paginated(
+            &self.conn, limit, offset,
+        )?)
     }
 
-    pub fn search_paginated(&self, query: &str, limit: usize, offset: usize) -> Result<Vec<SampleRow>, ManagerError> {
-        Ok(crate::db::operations::search_samples_paginated(&self.conn, query, limit, offset)?)
+    pub fn list_samples_around_id(
+        &self,
+        target_id: i64,
+        limit: usize,
+    ) -> Result<Vec<SampleRow>, ManagerError> {
+        Ok(crate::db::operations::list_samples_around_id(
+            &self.conn, target_id, limit,
+        )?)
+    }
+
+    pub fn search_paginated(
+        &self,
+        query: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<SampleRow>, ManagerError> {
+        Ok(crate::db::operations::search_samples_paginated(
+            &self.conn, query, limit, offset,
+        )?)
     }
 
     pub fn get_sample(&self, path: &str) -> Result<Option<SampleRow>, ManagerError> {
@@ -210,7 +239,11 @@ impl SampleManager {
         Ok(new_path.to_string())
     }
 
-    pub fn search_by_embedding(&self, query: &[f32], k: usize) -> Result<Vec<EmbeddingSearchResult>, ManagerError> {
+    pub fn search_by_embedding(
+        &self,
+        query: &[f32],
+        k: usize,
+    ) -> Result<Vec<EmbeddingSearchResult>, ManagerError> {
         crate::db::operations::search_by_embedding(&self.conn, query, k).map_err(ManagerError::Db)
     }
 
@@ -265,15 +298,21 @@ impl SampleManager {
     }
 
     pub fn add_instrument_type(&self, name: &str) -> Result<i64, ManagerError> {
-        Ok(crate::db::operations::insert_instrument_type(&self.conn, name)?)
+        Ok(crate::db::operations::insert_instrument_type(
+            &self.conn, name,
+        )?)
     }
 
     pub fn delete_instrument_type(&self, id: i64) -> Result<usize, ManagerError> {
-        Ok(crate::db::operations::delete_instrument_type(&self.conn, id)?)
+        Ok(crate::db::operations::delete_instrument_type(
+            &self.conn, id,
+        )?)
     }
 
     pub fn update_instrument_type(&self, id: i64, name: &str) -> Result<usize, ManagerError> {
-        Ok(crate::db::operations::update_instrument_type(&self.conn, id, name)?)
+        Ok(crate::db::operations::update_instrument_type(
+            &self.conn, id, name,
+        )?)
     }
 }
 
@@ -284,8 +323,20 @@ impl SampleManager {
         midi::scan_midi_directory(&self.conn, path.as_ref())
     }
 
-    pub fn list_midis_paginated(&self, limit: usize, offset: usize) -> Result<Vec<MidiRow>, ManagerError> {
+    pub fn list_midis_paginated(
+        &self,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<MidiRow>, ManagerError> {
         midi::list_midis_paginated(&self.conn, limit, offset)
+    }
+
+    pub fn list_midis_around_id(
+        &self,
+        target_id: i64,
+        limit: usize,
+    ) -> Result<Vec<MidiRow>, ManagerError> {
+        Ok(list_midis_around_id(&self.conn, target_id, limit)?)
     }
 
     pub fn get_all_midi_paths(&self) -> Result<Vec<String>, ManagerError> {
