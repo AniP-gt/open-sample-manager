@@ -321,6 +321,7 @@ export function App() {
             onLoadMore={sampleState.loadMore}
             isLoadingMore={sampleState.isLoadingMore}
             canLoadMore={sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit}
+            onTogglePlayback={sampleState.togglePlayback}
           />
         ) : (
           <>
@@ -356,6 +357,9 @@ export function App() {
               externalIsDragOver={uiState.isDragOver}
               midiSearch={midiState.midiSearch}
               onMidiSearchChange={midiState.setMidiSearch}
+              onTogglePlayback={() => {
+                void midiState.togglePlaySelectedMidi();
+              }}
             />
 
             {midiState.selectedMidi && uiState.viewMode === "midi" && (

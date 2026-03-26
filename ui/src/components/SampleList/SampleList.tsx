@@ -18,6 +18,7 @@ interface SampleListProps {
   onDeleteSample: (id: number) => void;
   onTrashSample?: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
+  onTogglePlayback?: () => void;
   // Called when files/folders are dropped onto the list. Paths will be
   // best-effort resolved from the DataTransfer payload (file.path when
   // available, otherwise file names or URI list entries).
@@ -141,21 +142,22 @@ export type SampleListHandle = {
 };
 
 export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
-  const {
-    samples,
-    samplePaths,
-    filters,
-    sort,
-    selectedSample,
-    onSampleSelect,
-    onFilterChange,
-    onSortChange,
-    onTrashSample,
-    onTypeClick,
-    onLoadMore,
-    isLoadingMore,
-    canLoadMore,
-  } = props;
+    const {
+      samples,
+      samplePaths,
+      filters,
+      sort,
+      selectedSample,
+      onSampleSelect,
+      onFilterChange,
+      onSortChange,
+      onTrashSample,
+      onTypeClick,
+      onTogglePlayback,
+      onLoadMore,
+      isLoadingMore,
+      canLoadMore,
+    } = props;
   // Placeholder state retained for future server-side pagination wiring
   const listRef = useRef<HTMLDivElement | null>(null);
   // Column widths as strings so we can mix px and flexible units like '1fr'.
@@ -312,13 +314,21 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      const key = event.key;
+      if (key !== "ArrowDown" && key !== "ArrowUp" && key !== " ") return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       const listRoot = listRef.current;
       if (!listRoot) return;
       const target = event.target as Element | null;
       if (isTextInputElement(target)) return;
       if (target && target !== document.body && target !== document.documentElement && !listRoot.contains(target)) {
+        return;
+      }
+      if (key === " ") {
+        if (!selectedSample || !onTogglePlayback) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onTogglePlayback();
         return;
       }
       if (sorted.length === 0) return;
@@ -352,7 +362,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [sorted, selectedSample, onSampleSelect]);
+  }, [sorted, selectedSample, onSampleSelect, onTogglePlayback]);
 
   useEffect(() => {
     if (!listRef.current) return;

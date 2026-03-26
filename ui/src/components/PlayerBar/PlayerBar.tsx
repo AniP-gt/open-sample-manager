@@ -14,6 +14,7 @@ interface PlayerBarProps {
 export interface PlayerBarHandle {
   stop: () => void;
   play: () => void;
+  isPlaying: boolean;
 }
 
 export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose, autoPlay }: PlayerBarProps, ref) {
@@ -120,21 +121,26 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   };
 
   // Expose stop method to parent
-  useImperativeHandle(ref, () => ({
-    stop: () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        setPlaying(false);
-        setCurrentTime(0);
-      }
-    },
-    play: () => {
-      if (audioRef.current && !playing) {
-        audioRef.current.play().catch(() => {});
-      }
-    },
-  }));
+  useImperativeHandle(
+    ref,
+    () => ({
+      stop: () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          setPlaying(false);
+          setCurrentTime(0);
+        }
+      },
+      play: () => {
+        if (audioRef.current && !playing) {
+          audioRef.current.play().catch(() => {});
+        }
+      },
+      isPlaying: playing,
+    }),
+    [playing],
+  );
 
   return (
     <div

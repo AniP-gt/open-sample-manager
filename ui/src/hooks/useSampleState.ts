@@ -42,7 +42,11 @@ export function useSampleState({
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);
   const [allSamplePaths, setAllSamplePaths] = useState<string[]>([]);
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
+  const [currentOffset, setCurrentOffset] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
+  const [canLoadMore, setCanLoadMore] = useState(true);
+  const [canLoadPrevious, setCanLoadPrevious] = useState(false);
   const [classificationModalOpen, setClassificationModalOpen] = useState(false);
   const [classificationSample, setClassificationSample] = useState<Sample | null>(null);
   const [editInstrumentType, setEditInstrumentType] = useState<string>("");
@@ -72,7 +76,10 @@ export function useSampleState({
 
     setSamplePaths(nextPaths);
     setSamples(nextSamples);
+    setCurrentOffset(0);
     setLastFetchCount(rows.length);
+    setCanLoadMore(rows.length >= pageLimit);
+    setCanLoadPrevious(false);
 
     const uniqueDirs = new Set<string>();
     rows.forEach((row) => {
@@ -156,6 +163,17 @@ export function useSampleState({
     } catch (e) {
       handleInvokeError(e);
       setSelected(sample);
+    }
+  };
+
+  const togglePlayback = () => {
+    if (!selected) return;
+    const playerBar = playerBarRef.current;
+    if (!playerBar) return;
+    if (playerBar.isPlaying) {
+      playerBar.stop();
+    } else {
+      playerBar.play();
     }
   };
 
@@ -358,12 +376,14 @@ export function useSampleState({
   };
 
   const loadMore = async () => {
+    if (isLoadingMore || !canLoadMore) return;
     setIsLoadingMore(true);
     try {
+      const nextOffset = currentOffset + samples.length;
       const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
         query: filters.search || null,
         limit: pageLimit,
-        offset: samples.length,
+        offset: nextOffset,
       });
       const nextSamples = rows.map(mapRowToSample);
       setSamples((prev) => {
@@ -379,10 +399,78 @@ export function useSampleState({
         return copy;
       });
       setLastFetchCount(rows.length);
+      setCanLoadMore(rows.length >= pageLimit);
+      setCanLoadPrevious(currentOffset > 0);
     } catch (e) {
       handleInvokeError(e);
     } finally {
       setIsLoadingMore(false);
+    }
+  };
+
+  const loadPrevious = async () => {
+    if (isLoadingPrevious || !canLoadPrevious || currentOffset === 0) return;
+    setIsLoadingPrevious(true);
+    try {
+      const prevOffset = Math.max(0, currentOffset - pageLimit);
+      const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
+        query: filters.search || null,
+        limit: pageLimit,
+        offset: prevOffset,
+      });
+      const nextSamples = rows.map(mapRowToSample);
+      setSamples((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const fresh = nextSamples.filter((s) => !existingIds.has(s.id));
+        return [...fresh, ...prev];
+      });
+      setSamplePaths((prev) => {
+        const copy = { ...prev } as Record<number, string>;
+        rows.forEach((r) => {
+          copy[r.id] = r.path;
+        });
+        return copy;
+      });
+      setCurrentOffset(prevOffset);
+      setCanLoadPrevious(prevOffset > 0);
+      setCanLoadMore(true);
+      setLastFetchCount(rows.length);
+    } catch (e) {
+      handleInvokeError(e);
+    } finally {
+      setIsLoadingPrevious(false);
+    }
+  };
+
+  const loadAround = async (targetIndex: number) => {
+    // Load items around targetIndex (±pageLimit/2 items)
+    const halfWindow = Math.floor(pageLimit / 2);
+    const aroundOffset = Math.max(0, targetIndex - halfWindow);
+    
+    setIsLoadingMore(true);
+    setIsLoadingPrevious(true);
+    try {
+      const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
+        query: filters.search || null,
+        limit: pageLimit,
+        offset: aroundOffset,
+      });
+      const nextSamples = rows.map(mapRowToSample);
+      const nextPaths: Record<number, string> = {};
+      rows.forEach((row) => {
+        nextPaths[row.id] = row.path;
+      });
+      setSamples(nextSamples);
+      setSamplePaths(nextPaths);
+      setCurrentOffset(aroundOffset);
+      setLastFetchCount(rows.length);
+      setCanLoadMore(rows.length >= pageLimit);
+      setCanLoadPrevious(aroundOffset > 0);
+    } catch (e) {
+      handleInvokeError(e);
+    } finally {
+      setIsLoadingMore(false);
+      setIsLoadingPrevious(false);
     }
   };
 
@@ -422,6 +510,9 @@ export function useSampleState({
     allSamplePaths,
     lastFetchCount,
     isLoadingMore,
+    isLoadingPrevious,
+    canLoadMore,
+    canLoadPrevious,
     classificationModalOpen,
     setClassificationModalOpen,
     classificationSample,
@@ -454,7 +545,10 @@ export function useSampleState({
     handleDeleteInstrumentType,
     handleUpdateInstrumentType,
     loadMore,
+    loadPrevious,
+    loadAround,
     setConfirmOpen,
     setPendingTrashSampleId,
+    togglePlayback,
   };
 }

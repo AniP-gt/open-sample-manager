@@ -32,6 +32,7 @@ interface MidiListProps {
   // Search
   midiSearch?: string;
   onMidiSearchChange?: (query: string) => void;
+  onTogglePlayback?: () => void;
 }
 
 export type MidiListHandle = {
@@ -39,7 +40,24 @@ export type MidiListHandle = {
 };
 
 export const MidiList = forwardRef(function MidiList(
-  { midis, selectedMidi, onMidiSelect, onTagBadgeClick, onLoadMore, isLoadingMore, canLoadMore, onTrashMidi, onImportPaths, externalIsDragOver, midiTags = [], onTagFilterChange, tagFilterId, midiSearch = "", onMidiSearchChange = () => {} }: MidiListProps,
+  {
+    midis,
+    selectedMidi,
+    onMidiSelect,
+    onTagBadgeClick,
+    onLoadMore,
+    isLoadingMore,
+    canLoadMore,
+    onTrashMidi,
+    onImportPaths,
+    externalIsDragOver,
+    midiTags = [],
+    onTagFilterChange,
+    tagFilterId,
+    midiSearch = "",
+    onMidiSearchChange = () => {},
+    onTogglePlayback,
+  }: MidiListProps,
   ref: React.Ref<MidiListHandle>,
 ) {
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -270,13 +288,21 @@ export const MidiList = forwardRef(function MidiList(
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      const key = event.key;
+      if (key !== "ArrowDown" && key !== "ArrowUp" && key !== " ") return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       const listRoot = listRef.current;
       if (!listRoot) return;
       const target = event.target as Element | null;
       if (isTextInputElement(target)) return;
       if (target && target !== document.body && target !== document.documentElement && !listRoot.contains(target)) {
+        return;
+      }
+      if (key === " ") {
+        if (!selectedMidi || !onTogglePlayback) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onTogglePlayback();
         return;
       }
       if (sortedMidis.length === 0) return;
@@ -310,7 +336,7 @@ export const MidiList = forwardRef(function MidiList(
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedMidi, onMidiSelect, sortedMidis]);
+  }, [selectedMidi, onMidiSelect, sortedMidis, onTogglePlayback]);
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
