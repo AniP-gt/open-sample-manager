@@ -201,9 +201,10 @@ export function useSampleState({
         setCanLoadMore(aroundRows.length >= pageLimit);
         setCanLoadPrevious(aroundOffset > 0);
         setSelected(sample);
-        requestAnimationFrame(() => {
+        // Use setTimeout to ensure React has completed re-render before focusing
+        setTimeout(() => {
           sampleListRef.current?.focusSelected?.();
-        });
+        }, 0);
       }
     } catch (e) {
       console.error("Failed to load sample:", e);

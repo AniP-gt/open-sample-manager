@@ -386,13 +386,14 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
 
   const lastScrolledRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!listRef.current || selectedSample === null) return;
+    if (!scrollRef.current || selectedSample === null) return;
+    const targetIndex = sorted.findIndex((s) => s.id === selectedSample.id);
+    if (targetIndex === -1) return;
     if (lastScrolledRef.current === selectedSample.id) return;
     lastScrolledRef.current = selectedSample.id;
 
-    const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row[data-index="${sorted.findIndex(s => s.id === selectedSample.id)}"]`);
-    if (el) el.scrollIntoView({ block: "center", behavior: "auto" });
-  }, [selectedSample, sorted]);
+    virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" });
+  }, [selectedSample, sorted, virtualizer]);
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
@@ -461,13 +462,14 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
 
   useImperativeHandle(ref, () => ({
     focusSelected: () => {
-      if (!listRef.current) return;
-      const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row.active`);
+      if (!selectedSample) return;
+      const targetIndex = sorted.findIndex((s) => s.id === selectedSample.id);
+      if (targetIndex === -1) return;
+      virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" });
+      const el = listRef.current?.querySelector<HTMLDivElement>(`.sample-row[data-index="${targetIndex}"]`);
       if (!el) return;
-      // Make the element focusable, focus it, then remove the tabindex attribute.
       const prevTab = el.getAttribute("tabindex");
       el.setAttribute("tabindex", "-1");
-      // Ensure DOM painted
       requestAnimationFrame(() => {
         try {
           (el as HTMLElement).focus();
@@ -480,7 +482,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         }
       });
     },
-  }));
+  }), [sorted, virtualizer, selectedSample]);
 
   return (
     <div
