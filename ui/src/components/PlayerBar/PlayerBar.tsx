@@ -78,9 +78,12 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
         audio.onloadedmetadata = () => setDuration(audio.duration);
         audioRef.current = audio;
         setLoading(false);
-        if (autoPlay) {
-          audio.play().catch(() => {});
-        }
+        const autoPlayTimeout = setTimeout(() => {
+          if (autoPlay && audioRef.current) {
+            audioRef.current.play().catch(() => {});
+          }
+        }, 300);
+        return () => clearTimeout(autoPlayTimeout);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         const isFileNotFound = 

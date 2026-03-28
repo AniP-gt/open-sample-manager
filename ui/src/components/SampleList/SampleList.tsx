@@ -1,6 +1,7 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useMemo, memo } from "react";
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useMemo, memo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
@@ -167,8 +168,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       isLoadingPrevious,
       canLoadPrevious,
     } = props;
-  // Placeholder state retained for future server-side pagination wiring
   const listRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   // Column widths as strings so we can mix px and flexible units like '1fr'.
   // Widen DUR (index 5) and the actions column (index 6) to avoid overlap
   // between the duration text and action buttons (emoji icons).
@@ -322,6 +323,15 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     return copy;
   }, [filtered, sort]);
 
+  const rowHeight = 48;
+
+  const virtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: useCallback(() => scrollRef.current, []),
+    estimateSize: useCallback(() => rowHeight, []),
+    overscan: 20,
+  });
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
@@ -374,12 +384,15 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [sorted, selectedSample, onSampleSelect, onTogglePlayback]);
 
+  const lastScrolledRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!listRef.current) return;
-    // If a selectedSample exists, ensure it's scrolled into view.
-    const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row.active`);
-    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [selectedSample]);
+    if (!listRef.current || selectedSample === null) return;
+    if (lastScrolledRef.current === selectedSample.id) return;
+    lastScrolledRef.current = selectedSample.id;
+
+    const el = listRef.current.querySelector<HTMLDivElement>(`.sample-row[data-index="${sorted.findIndex(s => s.id === selectedSample.id)}"]`);
+    if (el) el.scrollIntoView({ block: "center", behavior: "auto" });
+  }, [selectedSample, sorted]);
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
@@ -744,14 +757,13 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         style={{
           flex: 1,
           overflowY: "auto",
-          // Add bottom padding when a player/waveform is visible so the
-          // last list item can be scrolled fully into view instead of
-          // being clipped by the fixed-position PlayerBar at the bottom.
-          // PlayerBar uses a fixed height of 160px; match that here.
           paddingBottom: selectedSample ? "160px" : undefined,
           boxSizing: "border-box",
         }}
-        ref={listRef}
+        ref={(el: HTMLDivElement | null) => {
+          listRef.current = el;
+          scrollRef.current = el;
+        }}
       >
         {(props.externalIsDragOver || isDragOver) && (
         <div
@@ -787,50 +799,25 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           aria-hidden
           style={{ height: 1, width: "100%", visibility: "hidden" }}
         />
-        {/* Scroll container reference used to focus selected sample when modal selection occurs */}
-        {sorted.map((s) => (
+        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const s = sorted[virtualRow.index];
+          return (
           <div
             key={s.id}
-            className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
-            draggable={!!samplePaths[s.id]}
-            onMouseDown={(e) => {
-              // Pre-warm the prepared path on mousedown so it may be ready
-              // by the time onDragStart fires.
-              if (samplePaths[s.id] && e.button === 0 && !preparedPathsRef.current[s.id]) {
-                void invoke("prepare_drag_file", { path: samplePaths[s.id] }).then((res) => {
-                  if (typeof res === "string" && res) preparedPathsRef.current[s.id] = res;
-                }).catch(() => {});
-              }
+            data-index={virtualRow.index}
+            ref={(el: HTMLDivElement | null) => {
+              if (el) virtualizer.measureElement(el);
             }}
-            onDragStart={(e) => {
-              const originalPath = samplePaths[s.id];
-              if (!originalPath) { e.preventDefault(); return; }
-              // Prevent the HTML5 drag session from taking over.
-              // Logic Pro (and other native macOS apps) require a real
-              // NSDraggingSession — HTML5 dataTransfer payloads are ignored.
-              e.preventDefault();
-              // Use pre-warmed (Desktop-copied) path if ready; fallback to original.
-              const path = preparedPathsRef.current[s.id] || originalPath;
-              void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
-                console.warn("[dragout-debug] startDrag failed:", err);
-              });
-              // Schedule cleanup of the prepared file after the native drag has
-              // had a chance to complete. Use a short timeout to avoid racing
-              // with the host app accepting the file. If no prepared path exists
-              // the delete_file invoke is skipped.
-              setTimeout(() => {
-                const prepared = preparedPathsRef.current[s.id];
-                if (prepared) {
-                  void invoke("delete_file", { path: prepared }).catch(() => {});
-                  delete preparedPathsRef.current[s.id];
-                }
-              }, 1500);
-            }}
-            onClick={() => onSampleSelect(s)}
             style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${virtualRow.start}px)`,
               display: "grid",
               gridTemplateColumns: colWidths.join(" "),
-              padding: "8px 16px",
+              padding: "6px 12px",
               borderBottom: "1px solid #0d0f16",
               borderLeft:
                 selectedSample?.id === s.id
@@ -841,6 +828,32 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
               transition: "background 0.1s",
               cursor: samplePaths[s.id] ? "grab" : "default",
             }}
+            className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
+            draggable={!!samplePaths[s.id]}
+            onMouseDown={(e) => {
+              if (samplePaths[s.id] && e.button === 0 && !preparedPathsRef.current[s.id]) {
+                void invoke("prepare_drag_file", { path: samplePaths[s.id] }).then((res) => {
+                  if (typeof res === "string" && res) preparedPathsRef.current[s.id] = res;
+                }).catch(() => {});
+              }
+            }}
+            onDragStart={(e) => {
+              const originalPath = samplePaths[s.id];
+              if (!originalPath) { e.preventDefault(); return; }
+              e.preventDefault();
+              const path = preparedPathsRef.current[s.id] || originalPath;
+              void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
+                console.warn("[dragout-debug] startDrag failed:", err);
+              });
+              setTimeout(() => {
+                const prepared = preparedPathsRef.current[s.id];
+                if (prepared) {
+                  void invoke("delete_file", { path: prepared }).catch(() => {});
+                  delete preparedPathsRef.current[s.id];
+                }
+              }, 1500);
+            }}
+            onClick={() => onSampleSelect(s)}
           >
             <div style={{ fontSize: "14px", color: "#374151" }}>{s.id}</div>
             <div>
@@ -1033,15 +1046,16 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
               </button>
             </div>
           </div>
-        ))}
-        {/* Sentinel element observed by IntersectionObserver to trigger loading more */}
+          );
+        })}
+        </div>
         <div
           ref={sentinelRef}
           aria-hidden
           style={{ height: 1, width: "100%", visibility: "hidden" }}
         />
 
-        <div style={{ padding: "8px 16px", textAlign: "center", color: "#9ca3af" }}>
+        <div style={{ padding: "6px 12px", textAlign: "center", color: "#9ca3af" }}>
           {isLoadingPrevious ? (
             <div style={{ fontSize: 13 }}>Loading...</div>
           ) : canLoadPrevious ? (

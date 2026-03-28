@@ -15,7 +15,7 @@ export function useUIState({ getHandleImportPaths }: UseUIStateParams) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<"sample" | "midi">("sample");
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
-  const pageLimit = 20;
+  const pageLimit = 100;
 
   const handleViewModeChange = async (
     mode: "sample" | "midi",
