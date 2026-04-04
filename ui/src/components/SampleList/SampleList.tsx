@@ -180,15 +180,25 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
 
-  useEffect(() => {
+  // Column resize: only attach document listeners while actively dragging
+  const resizeHandlersRef = useRef<{ onMove: (e: MouseEvent) => void; onUp: () => void } | null>(null);
+  const startColumnResize = useCallback((index: number, startX: number, startWidth: number) => {
+    activeResize.current = { index, startX, startWidth, wasDragging: false };
+
+    // Remove any stale handlers first
+    if (resizeHandlersRef.current) {
+      document.removeEventListener("mousemove", resizeHandlersRef.current.onMove);
+      document.removeEventListener("mouseup", resizeHandlersRef.current.onUp);
+    }
+
+    const minWidths = [20, 120, 60, 60, 40, 40, 30];
+    const maxWidths = [400, 1600, 800, 800, 400, 400, 400];
+
     const onMove = (e: MouseEvent) => {
       const active = activeResize.current;
       if (!active) return;
       const dx = e.clientX - active.startX;
       let next = Math.max(10, Math.round(active.startWidth + dx));
-      // min widths per column (px)
-      const minWidths = [20, 120, 60, 60, 40, 40, 30];
-      const maxWidths = [400, 1600, 800, 800, 400, 400, 400];
       const min = minWidths[active.index] ?? 20;
       const max = maxWidths[active.index] ?? 2000;
       next = Math.max(min, Math.min(max, next));
@@ -214,14 +224,14 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       }
       activeResize.current = null;
       document.body.style.cursor = "";
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      resizeHandlersRef.current = null;
     };
+
+    resizeHandlersRef.current = { onMove, onUp };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
   }, []);
   const [isDragOver, setIsDragOver] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -329,9 +339,12 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     count: sorted.length,
     getScrollElement: useCallback(() => scrollRef.current, []),
     estimateSize: useCallback(() => rowHeight, []),
-    overscan: 20,
+    overscan: 5,
   });
 
+  // Debounce arrow-key navigation to avoid flooding IPC during key-repeat
+  const arrowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSelectRef = useRef<Sample | null>(null);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
@@ -376,12 +389,23 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       const nextSample = sorted[nextIndex];
       if (!nextSample) return;
       if (!selectedSample || nextSample.id !== selectedSample.id) {
-        onSampleSelect(nextSample);
+        pendingSelectRef.current = nextSample;
+        if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
+        arrowDebounceRef.current = setTimeout(() => {
+          const pending = pendingSelectRef.current;
+          if (pending) {
+            onSampleSelect(pending);
+            pendingSelectRef.current = null;
+          }
+        }, 80);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
+    };
   }, [sorted, selectedSample, onSampleSelect, onTogglePlayback]);
 
   const lastScrolledRef = useRef<number | null>(null);
@@ -555,7 +579,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         <div style={{ position: "relative" }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => {
           const el = headerRefs.current[0];
           if (!el) return;
-          activeResize.current = { index: 0, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+          startColumnResize(0, e.clientX, el.getBoundingClientRect().width);
         }}>
           <SortHeader field="id" currentSort={sort} onSort={onSortChange} columnIndex={0} draggedColumnRef={draggedColumnRef}>#</SortHeader>
         </div>
@@ -566,7 +590,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onMouseDown={(e) => {
               const el = headerRefs.current[1];
               if (!el) return;
-              activeResize.current = { index: 1, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+              startColumnResize(1, e.clientX, el.getBoundingClientRect().width);
             }}
             onMouseMove={(e) => {
               const el = headerRefs.current[1];
@@ -600,7 +624,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onMouseDown={(e) => {
               const el = headerRefs.current[2];
               if (!el) return;
-              activeResize.current = { index: 2, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+              startColumnResize(2, e.clientX, el.getBoundingClientRect().width);
             }}
             onMouseMove={(e) => {
               const el = headerRefs.current[2];
@@ -632,7 +656,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           onMouseDown={(e) => {
             const el = headerRefs.current[3];
             if (!el) return;
-            activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+            startColumnResize(3, e.clientX, el.getBoundingClientRect().width);
           }}
           onMouseMove={(e) => {
             const el = headerRefs.current[3];
@@ -664,7 +688,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onMouseDown={(e) => {
               const el = headerRefs.current[4];
               if (!el) return;
-              activeResize.current = { index: 4, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+              startColumnResize(4, e.clientX, el.getBoundingClientRect().width);
             }}
             onMouseMove={(e) => {
               const el = headerRefs.current[4];
@@ -696,7 +720,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onMouseDown={(e) => {
               const el = headerRefs.current[5];
               if (!el) return;
-              activeResize.current = { index: 5, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+              startColumnResize(5, e.clientX, el.getBoundingClientRect().width);
             }}
             onMouseMove={(e) => {
               const el = headerRefs.current[5];
@@ -728,7 +752,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onMouseDown={(e) => {
               const el = headerRefs.current[6];
               if (!el) return;
-              activeResize.current = { index: 6, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false };
+              startColumnResize(6, e.clientX, el.getBoundingClientRect().width);
             }}
             onMouseMove={(e) => {
               const el = headerRefs.current[6];

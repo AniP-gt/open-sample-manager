@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Midi, MidiTagRow, TimidityStatus } from "../types/midi";
 import { getErrorMessage } from "../utils/sampleMapper";
@@ -270,7 +270,7 @@ export function useMidiState({
     }
   };
 
-  const togglePlaySelectedMidi = async () => {
+  const togglePlaySelectedMidi = useCallback(async () => {
     if (!selectedMidi) return;
     if (isMidiPlaying) {
       try {
@@ -289,7 +289,7 @@ export function useMidiState({
         setIsMidiPlaying(false);
       }
     }
-  };
+  }, [selectedMidi, isMidiPlaying, setError]);
 
   useEffect(() => {
     invoke<TimidityStatus>("check_timidity").then(setTimidityStatus).catch(console.error);

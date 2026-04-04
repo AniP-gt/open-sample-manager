@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import "./styles/global.css";
 import {
   Header,
@@ -55,7 +55,8 @@ export function App() {
     setLastFetchCountMidi: React.Dispatch<React.SetStateAction<number | null>>;
   } | null>(null);
 
-  const { autoPlayOnSelect, setAutoPlayOnSelect } = useSettingsStore();
+  const autoPlayOnSelect = useSettingsStore((s) => s.autoPlayOnSelect);
+  const setAutoPlayOnSelect = useSettingsStore((s) => s.setAutoPlayOnSelect);
 
   const uiState = useUIState({
     getHandleImportPaths: () => scanImportHandlerRef.current,
@@ -121,6 +122,12 @@ export function App() {
   scanImportHandlerRef.current = scanState.handleImportPaths;
 
   const confirmOpen = sampleState.confirmOpen || midiState.confirmOpen;
+
+  const filteredMidis = useMemo(() => {
+    if (!midiState.midiTagFilterId) return midiState.midis;
+    const tagName = midiState.midiTags.find((t) => t.id === midiState.midiTagFilterId)?.name ?? "";
+    return midiState.midis.filter((m) => m.tag_name === tagName);
+  }, [midiState.midis, midiState.midiTagFilterId, midiState.midiTags]);
 
   return (
     <div
@@ -290,15 +297,7 @@ export function App() {
           <>
             <MidiList
               ref={midiListRef}
-              midis={
-                midiState.midiTagFilterId
-                  ? midiState.midis.filter(
-                      (m) =>
-                        m.tag_name ===
-                        (midiState.midiTags.find((t) => t.id === midiState.midiTagFilterId)?.name ?? ""),
-                    )
-                  : midiState.midis
-              }
+              midis={filteredMidis}
               selectedMidi={midiState.selectedMidi}
               onMidiSelect={midiState.handleMidiSelect}
               onTagBadgeClick={(midi) => {

@@ -135,35 +135,10 @@ export function useSampleState({
       playerBarRef.current?.stop();
     }
 
-    const path = samplePaths[sample.id];
     setSelected(sample);
     requestAnimationFrame(() => {
       sampleListRef.current?.focusSelected?.();
     });
-
-    if (!path) {
-      return;
-    }
-
-    const action = async () => {
-      const row = await invoke<TauriSampleRow | null>("get_sample", { path });
-
-      if (!row) {
-        return;
-      }
-
-      setSelected(mapRowToSample(row));
-    };
-
-    setRetryAction(() => action);
-
-    try {
-      await action();
-      setError(null);
-    } catch (e) {
-      handleInvokeError(e);
-      setSelected(sample);
-    }
   };
 
   const togglePlayback = () => {

@@ -1,7 +1,7 @@
 import type { Sample, FilterState } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface DetailPanelProps {
@@ -32,13 +32,19 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
 
-  const allInstrumentTypes = [...new Set(samples.map((s) => s.instrument_type))].sort();
+  const allInstrumentTypes = useMemo(
+    () => [...new Set(samples.map((s) => s.instrument_type))].sort(),
+    [samples],
+  );
 
   type FilterTypeOption = FilterState["filterType"];
   const typeFilters: FilterTypeOption[] = ["all", "loop", "one-shot"];
 
-  const getTypeCount = (type: FilterTypeOption) =>
-    type === "all" ? samples.length : samples.filter((s) => s.sample_type === type).length;
+  const typeCounts = useMemo(() => {
+    const loop = samples.filter((s) => s.sample_type === "loop").length;
+    return { all: samples.length, loop, "one-shot": samples.length - loop };
+  }, [samples]);
+  const getTypeCount = (type: FilterTypeOption) => typeCounts[type];
 
   // Embedding search handler removed per user request.
   // Local types for embedding results modal

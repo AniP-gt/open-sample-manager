@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
-import { readFile } from "@tauri-apps/plugin-fs";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Sample } from "../../types/sample";
 
 interface WaveSurferPlayerProps {
   sample: Sample;
   filePath: string;
+  /** Pre-loaded asset URL — if provided, avoids a second convertFileSrc call. */
+  blobUrl?: string | null;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -17,6 +19,7 @@ interface WaveSurferPlayerProps {
 export function WaveSurferPlayer({
   sample,
   filePath,
+  blobUrl: externalBlobUrl,
   isPlaying,
   currentTime,
   duration,
@@ -29,7 +32,6 @@ export function WaveSurferPlayer({
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const blobUrlRef = useRef<string | null>(null);
 
   const getWaveColors = () => {
     if (sample.sample_type === "loop") {
@@ -39,16 +41,6 @@ export function WaveSurferPlayer({
   };
 
   const { wave: waveColor, progress: progressColor } = getWaveColors();
-
-  // Cleanup blob URL
-  useEffect(() => {
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-    };
-  }, []);
 
   // Initialize WaveSurfer
   useEffect(() => {
@@ -118,9 +110,11 @@ export function WaveSurferPlayer({
     };
   }, [height, waveColor, progressColor]);
 
-  // Load audio file when path changes
+  // Load audio file when path changes — use asset protocol URL (no JS memory allocation)
   useEffect(() => {
     if (!wavesurferRef.current || !filePath) return;
+
+    let cancelled = false;
 
     const loadAudio = async () => {
       setIsReady(false);
@@ -128,23 +122,15 @@ export function WaveSurferPlayer({
       setError(null);
 
       try {
-        // Clean up previous blob URL
-        if (blobUrlRef.current) {
-          URL.revokeObjectURL(blobUrlRef.current);
-          blobUrlRef.current = null;
+        const url = externalBlobUrl || convertFileSrc(filePath);
+
+        if (cancelled) return;
+
+        if (wavesurferRef.current) {
+          await wavesurferRef.current.load(url);
         }
-
-        // Read file as binary using Tauri fs plugin
-        const fileData = await readFile(filePath);
-        
-        // Create blob URL
-        const blob = new Blob([fileData], { type: "audio/wav" });
-        const blobUrl = URL.createObjectURL(blob);
-        blobUrlRef.current = blobUrl;
-
-        // Load into WaveSurfer
-        await wavesurferRef.current!.load(blobUrl);
       } catch (err) {
+        if (cancelled) return;
         console.error("Failed to load audio:", err);
         setError(String(err));
         setIsLoading(false);
@@ -152,7 +138,11 @@ export function WaveSurferPlayer({
     };
 
     loadAudio();
-  }, [filePath]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath, externalBlobUrl]);
 
   // Sync play/pause state
   useEffect(() => {

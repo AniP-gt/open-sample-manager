@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { readFile } from "@tauri-apps/plugin-fs";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle, lazy, Suspense } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Sample } from "../../types/sample";
-import { WaveSurferPlayer } from "../WaveSurferPlayer/WaveSurferPlayer";
+import { WaveformDisplay } from "../WaveformDisplay/WaveformDisplay";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
+
+const LazyWaveSurferPlayer = lazy(() => import("../WaveSurferPlayer/WaveSurferPlayer").then(m => ({ default: m.WaveSurferPlayer })));
 
 interface PlayerBarProps {
   sample: Sample;
@@ -17,18 +19,25 @@ export interface PlayerBarHandle {
   isPlaying: boolean;
 }
 
+// Single persistent Audio element shared across path changes to avoid
+// WebKit media resource leaks from repeated new Audio() / destroy cycles.
+const sharedAudio = (() => {
+  const a = new Audio();
+  a.preload = "metadata";
+  return a;
+})();
+
 export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose, autoPlay }: PlayerBarProps, ref) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(sharedAudio);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const handleClose = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
+    const audio = audioRef.current;
+    audio.pause();
+    audio.currentTime = 0;
     setPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -36,85 +45,94 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
     if (onClose) onClose();
   };
 
-  // Reset state when path changes
+  // Debounce path changes for audio and wavesurfer separately.
+  const [stablePath, setStablePath] = useState<string | undefined>(path);
+  const pathTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track which path triggered the current audio load so stale callbacks are ignored.
+  const loadIdRef = useRef(0);
+
+  const autoPlayRef = useRef(autoPlay);
+  autoPlayRef.current = autoPlay;
+
   useEffect(() => {
-    setPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setLoading(false);
-    setLoadError(null);
+    // Stop current audio immediately — reuse the same element
+    const audio = audioRef.current;
+    audio.pause();
+
+    if (pathTimerRef.current) clearTimeout(pathTimerRef.current);
+
+    pathTimerRef.current = setTimeout(() => {
+      setStablePath(path);
+    }, autoPlayRef.current ? 250 : 50);
+
+    return () => {
+      if (pathTimerRef.current) clearTimeout(pathTimerRef.current);
+    };
   }, [path]);
 
-  // Create audio element when path changes
+  // Load audio when stable path settles — reuses a single Audio element.
   useEffect(() => {
-    if (!path) {
-      audioRef.current = null;
+    const audio = audioRef.current;
+    const myLoadId = ++loadIdRef.current;
+
+    if (!stablePath) {
+      audio.pause();
+      audio.src = "";
+      setPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      setLoading(false);
       return;
     }
 
-    let isMounted = true;
-    let currentAudioUrl: string | null = null;
+    const assetUrl = convertFileSrc(stablePath);
 
-    const loadAudio = async () => {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const fileData = await readFile(path);
-        if (!isMounted) return;
+    // Detach old handlers before assigning new src
+    audio.onloadedmetadata = null;
+    audio.onerror = null;
+    audio.onended = null;
+    audio.onpause = null;
+    audio.onplay = null;
+    audio.ontimeupdate = null;
+    audio.pause();
 
-        const blob = new Blob([fileData], { type: "audio/wav" });
-        const audioUrl = URL.createObjectURL(blob);
-        currentAudioUrl = audioUrl;
-        if (!isMounted) {
-          URL.revokeObjectURL(audioUrl);
-          return;
-        }
+    setLoading(true);
+    setLoadError(null);
+    setPlaying(false);
+    setCurrentTime(0);
 
-        const audio = new Audio(audioUrl);
-        audio.onended = () => setPlaying(false);
-        audio.onpause = () => setPlaying(false);
-        audio.onplay = () => setPlaying(true);
-        audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
-        audio.onloadedmetadata = () => setDuration(audio.duration);
-        audioRef.current = audio;
-        setLoading(false);
-        const autoPlayTimeout = setTimeout(() => {
-          if (autoPlay && audioRef.current) {
-            audioRef.current.play().catch(() => {});
-          }
-        }, 300);
-        return () => clearTimeout(autoPlayTimeout);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        const isFileNotFound = 
-          errorMessage.includes("not found") ||
-          errorMessage.includes("No such file") ||
-          errorMessage.includes("ENOENT") ||
-          errorMessage.includes("path does not exist");
-        
-        if (isFileNotFound) {
-          setLoadError("ファイルパスが見つかりません");
-        } else {
-          setLoadError(errorMessage);
-        }
-        setLoading(false);
+    audio.src = assetUrl;
+
+    audio.onloadedmetadata = () => {
+      if (loadIdRef.current !== myLoadId) return;
+      setDuration(audio.duration);
+      setLoading(false);
+      if (autoPlayRef.current) {
+        audio.play().catch(() => {});
       }
     };
 
-    loadAudio();
+    audio.onerror = () => {
+      if (loadIdRef.current !== myLoadId) return;
+      setLoadError("ファイルを読み込めません");
+      setLoading(false);
+    };
+
+    audio.onended = () => { if (loadIdRef.current === myLoadId) setPlaying(false); };
+    audio.onpause = () => { if (loadIdRef.current === myLoadId) setPlaying(false); };
+    audio.onplay = () => { if (loadIdRef.current === myLoadId) setPlaying(true); };
+    audio.ontimeupdate = () => { if (loadIdRef.current === myLoadId) setCurrentTime(audio.currentTime); };
 
     return () => {
-      isMounted = false;
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current = null;
-      }
-      if (currentAudioUrl) {
-        URL.revokeObjectURL(currentAudioUrl);
-      }
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      audio.onended = null;
+      audio.onpause = null;
+      audio.onplay = null;
+      audio.ontimeupdate = null;
+      audio.pause();
     };
-  }, [path]);
+  }, [stablePath]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -297,20 +315,45 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
           </button>
         </div>
 
-        <WaveSurferPlayer
-          sample={sample}
-          filePath={path || ""}
-          isPlaying={playing}
-          currentTime={currentTime}
-          duration={duration || sample.duration}
-          height={100}
-          onSeek={(time) => {
-            if (audioRef.current) {
-              audioRef.current.currentTime = time;
+        {!autoPlayRef.current && stablePath ? (
+          <Suspense fallback={
+            <WaveformDisplay
+              sample={sample}
+              isPlaying={playing}
+              currentTime={currentTime}
+              duration={duration || sample.duration}
+              height={100}
+            />
+          }>
+            <LazyWaveSurferPlayer
+              sample={sample}
+              filePath={stablePath}
+              blobUrl={convertFileSrc(stablePath)}
+              isPlaying={playing}
+              currentTime={currentTime}
+              duration={duration || sample.duration}
+              height={100}
+              onSeek={(time) => {
+                const audio = audioRef.current;
+                audio.currentTime = time;
+                setCurrentTime(time);
+              }}
+            />
+          </Suspense>
+        ) : (
+          <WaveformDisplay
+            sample={sample}
+            isPlaying={playing}
+            currentTime={currentTime}
+            duration={duration || sample.duration}
+            height={100}
+            onSeek={(time) => {
+              const audio = audioRef.current;
+              audio.currentTime = time;
               setCurrentTime(time);
-            }
-          }}
-        />
+            }}
+          />
+        )}
       </div>
 
       {/* Error Message */}

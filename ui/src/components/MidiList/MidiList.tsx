@@ -1,5 +1,6 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import type { MidiTagRow } from "../../types/midi";
 import { invoke } from "@tauri-apps/api/core";
@@ -67,6 +68,7 @@ export const MidiList = forwardRef(function MidiList(
   ref: React.Ref<MidiListHandle>,
 ) {
   const listRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const [toast, setToast] = useState<{ message: string; visible: boolean; midiId: number | null }>({ message: "", visible: false, midiId: null });
@@ -104,7 +106,16 @@ export const MidiList = forwardRef(function MidiList(
   const minWidths = [20, 120, 60, 60, 40, 40, 30, 40, 60, 40];
   const maxWidths = [400, 1600, 800, 800, 400, 400, 400, 400, 800, 400];
 
-  useEffect(() => {
+  // Column resize: only attach document listeners while actively dragging
+  const resizeHandlersRef = useRef<{ onMove: (e: MouseEvent) => void; onUp: () => void } | null>(null);
+  const startColumnResize = (index: number, startX: number, startWidth: number) => {
+    activeResize.current = { index, startX, startWidth, wasDragging: false };
+
+    if (resizeHandlersRef.current) {
+      document.removeEventListener("mousemove", resizeHandlersRef.current.onMove);
+      document.removeEventListener("mouseup", resizeHandlersRef.current.onUp);
+    }
+
     const onMove = (e: MouseEvent) => {
       const active = activeResize.current;
       if (!active) return;
@@ -135,15 +146,15 @@ export const MidiList = forwardRef(function MidiList(
       }
       activeResize.current = null;
       document.body.style.cursor = "";
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      resizeHandlersRef.current = null;
     };
-  }, []);
+
+    resizeHandlersRef.current = { onMove, onUp };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
 
   // Load persisted widths from localStorage on mount
   useEffect(() => {
@@ -223,9 +234,12 @@ export const MidiList = forwardRef(function MidiList(
 
   
   // Client-side filter by filename
-  const filteredMidis = midiSearch.trim()
-    ? midis.filter((m) => m.file_name.toLowerCase().includes(midiSearch.toLowerCase()))
-    : midis;
+  const filteredMidis = useMemo(
+    () => midiSearch.trim()
+      ? midis.filter((m) => m.file_name.toLowerCase().includes(midiSearch.toLowerCase()))
+      : midis,
+    [midis, midiSearch],
+  );
 
   // Sorting helpers
   const headerClick = (key: string) => {
@@ -293,6 +307,17 @@ export const MidiList = forwardRef(function MidiList(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredMidis, sortBy, sortDir]);
 
+  const midiRowHeight = 48;
+  const virtualizer = useVirtualizer({
+    count: sortedMidis.length,
+    getScrollElement: useCallback(() => scrollRef.current, []),
+    estimateSize: useCallback(() => midiRowHeight, []),
+    overscan: 5,
+  });
+
+  // Debounce arrow-key navigation to avoid flooding IPC during key-repeat
+  const arrowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSelectRef = useRef<Midi | null>(null);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
@@ -337,18 +362,29 @@ export const MidiList = forwardRef(function MidiList(
       const nextMidi = sortedMidis[nextIndex];
       if (!nextMidi) return;
       if (!selectedMidi || nextMidi.id !== selectedMidi.id) {
-        onMidiSelect(nextMidi);
+        pendingSelectRef.current = nextMidi;
+        if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
+        arrowDebounceRef.current = setTimeout(() => {
+          const pending = pendingSelectRef.current;
+          if (pending) {
+            onMidiSelect(pending);
+            pendingSelectRef.current = null;
+          }
+        }, 80);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
+    };
   }, [selectedMidi, onMidiSelect, sortedMidis, onTogglePlayback]);
 
   // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    const root = listRef.current;
+    const root = scrollRef.current;
     if (!sentinel || !root || !onLoadMore) return;
 
     const obs = new IntersectionObserver(
@@ -361,7 +397,6 @@ export const MidiList = forwardRef(function MidiList(
           }
         }
       },
-      // Only trigger when the sentinel is fully within view (i.e. scrolled to the bottom)
       { root, rootMargin: "0px", threshold: 1.0 }
     );
 
@@ -372,7 +407,7 @@ export const MidiList = forwardRef(function MidiList(
   // IntersectionObserver: load previous when top sentinel becomes visible
   useEffect(() => {
     const sentinel = topSentinelRef.current;
-    const root = listRef.current;
+    const root = scrollRef.current;
     if (!sentinel || !root || !onLoadPrevious) return;
 
     const obs = new IntersectionObserver(
@@ -392,21 +427,22 @@ export const MidiList = forwardRef(function MidiList(
     return () => obs.disconnect();
   }, [onLoadPrevious, isLoadingPrevious, canLoadPrevious]);
 
+  const lastScrolledMidiRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!listRef.current) return;
-    const el = listRef.current.querySelector<HTMLTableRowElement>("tr.midi-row.active");
-    if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
-    }
-  }, [selectedMidi]);
+    if (!scrollRef.current || selectedMidi === null) return;
+    const targetIndex = sortedMidis.findIndex((m) => m.id === selectedMidi.id);
+    if (targetIndex === -1) return;
+    if (lastScrolledMidiRef.current === selectedMidi.id) return;
+    lastScrolledMidiRef.current = selectedMidi.id;
+    virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" });
+  }, [selectedMidi, sortedMidis, virtualizer]);
 
   useImperativeHandle(ref, () => ({
     focusSelected: () => {
-      if (!listRef.current) return;
-      const el = listRef.current.querySelector<HTMLTableRowElement>("tr.midi-row.active");
-      if (!el) return;
-      if (typeof el.scrollIntoView === "function") {
-        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (!selectedMidi) return;
+      const targetIndex = sortedMidis.findIndex((m) => m.id === selectedMidi.id);
+      if (targetIndex !== -1) {
+        virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" });
       }
     },
   }));
@@ -517,7 +553,7 @@ export const MidiList = forwardRef(function MidiList(
                 alignItems: "center",
               }}
             >
-            <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => { const el = headerRefs.current[0]; if (!el) return; activeResize.current = { index: 0, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[0]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 0 : h === 0 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 0 ? null : h))} onClick={() => headerClick("id")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "id")}>
+            <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => { const el = headerRefs.current[0]; if (!el) return; startColumnResize(0, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[0]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 0 : h === 0 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 0 ? null : h))} onClick={() => headerClick("id")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "id")}>
                 <div style={{ fontSize: 13, color: "#374151", userSelect: "none" }}>#{sortBy === "id" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -530,7 +566,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => { const el = headerRefs.current[1]; if (!el) return; activeResize.current = { index: 1, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[1]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 1 : h === 1 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))} onClick={() => headerClick("file_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "file_name")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => { const el = headerRefs.current[1]; if (!el) return; startColumnResize(1, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[1]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 1 : h === 1 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))} onClick={() => headerClick("file_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "file_name")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", letterSpacing: "0.06em", userSelect: "none" }}>FILENAME{sortBy === "file_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -543,7 +579,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[2] = el)} onMouseDown={(e) => { const el = headerRefs.current[2]; if (!el) return; activeResize.current = { index: 2, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[2]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 2 : h === 2 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))} onClick={() => headerClick("tag_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tag_name")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[2] = el)} onMouseDown={(e) => { const el = headerRefs.current[2]; if (!el) return; startColumnResize(2, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[2]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 2 : h === 2 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))} onClick={() => headerClick("tag_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tag_name")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", userSelect: "none" }}>TAG{sortBy === "tag_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -556,7 +592,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[3] = el)} onMouseDown={(e) => { const el = headerRefs.current[3]; if (!el) return; activeResize.current = { index: 3, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[3]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 3 : h === 3 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))} onClick={() => headerClick("tempo")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tempo")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[3] = el)} onMouseDown={(e) => { const el = headerRefs.current[3]; if (!el) return; startColumnResize(3, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[3]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 3 : h === 3 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))} onClick={() => headerClick("tempo")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tempo")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>TEMPO{sortBy === "tempo" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -569,7 +605,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[4] = el)} onMouseDown={(e) => { const el = headerRefs.current[4]; if (!el) return; activeResize.current = { index: 4, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[4]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 4 : h === 4 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))} onClick={() => headerClick("time_sig")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "time_sig")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[4] = el)} onMouseDown={(e) => { const el = headerRefs.current[4]; if (!el) return; startColumnResize(4, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[4]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 4 : h === 4 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))} onClick={() => headerClick("time_sig")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "time_sig")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", userSelect: "none" }}>TIME SIG{sortBy === "time_sig" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -582,7 +618,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[5] = el)} onMouseDown={(e) => { const el = headerRefs.current[5]; if (!el) return; activeResize.current = { index: 5, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[5]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 5 : h === 5 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))} onClick={() => headerClick("track_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "track_count")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[5] = el)} onMouseDown={(e) => { const el = headerRefs.current[5]; if (!el) return; startColumnResize(5, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[5]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 5 : h === 5 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))} onClick={() => headerClick("track_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "track_count")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>TRACKS{sortBy === "track_count" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -595,7 +631,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[6] = el)} onMouseDown={(e) => { const el = headerRefs.current[6]; if (!el) return; activeResize.current = { index: 6, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[6]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 6 : h === 6 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))} onClick={() => headerClick("note_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "note_count")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[6] = el)} onMouseDown={(e) => { const el = headerRefs.current[6]; if (!el) return; startColumnResize(6, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[6]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 6 : h === 6 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))} onClick={() => headerClick("note_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "note_count")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>NOTES{sortBy === "note_count" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -608,7 +644,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[7] = el)} onMouseDown={(e) => { const el = headerRefs.current[7]; if (!el) return; activeResize.current = { index: 7, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[7]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 7 : h === 7 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))} onClick={() => headerClick("key_estimate")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "key_estimate")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[7] = el)} onMouseDown={(e) => { const el = headerRefs.current[7]; if (!el) return; startColumnResize(7, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[7]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 7 : h === 7 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))} onClick={() => headerClick("key_estimate")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "key_estimate")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", userSelect: "none" }}>KEY{sortBy === "key_estimate" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -621,7 +657,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[8] = el)} onMouseDown={(e) => { const el = headerRefs.current[8]; if (!el) return; activeResize.current = { index: 8, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[8]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 8 : h === 8 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))} onClick={() => headerClick("duration")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "duration")}>
+              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[8] = el)} onMouseDown={(e) => { const el = headerRefs.current[8]; if (!el) return; startColumnResize(8, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[8]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 8 : h === 8 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))} onClick={() => headerClick("duration")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "duration")}>
                 <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>DURATION{sortBy === "duration" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -634,7 +670,7 @@ export const MidiList = forwardRef(function MidiList(
                 </div>
               </div>
 
-              <div style={{ position: "relative", cursor: hoveredCol === 9 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[9] = el)} onMouseDown={(e) => { const el = headerRefs.current[9]; if (!el) return; activeResize.current = { index: 9, startX: e.clientX, startWidth: el.getBoundingClientRect().width, wasDragging: false }; }} onMouseMove={(e) => { const el = headerRefs.current[9]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 9 : h === 9 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 9 ? null : h))}>
+              <div style={{ position: "relative", cursor: hoveredCol === 9 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[9] = el)} onMouseDown={(e) => { const el = headerRefs.current[9]; if (!el) return; startColumnResize(9, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[9]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 9 : h === 9 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 9 ? null : h))}>
                 <div />
                 <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
                   <div
@@ -648,7 +684,7 @@ export const MidiList = forwardRef(function MidiList(
               </div>
             </div>
 
-            <div style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
+            <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
       {/* Top sentinel for upward scrolling */}
               <div
                 ref={topSentinelRef}
@@ -660,111 +696,116 @@ export const MidiList = forwardRef(function MidiList(
                 <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
                   No results for &apos;{midiSearch}&apos;
                 </div>
-              ) : sortedMidis.map((midi) => {
-                const isSelected = selectedMidi?.id === midi.id;
-                return (
-                  <div
-                    key={midi.id}
-                    className={`midi-row ${isSelected ? "active" : ""}`}
-                    draggable={!!midi.path}
-                    onClick={() => onMidiSelect(midi)}
-                    onMouseDown={(e) => {
-                      // Pre-warm the prepared path on mousedown so it may be
-                      // ready when onDragStart fires.
-                      if (midi.path && e.button === 0 && !preparedPathsRef.current[midi.id]) {
-                        void invoke("prepare_drag_file", { path: midi.path }).then((res) => {
-                          if (typeof res === "string" && res) preparedPathsRef.current[midi.id] = res;
-                        }).catch(() => {});
-                      }
-                    }}
-                    onDragStart={(e) => {
-                      const originalPath = midi.path;
-                      if (!originalPath) { e.preventDefault(); return; }
-                      // Prevent the HTML5 drag session from taking over.
-                      // Logic Pro (and native macOS apps) require a real
-                      // NSDraggingSession — HTML5 dataTransfer payloads are ignored.
-                      e.preventDefault();
-                      // Use pre-warmed path if available, fallback to original.
-                      const path = preparedPathsRef.current[midi.id] || originalPath;
-                      void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
-                        console.warn("[midi-dragout] startDrag failed:", err);
-                      });
-                      // Schedule cleanup of prepared path after native drag.
-                      setTimeout(() => {
-                        const prepared = preparedPathsRef.current[midi.id];
-                        if (prepared) {
-                          void invoke("delete_file", { path: prepared }).catch(() => {});
-                          delete preparedPathsRef.current[midi.id];
-                        }
-                      }, 1500);
-                    }}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: colWidths.join(" "),
-                      padding: "8px 12px",
-                      borderBottom: "1px solid #0d0f16",
-                      borderLeft: isSelected ? "2px solid #f97316" : "2px solid transparent",
-                      background: isSelected ? "#111827" : "transparent",
-                      alignItems: "center",
-                      transition: "background 0.1s",
-                      cursor: midi.path ? "grab" : "default",
-                    }}
-                  >
-                    <div style={{ fontSize: "14px", color: "#374151" }}>{midi.id}</div>
-                    <div>
-                      <div style={{ fontSize: "16px", color: "#d1d5db", letterSpacing: "0.02em", marginBottom: 3, wordBreak: "break-word" }}>{midi.file_name}</div>
-                    </div>
-                    <div onClick={(e) => { e.stopPropagation(); onTagBadgeClick?.(midi); }}>
-                      <span style={{ display: "inline-block", background: midi.tag_name ? "#22d3ee18" : "transparent", border: `1px solid ${midi.tag_name ? "#22d3ee55" : "#1a1f2e"}`, borderRadius: 2, color: midi.tag_name ? "#22d3ee" : "#4b5563", fontSize: 11, fontFamily: "'Courier New', monospace", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", padding: "3px 8px", cursor: "pointer", minWidth: 64, textAlign: "center" }}>{midi.tag_name || "+ tag"}</span>
-                    </div>
-                    <div style={{ fontSize: 14, color: midi.tempo ? "#22d3ee" : "#374151", textAlign: "right", fontWeight: midi.tempo ? 700 : 400 }}>{midi.tempo ? `${midi.tempo.toFixed(1)} BPM` : "—"}</div>
-                    <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "center" }}>{midi.time_signature_numerator}/{midi.time_signature_denominator}</div>
-                    <div style={{ fontSize: 14, color: "#a78bfa", textAlign: "right" }}>{midi.track_count ?? "—"}</div>
-                    <div style={{ fontSize: 14, color: "#34d399", textAlign: "right" }}>{midi.note_count ?? "—"}</div>
-                    <div style={{ fontSize: 14, color: "#fbbf24", textAlign: "center" }}>{midi.key_estimate ?? "—"}</div>
-                    <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "right" }}>{midi.duration ? formatDuration(midi.duration) : "—"}</div>
-                    <div style={{ display: "flex", gap: 6, justifyContent: "center", position: "relative" }} onMouseDown={(e) => e.stopPropagation()}>
-                      <button
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const path = midi.path;
-                          if (path) {
-                            let folderPath = path;
-                            const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-                            if (lastSlash > 0) folderPath = path.substring(0, lastSlash);
-                            try { await invoke("open_folder", { path: folderPath }); } catch (err) { console.error("Failed to open folder:", err); }
+              ) : (
+                <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
+                  {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const midi = sortedMidis[virtualRow.index];
+                    if (!midi) return null;
+                    const isSelected = selectedMidi?.id === midi.id;
+                    return (
+                      <div
+                        key={midi.id}
+                        className={`midi-row ${isSelected ? "active" : ""}`}
+                        draggable={!!midi.path}
+                        onClick={() => onMidiSelect(midi)}
+                        onMouseDown={(e) => {
+                          if (midi.path && e.button === 0 && !preparedPathsRef.current[midi.id]) {
+                            void invoke("prepare_drag_file", { path: midi.path }).then((res) => {
+                              if (typeof res === "string" && res) preparedPathsRef.current[midi.id] = res;
+                            }).catch(() => {});
                           }
                         }}
-                        style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-                        title="Show in Finder"
-                      >📂</button>
-                      <button
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const path = midi.path;
-                          if (path) {
-                            try { await invoke("copy_to_clipboard", { text: path }); setToast({ message: "Path copied!", visible: true, midiId: midi.id }); }
-                            catch (err) { console.error("Clipboard write failed:", err); setToast({ message: "Copy failed", visible: true, midiId: midi.id }); }
-                            setTimeout(() => setToast((p) => ({ ...p, visible: false, midiId: null })), 1500);
-                          }
+                        onDragStart={(e) => {
+                          const originalPath = midi.path;
+                          if (!originalPath) { e.preventDefault(); return; }
+                          e.preventDefault();
+                          const path = preparedPathsRef.current[midi.id] || originalPath;
+                          void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
+                            console.warn("[midi-dragout] startDrag failed:", err);
+                          });
+                          setTimeout(() => {
+                            const prepared = preparedPathsRef.current[midi.id];
+                            if (prepared) {
+                              void invoke("delete_file", { path: prepared }).catch(() => {});
+                              delete preparedPathsRef.current[midi.id];
+                            }
+                          }, 1500);
                         }}
-                        style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-                        title="Copy Full Path"
-                      >📋</button>
-                      {toast.visible && toast.midiId === midi.id && (
-                        <div style={{ position: "absolute", right: "60px", background: "#1f2937", color: "#22c55e", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace", zIndex: 100, border: "1px solid #22c55e", whiteSpace: "nowrap", animation: "fadeIn 0.15s ease" }}>{toast.message}</div>
-                      )}
-                      <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onTrashMidi?.(midi.id); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }} title="Send to Trash">🗑</button>
-                    </div>
-                  </div>
-                );
-              })}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          display: "grid",
+                          gridTemplateColumns: colWidths.join(" "),
+                          padding: "8px 12px",
+                          borderBottom: "1px solid #0d0f16",
+                          borderLeft: isSelected ? "2px solid #f97316" : "2px solid transparent",
+                          background: isSelected ? "#111827" : "transparent",
+                          alignItems: "center",
+                          boxSizing: "border-box",
+                          cursor: midi.path ? "grab" : "default",
+                        }}
+                      >
+                        <div style={{ fontSize: "14px", color: "#374151" }}>{midi.id}</div>
+                        <div>
+                          <div style={{ fontSize: "16px", color: "#d1d5db", letterSpacing: "0.02em", marginBottom: 3, wordBreak: "break-word" }}>{midi.file_name}</div>
+                        </div>
+                        <div onClick={(e) => { e.stopPropagation(); onTagBadgeClick?.(midi); }}>
+                          <span style={{ display: "inline-block", background: midi.tag_name ? "#22d3ee18" : "transparent", border: `1px solid ${midi.tag_name ? "#22d3ee55" : "#1a1f2e"}`, borderRadius: 2, color: midi.tag_name ? "#22d3ee" : "#4b5563", fontSize: 11, fontFamily: "'Courier New', monospace", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", padding: "3px 8px", cursor: "pointer", minWidth: 64, textAlign: "center" }}>{midi.tag_name || "+ tag"}</span>
+                        </div>
+                        <div style={{ fontSize: 14, color: midi.tempo ? "#22d3ee" : "#374151", textAlign: "right", fontWeight: midi.tempo ? 700 : 400 }}>{midi.tempo ? `${midi.tempo.toFixed(1)} BPM` : "—"}</div>
+                        <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "center" }}>{midi.time_signature_numerator}/{midi.time_signature_denominator}</div>
+                        <div style={{ fontSize: 14, color: "#a78bfa", textAlign: "right" }}>{midi.track_count ?? "—"}</div>
+                        <div style={{ fontSize: 14, color: "#34d399", textAlign: "right" }}>{midi.note_count ?? "—"}</div>
+                        <div style={{ fontSize: 14, color: "#fbbf24", textAlign: "center" }}>{midi.key_estimate ?? "—"}</div>
+                        <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "right" }}>{midi.duration ? formatDuration(midi.duration) : "—"}</div>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "center", position: "relative" }} onMouseDown={(e) => e.stopPropagation()}>
+                          <button
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const path = midi.path;
+                              if (path) {
+                                let folderPath = path;
+                                const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+                                if (lastSlash > 0) folderPath = path.substring(0, lastSlash);
+                                try { await invoke("open_folder", { path: folderPath }); } catch (err) { console.error("Failed to open folder:", err); }
+                              }
+                            }}
+                            style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
+                            title="Show in Finder"
+                          >📂</button>
+                          <button
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const path = midi.path;
+                              if (path) {
+                                try { await invoke("copy_to_clipboard", { text: path }); setToast({ message: "Path copied!", visible: true, midiId: midi.id }); }
+                                catch (err) { console.error("Clipboard write failed:", err); setToast({ message: "Copy failed", visible: true, midiId: midi.id }); }
+                                setTimeout(() => setToast((p) => ({ ...p, visible: false, midiId: null })), 1500);
+                              }
+                            }}
+                            style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
+                            title="Copy Full Path"
+                          >📋</button>
+                          {toast.visible && toast.midiId === midi.id && (
+                            <div style={{ position: "absolute", right: "60px", background: "#1f2937", color: "#22c55e", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace", zIndex: 100, border: "1px solid #22c55e", whiteSpace: "nowrap", animation: "fadeIn 0.15s ease" }}>{toast.message}</div>
+                          )}
+                          <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onTrashMidi?.(midi.id); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }} title="Send to Trash">🗑</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
             </div>

@@ -34,18 +34,20 @@ impl From<&ScanProgress> for ScanProgressEvent {
 
 #[tauri::command]
 fn health_check(state: tauri::State<'_, AppState>) -> HealthCheckResponse {
-    let (db_ok, db_error) = match open_manager(state.db_path.as_deref()) {
+    // If we can lock the manager, the DB is OK
+    let (db_ok, db_error) = match state.manager.lock() {
         Ok(_) => (true, None),
-        Err(e) => (false, Some(e)),
+        Err(e) => (false, Some(CommandError {
+            code: "db_error".to_string(),
+            message: format!("mutex poisoned: {}", e),
+            details: None,
+        })),
     };
 
     HealthCheckResponse {
         status: "ok".to_string(),
         core: healthcheck().to_string(),
-        db_path: state
-            .db_path
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string()),
+        db_path: None,
         db_ok,
         db_error,
     }
@@ -53,13 +55,13 @@ fn health_check(state: tauri::State<'_, AppState>) -> HealthCheckResponse {
 
 #[tauri::command]
 async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
-    let db_path = state.db_path.clone();
-    
+    let mgr = Arc::clone(&state.manager);
+
     // Run heavy scanning work in a blocking task to avoid freezing the UI
     // Pass app_handle to emit progress events
     let result = tokio::task::spawn_blocking(move || {
-        let manager = open_manager(db_path.as_deref())?;
-        
+        let manager = mgr.lock().expect("AppState mutex poisoned");
+
         // Clone app_handle for use in the closure
         let handle = app_handle.clone();
         manager.scan_directory_with_progress(path, move |progress| {
@@ -79,10 +81,10 @@ async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State
 
 #[tauri::command]
 async fn import_file(path: String, state: tauri::State<'_, AppState>) -> Result<i64, CommandError> {
-    let db_path = state.db_path.clone();
+    let mgr = Arc::clone(&state.manager);
 
     let result = tokio::task::spawn_blocking(move || {
-        let manager = open_manager(db_path.as_deref())?;
+        let manager = mgr.lock().expect("AppState mutex poisoned");
         // Use the core import_file helper which analyzes a single file and
         // returns the inserted row id.
         manager.import_file(path).map_err(CommandError::from)
@@ -102,7 +104,7 @@ fn search_samples(
     query: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.search(&query).map_err(CommandError::from)
 }
 
@@ -113,7 +115,7 @@ fn list_samples_paginated(
     offset: usize,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     match query {
         Some(q) => manager
             .search_paginated(&q, limit, offset)
@@ -128,7 +130,7 @@ fn list_samples_around_id(
     limit: usize,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.list_samples_around_id(target_id, limit).map_err(CommandError::from)
 }
 
@@ -137,7 +139,7 @@ fn get_sample(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.get_sample(&path).map_err(CommandError::from)
 }
 
@@ -145,7 +147,7 @@ fn get_sample(
 fn list_all_sample_paths(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.get_all_sample_paths().map_err(CommandError::from)
 }
 
@@ -155,13 +157,13 @@ fn delete_sample(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.delete_sample(&path).map_err(CommandError::from)
 }
 
 #[tauri::command]
 fn clear_all_samples(state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.clear_all_samples().map_err(CommandError::from)
 }
 
@@ -170,11 +172,11 @@ async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Resul
     // Run the potentially blocking filesystem operation in a blocking task
     // so the async runtime isn't blocked. Also remove DB row after successful
     // trashing.
-    let db_path = state.db_path.clone();
+    let mgr = Arc::clone(&state.manager);
     let path_clone = path.clone();
 
     let result = tokio::task::spawn_blocking(move || {
-        let manager = open_manager(db_path.as_deref())?;
+        let manager = mgr.lock().expect("AppState mutex poisoned");
 
         match trash::delete(&path_clone) {
             Ok(_) => {
@@ -205,50 +207,46 @@ async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Resul
 /// copies the file to the system temporary directory and returns the absolute
 /// path which can be used as a `file://` URI on the renderer side.
 #[tauri::command]
-fn prepare_drag_file(path: String) -> Result<String, CommandError> {
-    let src = std::path::Path::new(&path);
-    if !src.exists() {
-        return Err(CommandError {
-            code: "not_found".to_string(),
-            message: format!("source path does not exist: {}", path),
-            details: None,
-        });
-    }
-
-    let file_name = match src.file_name().and_then(|s| s.to_str()) {
-        Some(n) => n.to_string(),
-        None => {
-            let ts = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            format!("drag-{}", ts)
+async fn prepare_drag_file(path: String) -> Result<String, CommandError> {
+    tokio::task::spawn_blocking(move || {
+        let src = std::path::Path::new(&path);
+        if !src.exists() {
+            return Err(CommandError {
+                code: "not_found".to_string(),
+                message: format!("source path does not exist: {}", path),
+                details: None,
+            });
         }
-    };
 
-    // Always use the system temporary directory for prepared drag files.
-    // Writing into the user's Desktop previously caused leftover files to
-    // accumulate when the host app or the user didn't clean them up. Using
-    // the temp dir keeps the Desktop clean; if a compatibility fallback is
-    // later required for specific host apps we can implement it here.
-    let mut target = std::env::temp_dir();
-    // Use original filename (no prefix)
-    target.push(file_name);
+        let file_name = match src.file_name().and_then(|s| s.to_str()) {
+            Some(n) => n.to_string(),
+            None => {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                format!("drag-{}", ts)
+            }
+        };
 
-    // Debug log so renderer-side failures can be correlated with backend activity
-    eprintln!("[prepare_drag_file] copying '{}' -> '{}'", src.display(), target.display());
-    match std::fs::copy(&src, &target) {
-        Ok(_) => {
-            let out = target.to_string_lossy().to_string();
-            eprintln!("[prepare_drag_file] prepared -> {}", out);
-            Ok(out)
+        let mut target = std::env::temp_dir();
+        target.push(file_name);
+
+        match std::fs::copy(src, &target) {
+            Ok(_) => Ok(target.to_string_lossy().to_string()),
+            Err(e) => Err(CommandError {
+                code: "io_error".to_string(),
+                message: format!("failed to prepare drag file: {}", e),
+                details: None,
+            }),
         }
-        Err(e) => Err(CommandError {
-            code: "io_error".to_string(),
-            message: format!("failed to prepare drag file: {}", e),
-            details: None,
-        }),
-    }
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?
 }
 
 /// Return an absolute filesystem path to a small drag-cursor PNG icon.
@@ -364,10 +362,10 @@ async fn move_sample(
     new_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, CommandError> {
-    let db_path = state.db_path.clone();
-    
+    let mgr = Arc::clone(&state.manager);
+
     let result = tokio::task::spawn_blocking(move || {
-        let manager = open_manager(db_path.as_deref())?;
+        let manager = mgr.lock().expect("AppState mutex poisoned");
         manager.move_sample(&old_path, &new_path).map_err(CommandError::from)
     })
     .await
@@ -390,7 +388,7 @@ fn update_sample_classification(
     eprintln!("[update_sample_classification] INPUT: path='{}'", path);
     eprintln!("[update_sample_classification] INPUT: playback_type={:?}", playback_type);
     eprintln!("[update_sample_classification] INPUT: instrument_type={:?}", instrument_type);
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     let rows = manager
         .update_sample_classification(None, Some(path.as_str()), Some(playback_type), Some(instrument_type))
         .map_err(CommandError::from)?;
@@ -404,9 +402,8 @@ fn update_sample_classification(
     }
     Ok(rows)
 }
-#[derive(Debug, Clone)]
 struct AppState {
-    db_path: Option<std::path::PathBuf>,
+    manager: Arc<Mutex<SampleManager>>,
     /// PID of the currently running timidity process, if any.
     timidity_pid: Arc<Mutex<Option<u32>>>,
 }
@@ -446,15 +443,9 @@ struct HealthCheckResponse {
     db_error: Option<CommandError>,
 }
 
-fn open_manager(db_path: Option<&std::path::Path>) -> Result<SampleManager, CommandError> {
-    let manager = match db_path {
-        Some(path) => {
-            let path_str = path.to_string_lossy();
-            SampleManager::new(Some(path_str.as_ref())).map_err(CommandError::from)?
-        }
-        None => SampleManager::new(None).map_err(CommandError::from)?,
-    };
-    Ok(manager)
+/// Helper: lock the shared SampleManager from AppState.
+fn get_manager(state: &AppState) -> std::sync::MutexGuard<'_, SampleManager> {
+    state.manager.lock().expect("AppState mutex poisoned")
 }
 
 #[tauri::command]
@@ -463,7 +454,7 @@ fn search_by_embedding(
     k: usize,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::EmbeddingSearchResult>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
 
     let sample = manager
         .get_sample(&path)
@@ -534,7 +525,11 @@ fn main() {
             Err(_) => None,
         };
 
-        app.manage(AppState { db_path, timidity_pid: Arc::new(Mutex::new(None)) });
+        let db_path_str = db_path.as_ref().map(|p| p.to_string_lossy().to_string());
+        let manager = SampleManager::new(db_path_str.as_deref())
+            .expect("failed to open database");
+
+        app.manage(AppState { manager: Arc::new(Mutex::new(manager)), timidity_pid: Arc::new(Mutex::new(None)) });
         Ok(())
     });
 
@@ -594,7 +589,7 @@ fn main() {
 fn get_instrument_types(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::InstrumentTypeRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.get_all_instrument_types().map_err(CommandError::from)
 }
 
@@ -603,7 +598,7 @@ fn add_instrument_type(
     name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<i64, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.add_instrument_type(&name).map_err(CommandError::from)
 }
 
@@ -612,7 +607,7 @@ fn delete_instrument_type(
     id: i64,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.delete_instrument_type(id).map_err(CommandError::from)
 }
 
@@ -622,7 +617,7 @@ fn update_instrument_type(
     name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.update_instrument_type(id, &name).map_err(CommandError::from)
 }
 
@@ -633,7 +628,7 @@ fn update_instrument_type(
 fn get_midi_tags(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiTagRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.get_all_midi_tags().map_err(CommandError::from)
 }
 
@@ -642,7 +637,7 @@ fn add_midi_tag(
     name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<i64, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.add_midi_tag(&name).map_err(CommandError::from)
 }
 
@@ -651,7 +646,7 @@ fn delete_midi_tag(
     id: i64,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.delete_midi_tag(id).map_err(CommandError::from)
 }
 
@@ -661,7 +656,7 @@ fn update_midi_tag(
     name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.update_midi_tag(id, &name).map_err(CommandError::from)
 }
 
@@ -671,7 +666,7 @@ fn set_midi_file_tag(
     tag_id: Option<i64>,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.set_midi_file_tag(midi_id, tag_id).map_err(CommandError::from)
 }
 
@@ -680,7 +675,7 @@ fn get_midi_file_tags(
     midi_id: i64,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiTagRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.get_midi_file_tags(midi_id).map_err(CommandError::from)
 }
 
@@ -939,10 +934,10 @@ async fn scan_midi_directory(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let db_path = state.db_path.clone();
-    
+    let mgr = Arc::clone(&state.manager);
+
     let result = tokio::task::spawn_blocking(move || {
-        let manager = open_manager(db_path.as_deref())?;
+        let manager = mgr.lock().expect("AppState mutex poisoned");
         manager.scan_midi_directory(path).map_err(CommandError::from)
     })
     .await
@@ -962,7 +957,7 @@ fn list_midis_paginated(
     offset: usize,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.list_midis_paginated(limit, offset).map_err(CommandError::from)
 }
 
@@ -973,7 +968,7 @@ fn list_midis_around_id(
     limit: usize,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.list_midis_around_id(target_id, limit).map_err(CommandError::from)
 }
 
@@ -982,7 +977,7 @@ fn list_midis_around_id(
 fn get_all_midi_paths(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.get_all_midi_paths().map_err(CommandError::from)
 }
 
@@ -992,7 +987,7 @@ fn get_midi(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.get_midi(&path).map_err(CommandError::from)
 }
 
@@ -1002,7 +997,7 @@ fn delete_midi(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.delete_midi(&path).map_err(CommandError::from)
 }
 
@@ -1011,7 +1006,7 @@ fn delete_midi(
 fn clear_all_midis(
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.clear_all_midis().map_err(CommandError::from)
 }
 
@@ -1021,6 +1016,6 @@ fn search_midis(
     query: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
-    let manager = open_manager(state.db_path.as_deref())?;
+    let manager = get_manager(&state);
     manager.search_midis(&query).map_err(CommandError::from)
 }
