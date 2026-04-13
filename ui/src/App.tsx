@@ -357,6 +357,7 @@ export function App() {
             samples={sampleState.samples}
             filters={sampleState.filters}
             onFilterChange={sampleState.handleFilterChange}
+            allInstrumentTypeNames={sampleState.instrumentTypes.map((t) => t.name) as import("./types/sample").InstrumentType[]}
             onError={(message) => {
               scanState.setError(message);
             }}

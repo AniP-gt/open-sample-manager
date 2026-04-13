@@ -1,4 +1,4 @@
-import type { Sample, FilterState } from "../../types/sample";
+import type { Sample, FilterState, InstrumentType } from "../../types/sample";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
 import { useState, useMemo } from "react";
@@ -23,19 +23,28 @@ interface DetailPanelProps {
   samples?: Sample[];
   filters?: FilterState;
   onFilterChange?: (filters: Partial<FilterState>) => void;
+  // All instrument types registered in SQLite (instrument_types table).
+  // When provided, the INST filter shows all registered tags regardless of
+  // which samples are currently loaded.
+  allInstrumentTypeNames?: InstrumentType[];
   // space to leave at the bottom so content isn't hidden by overlapping UI
   bottomInset?: number;
 }
 
-export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, onSelect: propsOnSelect, onError: propsOnError, bottomInset = 0 }: DetailPanelProps) {
+export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, allInstrumentTypeNames, onSelect: propsOnSelect, onError: propsOnError, bottomInset = 0 }: DetailPanelProps) {
   // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
 
-  const allInstrumentTypes = useMemo(
-    () => [...new Set(samples.map((s) => s.instrument_type))].sort(),
-    [samples],
-  );
+  // Prefer the full list from SQLite (allInstrumentTypeNames) so all registered
+  // tags are shown even when the current page doesn't contain samples of that type.
+  // Fall back to deriving from loaded samples when the prop is not provided.
+  const allInstrumentTypes = useMemo(() => {
+    if (allInstrumentTypeNames && allInstrumentTypeNames.length > 0) {
+      return [...allInstrumentTypeNames].sort();
+    }
+    return [...new Set(samples.map((s) => s.instrument_type))].sort();
+  }, [allInstrumentTypeNames, samples]);
 
   type FilterTypeOption = FilterState["filterType"];
   const typeFilters: FilterTypeOption[] = ["all", "loop", "one-shot"];

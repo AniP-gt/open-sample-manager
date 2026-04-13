@@ -9,6 +9,82 @@ use crate::db::operations::{insert_sample, SampleInput};
 use super::audio::{compute_waveform_peaks, extract_artist};
 use super::ManagerError;
 
+/// Infer instrument type from file name keywords.
+/// Returns one of the seeded instrument_types: kick, snare, hihat, bass, synth, fx, vocal, percussion, other.
+fn infer_instrument_type_from_filename(file_name: &str) -> &'static str {
+    let lower = file_name.to_lowercase();
+    let stem = lower
+        .rfind('.')
+        .map(|i| &lower[..i])
+        .unwrap_or(&lower);
+
+    // Check each instrument type against known keywords.
+    // Order matters: more specific matches should come before generic ones.
+    let kick_keywords = ["kick", "bd", "bassdrum", "bass_drum"];
+    let snare_keywords = ["snare", "snr", "sd", "rimshot", "rim"];
+    let hihat_keywords = ["hihat", "hi_hat", "hi-hat", "hhat", "hh", "cymbal", "crash", "ride", "open_hat", "closed_hat", "openhat", "closedhat"];
+    let bass_keywords = ["bass", "sub", "808"];
+    let synth_keywords = ["synth", "lead", "pad", "arp", "keys", "piano", "organ", "pluck"];
+    let fx_keywords = ["fx", "sfx", "effect", "riser", "downlifter", "uplifter", "sweep", "transition", "impact", "noise", "atmo", "atmosphere", "ambience", "ambient", "texture", "foley"];
+    let vocal_keywords = ["vocal", "vox", "voice", "choir", "chant", "sing"];
+    let percussion_keywords = ["perc", "percussion", "conga", "bongo", "tom", "clap", "shaker", "tamb", "cowbell", "woodblock", "claves", "maracas", "cabasa", "guiro", "triangle"];
+
+    if kick_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "kick";
+    }
+    if snare_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "snare";
+    }
+    if hihat_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "hihat";
+    }
+    if bass_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "bass";
+    }
+    if synth_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "synth";
+    }
+    if fx_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "fx";
+    }
+    if vocal_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "vocal";
+    }
+    if percussion_keywords.iter().any(|kw| contains_word(stem, kw)) {
+        return "percussion";
+    }
+
+    "other"
+}
+
+/// Check if `stem` contains `keyword` as a standalone word segment.
+/// Before the keyword: must be start-of-string or a non-alphanumeric character.
+/// After the keyword: must be end-of-string, a non-alphanumeric character, or a digit
+/// (so "HH01" and "BD_01" both match "hh" and "bd" respectively).
+fn contains_word(stem: &str, keyword: &str) -> bool {
+    if !stem.contains(keyword) {
+        return false;
+    }
+    let klen = keyword.len();
+    let bytes = stem.as_bytes();
+    let kbytes = keyword.as_bytes();
+    let mut i = 0;
+    while i + klen <= bytes.len() {
+        if &bytes[i..i + klen] == kbytes {
+            let before_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
+            // Digits following a keyword are treated as a boundary so that
+            // common sample-pack patterns like "HH01" or "SD02" are matched.
+            let after_ok = i + klen == bytes.len()
+                || !bytes[i + klen].is_ascii_alphabetic();
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 /// Decode and analyze a single audio file, returning a [`SampleInput`].
 pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
     let artist = extract_artist(file_path);
@@ -22,6 +98,12 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
     let energy_ratio = compute_energy_ratio(&decoded.samples);
     let loop_type = classify_loop(duration, bpm_result.periodicity_strength, energy_ratio);
 
+    let file_name = file_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
     let (playback_type, instrument_type) = if kick_result.is_kick {
         ("oneshot", "kick")
     } else {
@@ -29,7 +111,8 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
             LoopType::Loop => "loop",
             LoopType::OneShot => "oneshot",
         };
-        (pt, "other")
+        let it = infer_instrument_type_from_filename(&file_name);
+        (pt, it)
     };
 
     let sample_type = if kick_result.is_kick {
@@ -38,11 +121,6 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
         playback_type.to_string()
     };
 
-    let file_name = file_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("unknown")
-        .to_string();
     let path_str = file_path.to_str().unwrap_or_default().to_string();
     let waveform_peaks = compute_waveform_peaks(&decoded.samples, 64);
     let sample_rate = decoded.sample_rate as i64;
@@ -82,4 +160,95 @@ pub(super) fn analyze_and_store(
     let input = analyze(file_path)?;
     let id = insert_sample(conn, &input)?;
     Ok(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_infer_kick() {
+        assert_eq!(infer_instrument_type_from_filename("kick_808.wav"), "kick");
+        assert_eq!(infer_instrument_type_from_filename("BD_hard.wav"), "kick");
+        assert_eq!(infer_instrument_type_from_filename("bassdrum_01.wav"), "kick");
+    }
+
+    #[test]
+    fn test_infer_snare() {
+        assert_eq!(infer_instrument_type_from_filename("snare_tight.wav"), "snare");
+        assert_eq!(infer_instrument_type_from_filename("SNR_01.wav"), "snare");
+        assert_eq!(infer_instrument_type_from_filename("rimshot.wav"), "snare");
+    }
+
+    #[test]
+    fn test_infer_hihat() {
+        assert_eq!(infer_instrument_type_from_filename("hihat_open.wav"), "hihat");
+        assert_eq!(infer_instrument_type_from_filename("HH_closed.wav"), "hihat");
+        assert_eq!(infer_instrument_type_from_filename("crash_cymbal.wav"), "hihat");
+    }
+
+    #[test]
+    fn test_infer_bass() {
+        assert_eq!(infer_instrument_type_from_filename("bass_loop.wav"), "bass");
+        assert_eq!(infer_instrument_type_from_filename("sub_bass.wav"), "bass");
+        assert_eq!(infer_instrument_type_from_filename("808_bass.wav"), "bass");
+    }
+
+    #[test]
+    fn test_infer_synth() {
+        assert_eq!(infer_instrument_type_from_filename("synth_lead.wav"), "synth");
+        assert_eq!(infer_instrument_type_from_filename("pad_warm.wav"), "synth");
+        assert_eq!(infer_instrument_type_from_filename("piano_chord.wav"), "synth");
+    }
+
+    #[test]
+    fn test_infer_fx() {
+        assert_eq!(infer_instrument_type_from_filename("fx_riser.wav"), "fx");
+        assert_eq!(infer_instrument_type_from_filename("sfx_impact.wav"), "fx");
+        assert_eq!(infer_instrument_type_from_filename("transition_sweep.wav"), "fx");
+    }
+
+    #[test]
+    fn test_infer_vocal() {
+        assert_eq!(infer_instrument_type_from_filename("vocal_chop.wav"), "vocal");
+        assert_eq!(infer_instrument_type_from_filename("vox_dry.wav"), "vocal");
+        assert_eq!(infer_instrument_type_from_filename("choir_hit.wav"), "vocal");
+    }
+
+    #[test]
+    fn test_infer_percussion() {
+        assert_eq!(infer_instrument_type_from_filename("perc_shaker.wav"), "percussion");
+        assert_eq!(infer_instrument_type_from_filename("conga_hit.wav"), "percussion");
+        assert_eq!(infer_instrument_type_from_filename("clap_dry.wav"), "percussion");
+    }
+
+    #[test]
+    fn test_infer_other() {
+        assert_eq!(infer_instrument_type_from_filename("unknown_sample.wav"), "other");
+        assert_eq!(infer_instrument_type_from_filename("sample_01.wav"), "other");
+    }
+
+    #[test]
+    fn test_no_partial_word_match() {
+        // "hh" should not match "rhythm" or "shh"
+        assert_ne!(infer_instrument_type_from_filename("rhythm_guitar.wav"), "hihat");
+        // "bass" in "contrabass" — contrabass contains "bass" at word boundary after 'contra'
+        // 'a' before 'bass' is alphanumeric so it won't match as a word
+        assert_eq!(infer_instrument_type_from_filename("contrabass.wav"), "other");
+    }
+
+    #[test]
+    fn test_numeric_suffix_matches() {
+        // Industry-standard sample pack naming: abbreviation directly followed by number
+        assert_eq!(infer_instrument_type_from_filename("HH01.wav"), "hihat");
+        assert_eq!(infer_instrument_type_from_filename("BD01.wav"), "kick");
+        assert_eq!(infer_instrument_type_from_filename("SD02.wav"), "snare");
+        assert_eq!(infer_instrument_type_from_filename("perc01.wav"), "percussion");
+    }
+
+    #[test]
+    fn test_kick_takes_priority_over_bass_in_filename() {
+        // "kick_bass" should be classified as kick (first match wins)
+        assert_eq!(infer_instrument_type_from_filename("kick_bass.wav"), "kick");
+    }
 }
