@@ -229,6 +229,9 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);"
     );
 
+    // Migration: add musical_key column to samples
+    let _ = conn.execute("ALTER TABLE samples ADD COLUMN musical_key TEXT", []);
+
     Ok(())
 }
 

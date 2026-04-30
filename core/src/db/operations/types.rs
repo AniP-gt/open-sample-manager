@@ -39,6 +39,8 @@ pub struct SampleRow {
     pub playback_type: String,
     /// Instrument type: "kick", "snare", "hihat", "bass", "synth", "fx", "vocal", "percussion", "other".
     pub instrument_type: String,
+    /// Detected musical key (pitch class only: "C", "C#", ..., "B").
+    pub musical_key: Option<String>,
 }
 
 /// Result of an embedding search: similarity score + sample row.
@@ -83,6 +85,8 @@ pub struct SampleInput {
     pub playback_type: Option<String>,
     /// Instrument type: "kick", "snare", etc.
     pub instrument_type: Option<String>,
+    /// Detected musical key (pitch class only: "C", "C#", ..., "B").
+    pub musical_key: Option<String>,
 }
 
 /// A row from the `midis` table.

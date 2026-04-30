@@ -4,8 +4,8 @@ use super::types::{EmbeddingSearchResult, SampleInput, SampleRow};
 
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, COALESCE(?15, 'oneshot'), COALESCE(?16, 'other'))",
+        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type, musical_key)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, COALESCE(?15, 'oneshot'), COALESCE(?16, 'other'), ?17)",
     )?;
     stmt.execute(params![
         input.path,
@@ -24,6 +24,7 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
         input.embedding,
         input.playback_type,
         input.instrument_type,
+        input.musical_key,
     ])?;
     let rowid = conn.last_insert_rowid();
     let mut fts_stmt =
@@ -47,8 +48,9 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
     let mut stmt = conn.prepare_cached(
         "UPDATE samples SET file_name = ?1, duration = ?2, bpm = ?3, periodicity = ?4,
          sample_rate = ?5, file_size = ?6, artist = ?7, low_ratio = ?8, attack_slope = ?9, decay_time = ?10, sample_type = ?11, embedding = ?12,
-         playback_type = COALESCE(?13, playback_type), instrument_type = COALESCE(?14, instrument_type)
-         WHERE path = ?15",
+         playback_type = COALESCE(?13, playback_type), instrument_type = COALESCE(?14, instrument_type),
+         musical_key = COALESCE(?15, musical_key)
+         WHERE path = ?16",
     )?;
     let updated = stmt.execute(params![
         input.file_name,
@@ -65,6 +67,7 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         input.embedding,
         input.playback_type,
         input.instrument_type,
+        input.musical_key,
         input.path,
     ])?;
 
@@ -85,7 +88,7 @@ pub fn get_sample_by_path(
 ) -> Result<Option<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
          FROM samples WHERE path = ?1",
     )?;
     stmt.query_row(params![path], row_to_sample).optional()
@@ -94,7 +97,7 @@ pub fn get_sample_by_path(
 pub fn get_sample_by_id(conn: &Connection, id: i64) -> Result<Option<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
          FROM samples WHERE id = ?1",
     )?;
     stmt.query_row(params![id], row_to_sample).optional()
@@ -159,7 +162,7 @@ pub fn search_by_embedding(
     }
 
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples WHERE embedding IS NOT NULL",
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE embedding IS NOT NULL",
     )?;
     let rows = stmt.query_map([], |row| row_to_sample(row))?;
 
@@ -205,7 +208,7 @@ pub fn list_samples_paginated(
     offset: usize,
 ) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples ORDER BY id LIMIT ?1 OFFSET ?2",
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples ORDER BY id LIMIT ?1 OFFSET ?2",
     )?;
     let rows = stmt.query_map(params![limit as i64, offset as i64], row_to_sample)?;
     rows.collect()
@@ -230,7 +233,7 @@ pub fn list_samples_around_id(
     let mut before_rows: Vec<SampleRow> = {
         let start_id = (target_id - before).max(1);
         let mut stmt = conn.prepare_cached(
-            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id DESC",
+            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id DESC",
         )?;
         let rows = stmt
             .query_map(params![start_id, target_id], row_to_sample)?
@@ -243,7 +246,7 @@ pub fn list_samples_around_id(
     let after_end = (target_id + after).min(max_id + 1);
     let after_rows: Vec<SampleRow> = if after_limit > 0 {
         let mut stmt = conn.prepare_cached(
-            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id",
+            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id",
         )?;
         let rows = stmt
             .query_map(params![target_id, after_end], row_to_sample)?
@@ -342,13 +345,14 @@ pub(super) fn row_to_sample(row: &rusqlite::Row<'_>) -> Result<SampleRow, rusqli
         is_online: row.get::<_, i32>("is_online")? != 0,
         playback_type: row.get::<_, String>("playback_type")?,
         instrument_type: row.get::<_, String>("instrument_type")?,
+        musical_key: row.get::<_, Option<String>>("musical_key")?,
     })
 }
 
 fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
          FROM samples ORDER BY id",
     )?;
     let rows = stmt.query_map([], row_to_sample)?.collect();
@@ -366,7 +370,7 @@ fn run_fts_query(
             let mut stmt = conn.prepare_cached(
                 "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
                         s.sample_rate, s.file_size, s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
-                        s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type
+                        s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key
                  FROM samples_fts f JOIN samples s ON s.id = f.rowid
                  WHERE f.file_name MATCH ?1 ORDER BY rank LIMIT ?2 OFFSET ?3",
             )?;
@@ -379,7 +383,7 @@ fn run_fts_query(
             let mut stmt = conn.prepare_cached(
                 "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
                         s.sample_rate, s.file_size, s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
-                        s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type
+                        s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key
                  FROM samples_fts f JOIN samples s ON s.id = f.rowid
                  WHERE f.file_name MATCH ?1 ORDER BY rank",
             )?;
@@ -483,6 +487,7 @@ mod tests {
             embedding: None,
             playback_type: None,
             instrument_type: None,
+            musical_key: None,
         }
     }
 
@@ -525,6 +530,7 @@ mod tests {
             embedding: None,
             playback_type: None,
             instrument_type: None,
+            musical_key: None,
         };
         assert!(insert_sample(&conn, &input).expect("insert with nulls failed") > 0);
     }
