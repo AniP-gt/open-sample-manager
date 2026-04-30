@@ -56,4 +56,26 @@ export function useKeyboardShortcuts({
     window.addEventListener("keydown", handleSpaceKey);
     return () => window.removeEventListener("keydown", handleSpaceKey);
   }, [viewMode, sampleState.selected, midiState.selectedMidi, midiState.togglePlaySelectedMidi, playerBarRef]);
+
+  useEffect(() => {
+    const handleNavKeys = (event: KeyboardEvent) => {
+      if (event.code !== "Enter") return;
+      if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;
+
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        if (target.isContentEditable) return;
+        if (target.closest("input,textarea,select,button,a,[role='button'],[role='link'],summary")) return;
+      }
+
+      if (viewMode !== "sample") return;
+      if (!sampleState.selected || !playerBarRef.current) return;
+
+      event.preventDefault();
+      playerBarRef.current.toggle();
+    };
+
+    window.addEventListener("keydown", handleNavKeys);
+    return () => window.removeEventListener("keydown", handleNavKeys);
+  }, [viewMode, sampleState.selected, playerBarRef]);
 }
