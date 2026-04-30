@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, lazy, Suspense } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import type WaveSurfer from "wavesurfer.js";
 import type { Sample } from "../../types/sample";
 import { WaveformDisplay } from "../WaveformDisplay/WaveformDisplay";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
+import { SpectrogramView } from "../WaveSurferPlayer/SpectrogramView";
+import { LoopMarker } from "../WaveSurferPlayer/LoopMarker";
+import { PitchShiftControl } from "./PitchShiftControl";
 
 const LazyWaveSurferPlayer = lazy(() => import("../WaveSurferPlayer/WaveSurferPlayer").then(m => ({ default: m.WaveSurferPlayer })));
 
@@ -36,6 +40,9 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [volume, setVolume] = useState(() => audioRef.current.volume);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showSpectrogram, setShowSpectrogram] = useState(false);
+  const [wavesurferInstance, setWavesurferInstance] = useState<WaveSurfer | null>(null);
 
   useEffect(() => {
     audioRef.current.volume = volume;
@@ -64,6 +71,10 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
     // Stop current audio immediately — reuse the same element
     const audio = audioRef.current;
     audio.pause();
+
+    // The WaveSurfer instance gets recreated whenever the file changes,
+    // so drop the stale reference until the next 'ready' event lands.
+    setWavesurferInstance(null);
 
     if (pathTimerRef.current) clearTimeout(pathTimerRef.current);
 
@@ -184,7 +195,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
         bottom: 0,
         left: 0,
         right: 0,
-        height: "160px",
+        height: showAdvanced ? "auto" : "160px",
         background: "linear-gradient(to top, #0a0c12 0%, #0d1019 60%, #0d101999 100%)",
         borderTop: "1px solid #1a1f2e",
         padding: "12px 24px 16px",
@@ -304,6 +315,26 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
           <span>{formatTime(duration || sample.duration)}</span>
         </div>
 
+        {/* Advanced Controls Toggle — autoPlay mode has no WaveSurfer instance, so hide */}
+        {!autoPlayRef.current && (
+          <button
+            onClick={() => setShowAdvanced((v) => !v)}
+            style={{
+              fontSize: "11px",
+              color: showAdvanced ? "#a78bfa" : "#6b7280",
+              background: "transparent",
+              border: `1px solid ${showAdvanced ? "#a78bfa" : "#1f2937"}`,
+              borderRadius: "4px",
+              padding: "4px 8px",
+              cursor: "pointer",
+              letterSpacing: "0.1em",
+              flexShrink: 0,
+            }}
+          >
+            {showAdvanced ? "▴ CONTROLS" : "▾ CONTROLS"}
+          </button>
+        )}
+
         {/* Volume */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
           <span style={{ color: "#6b7280", fontSize: "14px", userSelect: "none" }}>
@@ -372,6 +403,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
                 audio.currentTime = time;
                 setCurrentTime(time);
               }}
+              onWaveSurferReady={(ws) => setWavesurferInstance(ws)}
             />
           </Suspense>
         ) : (
@@ -388,7 +420,29 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
             }}
           />
         )}
+
       </div>
+
+      {/* Advanced Controls */}
+      {showAdvanced && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            padding: "8px 0",
+            borderTop: "1px solid #1a1f2e",
+          }}
+        >
+          <SpectrogramView
+            wavesurfer={wavesurferInstance}
+            enabled={showSpectrogram}
+            onToggle={() => setShowSpectrogram((v) => !v)}
+          />
+          <LoopMarker wavesurfer={wavesurferInstance} />
+          <PitchShiftControl audioElement={audioRef.current} wavesurfer={wavesurferInstance} isPlaying={playing} />
+        </div>
+      )}
 
       {/* Error Message */}
       {loadError && (

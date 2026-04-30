@@ -13,6 +13,9 @@ interface WaveSurferPlayerProps {
   duration: number;
   onSeek?: (time: number) => void;
   onPlayStateChange?: (playing: boolean) => void;
+  /** Called once when the underlying WaveSurfer instance has finished
+   *  loading and is ready for plugin registration / external control. */
+  onWaveSurferReady?: (ws: WaveSurfer) => void;
   height?: number;
 }
 
@@ -25,6 +28,7 @@ export function WaveSurferPlayer({
   duration,
   onSeek,
   onPlayStateChange,
+  onWaveSurferReady,
   height = 100,
 }: WaveSurferPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +36,14 @@ export function WaveSurferPlayer({
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The init effect's deps don't include `onWaveSurferReady`; without a ref
+  // the handler captured at mount would be stale once the parent rerenders
+  // with a new closure (e.g. one that captures a fresh wavesurferInstance
+  // setter). Storing the latest callback in a ref keeps the init effect
+  // stable while still firing the freshest `ready` notification.
+  const onWaveSurferReadyRef = useRef(onWaveSurferReady);
+  onWaveSurferReadyRef.current = onWaveSurferReady;
 
   const getWaveColors = () => {
     if (sample.sample_type === "loop") {
@@ -70,6 +82,7 @@ export function WaveSurferPlayer({
       setIsReady(true);
       setIsLoading(false);
       setError(null);
+      onWaveSurferReadyRef.current?.(wavesurfer);
     });
 
     wavesurfer.on("error", (err) => {
