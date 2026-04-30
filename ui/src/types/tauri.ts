@@ -13,4 +13,5 @@ export type TauriSampleRow = {
   waveform_peaks: string | null;
   playback_type: string;
   instrument_type: string;
+  musical_key: string | null;
 };

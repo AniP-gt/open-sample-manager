@@ -48,6 +48,7 @@ export const mapRowToSample = (row: TauriSampleRow): Sample => {
     waveform_peaks: waveformPeaks,
     playback_type: playbackType,
     instrument_type: instrumentType,
+    musical_key: row.musical_key ?? undefined,
   };
 };
 

@@ -32,6 +32,8 @@ export interface Sample {
   waveform_peaks: number[] | null;
   playback_type: PlaybackType;
   instrument_type: InstrumentType;
+  /** Detected musical key (pitch class only: "C", "C#", ..., "B"). */
+  musical_key?: string;
 }
 
 export interface FilterState {
@@ -41,6 +43,8 @@ export interface FilterState {
   filterBpmMax: string;
   filterInstrumentType: InstrumentType | "";
   favoritesOnly: boolean;
+  /** Pitch class filter (e.g. "C", "C#"); empty string = no filter. */
+  filterKey: string;
 }
 
 export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate";
