@@ -1,7 +1,24 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { FilterState } from "../../types/sample";
+import type { FilterState, Sample } from "../../types/sample";
 import { useFavoritesStore } from "../../store/useFavoritesStore";
+import { useRecentStore } from "../../store/useRecentStore";
+
+const KEY_OPTIONS = [
+  "All",
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
 
 interface FilterSidebarProps {
   scannedPaths: string[];
@@ -16,6 +33,12 @@ interface FilterSidebarProps {
   width?: number;
   bottomInset?: number; // space to leave at the bottom (e.g. player height)
   favoritesOnly?: boolean;
+  /** Pitch class filter currently selected; "" or "All" disables filter. */
+  filterKey?: string;
+  /** Sample list to resolve recent ids against (for the Recent section). */
+  samples?: Sample[];
+  /** Called when a recent sample row is clicked. */
+  onSampleSelect?: (sample: Sample) => void;
 }
 
 interface TreeNode {
@@ -222,8 +245,17 @@ export function FilterSidebar({
   width = 180,
   bottomInset = 0,
   favoritesOnly = false,
+  filterKey = "",
+  samples = [],
+  onSampleSelect,
 }: FilterSidebarProps) {
   const { favorites } = useFavoritesStore();
+  const { recentIds } = useRecentStore();
+  const sampleById = useMemo(() => {
+    const map = new Map<number, Sample>();
+    for (const s of samples) map.set(s.id, s);
+    return map;
+  }, [samples]);
   // Sidebar is now a simple file tree container; no top/bottom split or resizer.
 
   // No filter controls here anymore; counts and tags are rendered in the DetailPanel
@@ -337,6 +369,36 @@ export function FilterSidebar({
             <span>FAVORITES {favorites.length > 0 ? `(${favorites.length})` : ""}</span>
           </button>
         </div>
+
+        <div style={{ padding: "4px 12px 12px" }}>
+          <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>
+            KEY
+          </div>
+          <select
+            value={filterKey === "" ? "All" : filterKey}
+            onChange={(e) => {
+              const v = e.target.value;
+              onFilterChange({ filterKey: v === "All" ? "" : v });
+            }}
+            style={{
+              width: "100%",
+              background: "#0a0c12",
+              border: "1px solid #1f2937",
+              borderRadius: "3px",
+              color: "#e2e8f0",
+              padding: "6px 8px",
+              fontFamily: "'Courier New', monospace",
+              fontSize: "12px",
+            }}
+          >
+            {KEY_OPTIONS.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {scannedPaths.length > 0 ? (
           <>
             <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>
@@ -358,6 +420,53 @@ export function FilterSidebar({
         ) : (
           <div style={{ padding: "16px 12px", fontSize: "12px", color: "#4b5563", fontFamily: "'Courier New', monospace" }}>
             No folders scanned
+          </div>
+        )}
+
+        {recentIds.length > 0 && (
+          <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #0f1117" }}>
+            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>
+              RECENT
+            </div>
+            {recentIds.map((id) => {
+              const sample = sampleById.get(id);
+              if (!sample) {
+                return (
+                  <div
+                    key={id}
+                    style={{
+                      padding: "4px 12px",
+                      fontSize: "12px",
+                      color: "#374151",
+                      fontFamily: "'Courier New', monospace",
+                    }}
+                  >
+                    #{id}
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={id}
+                  onClick={() => onSampleSelect?.(sample)}
+                  title={sample.file_name}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: "12px",
+                    color: "#9ca3af",
+                    fontFamily: "'Courier New', monospace",
+                    cursor: "pointer",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#f97316")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+                >
+                  ♪ {sample.file_name}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
