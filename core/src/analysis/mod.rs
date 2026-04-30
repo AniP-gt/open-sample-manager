@@ -7,6 +7,8 @@ pub mod bpm;
 pub mod decoder;
 /// Analysis module for sample feature extraction and processing
 pub mod fft_utils;
+/// Musical key (pitch class) detection via chroma vector.
+pub mod key;
 /// Kick drum detection algorithms and configuration.
 pub mod kick;
 /// Loop vs one-shot classification for audio samples.
