@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import "./styles/global.css";
 import {
   Header,
@@ -26,6 +26,7 @@ import { useScanState } from "./hooks/useScanState";
 import { useUIState } from "./hooks/useUIState";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSettingsStore } from "./store/useSettingsStore";
+import { useFavoritesStore } from "./store/useFavoritesStore";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -35,6 +36,7 @@ const defaultFilters: FilterState = {
   filterBpmMin: "",
   filterBpmMax: "",
   filterInstrumentType: "",
+  favoritesOnly: false,
 };
 
 export function App() {
@@ -57,6 +59,9 @@ export function App() {
 
   const autoPlayOnSelect = useSettingsStore((s) => s.autoPlayOnSelect);
   const setAutoPlayOnSelect = useSettingsStore((s) => s.setAutoPlayOnSelect);
+  const instrumentColorCoding = useSettingsStore((s) => s.instrumentColorCoding);
+  const setInstrumentColorCoding = useSettingsStore((s) => s.setInstrumentColorCoding);
+  const favorites = useFavoritesStore((s) => s.favorites);
 
   const uiState = useUIState({
     getHandleImportPaths: () => scanImportHandlerRef.current,
@@ -99,6 +104,18 @@ export function App() {
     setSelectedMidi: midiState.setSelectedMidi,
     fetchAllMidiPaths: midiState.fetchAllMidiPaths,
   });
+
+  useEffect(() => {
+    if (sampleState.filters.favoritesOnly && favorites.length === 0) {
+      sampleState.handleFilterChange({ favoritesOnly: false });
+    }
+  }, [favorites, sampleState.filters.favoritesOnly]);
+
+  const displayedSamples = useMemo(() => {
+    if (!sampleState.filters.favoritesOnly) return sampleState.samples;
+    const favSet = new Set(favorites);
+    return sampleState.samples.filter((s) => favSet.has(s.id));
+  }, [sampleState.samples, sampleState.filters.favoritesOnly, favorites]);
 
   useKeyboardShortcuts({
     viewMode: uiState.viewMode,
@@ -247,6 +264,7 @@ export function App() {
           onImportPaths={scanState.handleSidebarImport}
           width={uiState.sidebarWidth}
           bottomInset={(uiState.viewMode === "sample" && sampleState.selected) || (uiState.viewMode === "midi" && midiState.selectedMidi) ? 160 : 0}
+          favoritesOnly={sampleState.filters.favoritesOnly}
         />
 
         <div
@@ -269,7 +287,7 @@ export function App() {
         {uiState.viewMode === "sample" ? (
           <SampleList
             ref={sampleListRef}
-            samples={sampleState.samples}
+            samples={displayedSamples}
             samplePaths={sampleState.samplePaths}
             filters={sampleState.filters}
             sort={sampleState.sort}
@@ -292,6 +310,7 @@ export function App() {
             isLoadingPrevious={sampleState.isLoadingPrevious}
             canLoadPrevious={sampleState.canLoadPrevious}
             onTogglePlayback={sampleState.togglePlayback}
+            instrumentColorCoding={instrumentColorCoding}
           />
         ) : (
           <>
@@ -354,7 +373,7 @@ export function App() {
             onSelect={(s) => {
               void sampleState.handleSampleSelect(s);
             }}
-            samples={sampleState.samples}
+            samples={displayedSamples}
             filters={sampleState.filters}
             onFilterChange={sampleState.handleFilterChange}
             allInstrumentTypeNames={sampleState.instrumentTypes.map((t) => t.name) as import("./types/sample").InstrumentType[]}
@@ -385,6 +404,8 @@ export function App() {
         sampleCount={sampleState.samples.length}
         autoPlayOnSelect={autoPlayOnSelect}
         onAutoPlayChange={setAutoPlayOnSelect}
+        instrumentColorCoding={instrumentColorCoding}
+        onInstrumentColorCodingChange={setInstrumentColorCoding}
       />
 
       <ConfirmModal
