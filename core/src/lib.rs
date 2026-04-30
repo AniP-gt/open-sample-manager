@@ -60,7 +60,7 @@
 //! - [`embedding`] — Audio feature embedding generation
 //!
 
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 #![doc(html_root_url = "https://docs.rs/open-sample-manager-core/0.1.0")]
 
 use serde::{Deserialize, Serialize};
