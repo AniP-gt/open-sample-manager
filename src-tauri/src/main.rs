@@ -79,25 +79,6 @@ async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State
     result
 }
 
-#[tauri::command]
-async fn import_file(path: String, state: tauri::State<'_, AppState>) -> Result<i64, CommandError> {
-    let mgr = Arc::clone(&state.manager);
-
-    let result = tokio::task::spawn_blocking(move || {
-        let manager = mgr.lock().expect("AppState mutex poisoned");
-        // Use the core import_file helper which analyzes a single file and
-        // returns the inserted row id.
-        manager.import_file(path).map_err(CommandError::from)
-    })
-    .await
-    .map_err(|e| CommandError {
-        code: "task_error".to_string(),
-        message: e.to_string(),
-        details: None,
-    })?;
-
-    result
-}
 
 #[tauri::command]
 fn search_samples(
@@ -296,18 +277,23 @@ fn debug_start_drag(raw: serde_json::Value) -> Result<(), CommandError> {
 }
 
 // Helper structs matching typical shapes we might receive from the renderer.
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
 struct CandidateFiles { files: Vec<String> }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
-struct CandidateFilesCapital { Files: Vec<String> }
+struct CandidateFilesCapital { #[serde(rename = "Files")] files: Vec<String> }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
 struct CandidateItemArray(Vec<String>);
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
-struct CandidateImageFile { File: String }
+struct CandidateImageFile { #[serde(rename = "File")] file: String }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
 struct CandidateImagePath { path: String }
 
@@ -837,54 +823,6 @@ async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<()
     Ok(())
 }
 
-/// Render a MIDI file to a temporary WAV file using TiMidity++ and return the
-/// generated file path. This allows the frontend to load and seek within the
-/// rendered audio using the browser's audio APIs.
-#[tauri::command]
-async fn render_midi_to_wav(path: String) -> Result<String, CommandError> {
-    // Generate a unique temp path
-    let mut out = std::env::temp_dir();
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    out.push(format!("rendered_midi_{}.wav", ts));
-
-    // Locate timidity using comprehensive path search
-    let timidity = find_timidity_executable()?;
-
-
-    // Run: timidity -Ow -o <out> <path>
-    let status = std::process::Command::new(timidity)
-        .arg("-Ow")
-        .arg("-o")
-        .arg(out.to_string_lossy().to_string())
-        .arg(path)
-        .status()
-        .map_err(|e| CommandError {
-            code: "timidity_render_error".to_string(),
-            message: format!("failed to spawn timidity for render: {}", e),
-            details: None,
-        })?;
-
-    if !status.success() {
-        return Err(CommandError {
-            code: "timidity_render_failed".to_string(),
-            message: format!("timidity failed with exit code: {:?}", status.code()),
-            details: None,
-        });
-    }
-
-    Ok(out.to_string_lossy().to_string())
-}
-
-#[tauri::command]
-fn delete_file(path: String) -> Result<bool, CommandError> {
-    match std::fs::remove_file(&path) {
-        Ok(_) => Ok(true),
-        Err(e) => Err(CommandError { code: "io_error".to_string(), message: format!("failed to delete file {}: {}", path, e), details: None }),
-    }
-}
 
 /// Stop the currently playing MIDI file (kills timidity process).
 #[tauri::command]
