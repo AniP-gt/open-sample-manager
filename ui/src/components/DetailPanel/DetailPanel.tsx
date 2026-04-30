@@ -309,6 +309,10 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
             <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>ARTIST</div>
             <div style={{ fontSize: "13px", color: "#4b5563" }}>{sample.artist ?? '—'}</div>
           </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>KEY</div>
+            <div style={{ fontSize: "13px", color: sample.musical_key ? "#a78bfa" : "#4b5563" }}>{sample.musical_key ?? '—'}</div>
+          </div>
           <AnalysisBar
             label="PERIODICITY"
             value={sample.periodicity}
@@ -338,12 +342,6 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
       
       
 
-      
-      <div>
-        {/* Embedding UI removed per user request. */}
-      </div>
-
-      
       </div>
 
       {/* PATH footer (sticky inside panel) */}

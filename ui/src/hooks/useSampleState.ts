@@ -38,6 +38,7 @@ export function useSampleState({
     filterBpmMax: "",
     filterInstrumentType: "",
     favoritesOnly: false,
+    filterKey: "",
   });
   const [sort, setSort] = useState<SortState>({ field: "id", direction: "asc" });
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);

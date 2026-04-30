@@ -27,6 +27,7 @@ import { useUIState } from "./hooks/useUIState";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSettingsStore } from "./store/useSettingsStore";
 import { useFavoritesStore } from "./store/useFavoritesStore";
+import { useRecentStore } from "./store/useRecentStore";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -37,6 +38,7 @@ const defaultFilters: FilterState = {
   filterBpmMax: "",
   filterInstrumentType: "",
   favoritesOnly: false,
+  filterKey: "",
 };
 
 export function App() {
@@ -62,6 +64,7 @@ export function App() {
   const instrumentColorCoding = useSettingsStore((s) => s.instrumentColorCoding);
   const setInstrumentColorCoding = useSettingsStore((s) => s.setInstrumentColorCoding);
   const favorites = useFavoritesStore((s) => s.favorites);
+  const addRecent = useRecentStore((s) => s.addRecent);
 
   const uiState = useUIState({
     getHandleImportPaths: () => scanImportHandlerRef.current,
@@ -112,10 +115,17 @@ export function App() {
   }, [favorites, sampleState.filters.favoritesOnly]);
 
   const displayedSamples = useMemo(() => {
-    if (!sampleState.filters.favoritesOnly) return sampleState.samples;
-    const favSet = new Set(favorites);
-    return sampleState.samples.filter((s) => favSet.has(s.id));
-  }, [sampleState.samples, sampleState.filters.favoritesOnly, favorites]);
+    let list = sampleState.samples;
+    if (sampleState.filters.favoritesOnly) {
+      const favSet = new Set(favorites);
+      list = list.filter((s) => favSet.has(s.id));
+    }
+    const key = sampleState.filters.filterKey;
+    if (key && key !== "All") {
+      list = list.filter((s) => s.musical_key === key);
+    }
+    return list;
+  }, [sampleState.samples, sampleState.filters.favoritesOnly, sampleState.filters.filterKey, favorites]);
 
   useKeyboardShortcuts({
     viewMode: uiState.viewMode,
@@ -139,6 +149,11 @@ export function App() {
   scanImportHandlerRef.current = scanState.handleImportPaths;
 
   const confirmOpen = sampleState.confirmOpen || midiState.confirmOpen;
+
+  const handleSampleSelectWithRecent = async (sample: Sample) => {
+    addRecent(sample.id);
+    await sampleState.handleSampleSelect(sample);
+  };
 
   const filteredMidis = useMemo(() => {
     if (!midiState.midiTagFilterId) return midiState.midis;
@@ -265,6 +280,11 @@ export function App() {
           width={uiState.sidebarWidth}
           bottomInset={(uiState.viewMode === "sample" && sampleState.selected) || (uiState.viewMode === "midi" && midiState.selectedMidi) ? 160 : 0}
           favoritesOnly={sampleState.filters.favoritesOnly}
+          filterKey={sampleState.filters.filterKey}
+          samples={sampleState.samples}
+          onSampleSelect={(s) => {
+            void handleSampleSelectWithRecent(s);
+          }}
         />
 
         <div
@@ -292,7 +312,7 @@ export function App() {
             filters={sampleState.filters}
             sort={sampleState.sort}
             selectedSample={sampleState.selected}
-            onSampleSelect={sampleState.handleSampleSelect}
+            onSampleSelect={handleSampleSelectWithRecent}
             onFilterChange={sampleState.handleFilterChange}
             onSortChange={sampleState.setSort}
             onDeleteSample={(id) => {
@@ -371,7 +391,7 @@ export function App() {
             sample={sampleState.selected}
             path={sampleState.samplePaths[sampleState.selected.id]}
             onSelect={(s) => {
-              void sampleState.handleSampleSelect(s);
+              void handleSampleSelectWithRecent(s);
             }}
             samples={displayedSamples}
             filters={sampleState.filters}
