@@ -4,6 +4,8 @@ import { persist } from "zustand/middleware";
 interface SettingsState {
   autoPlayOnSelect: boolean;
   setAutoPlayOnSelect: (value: boolean) => void;
+  instrumentColorCoding: boolean;
+  setInstrumentColorCoding: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -11,6 +13,8 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       autoPlayOnSelect: false,
       setAutoPlayOnSelect: (value) => set({ autoPlayOnSelect: value }),
+      instrumentColorCoding: false,
+      setInstrumentColorCoding: (value) => set({ instrumentColorCoding: value }),
     }),
     {
       name: "osm_settings",

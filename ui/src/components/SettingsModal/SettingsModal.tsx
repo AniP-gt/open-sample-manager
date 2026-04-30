@@ -5,6 +5,8 @@ interface SettingsModalProps {
   sampleCount: number;
   autoPlayOnSelect: boolean;
   onAutoPlayChange: (enabled: boolean) => void;
+  instrumentColorCoding: boolean;
+  onInstrumentColorCodingChange: (enabled: boolean) => void;
 }
 
 export function SettingsModal({
@@ -13,6 +15,8 @@ export function SettingsModal({
   sampleCount,
   autoPlayOnSelect,
   onAutoPlayChange,
+  instrumentColorCoding,
+  onInstrumentColorCodingChange,
 }: Omit<SettingsModalProps, 'onClearAllSamples'>) {
   if (!isOpen) return null;
 
@@ -131,6 +135,69 @@ export function SettingsModal({
                   position: "absolute",
                   top: "3px",
                   left: autoPlayOnSelect ? "23px" : "3px",
+                  width: "18px",
+                  height: "18px",
+                  borderRadius: "50%",
+                  background: "#fff",
+                  transition: "left 0.2s",
+                }}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Display Section */}
+        <div style={{ marginBottom: "24px" }}>
+          <h3
+            style={{
+              fontSize: "14px",
+              letterSpacing: "0.1em",
+              color: "#9ca3af",
+              marginBottom: "12px",
+            }}
+          >
+            DISPLAY
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px",
+              background: "#080a0f",
+              borderRadius: "2px",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "14px", color: "#d1d5db" }}>
+                Instrument color coding
+              </div>
+              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+                Color-code rows and badges by instrument type
+              </div>
+            </div>
+            <button
+              onClick={() => onInstrumentColorCodingChange(!instrumentColorCoding)}
+              style={{
+                width: "44px",
+                height: "24px",
+                borderRadius: "12px",
+                border: "none",
+                cursor: "pointer",
+                background: instrumentColorCoding ? "#f97316" : "#374151",
+                position: "relative",
+                flexShrink: 0,
+                transition: "background 0.2s",
+              }}
+              aria-checked={instrumentColorCoding}
+              role="switch"
+              aria-label="Instrument color coding"
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: "3px",
+                  left: instrumentColorCoding ? "23px" : "3px",
                   width: "18px",
                   height: "18px",
                   borderRadius: "50%",
