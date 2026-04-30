@@ -40,6 +40,7 @@ export interface FilterState {
   filterBpmMin: string;
   filterBpmMax: string;
   filterInstrumentType: InstrumentType | "";
+  favoritesOnly: boolean;
 }
 
 export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate";

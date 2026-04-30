@@ -16,6 +16,7 @@ interface PlayerBarProps {
 export interface PlayerBarHandle {
   stop: () => void;
   play: () => void;
+  toggle: () => void;
   isPlaying: boolean;
 }
 
@@ -34,6 +35,11 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [volume, setVolume] = useState(() => audioRef.current.volume);
+
+  useEffect(() => {
+    audioRef.current.volume = volume;
+  }, [volume]);
   const handleClose = () => {
     const audio = audioRef.current;
     audio.pause();
@@ -154,8 +160,16 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
         }
       },
       play: () => {
-        if (audioRef.current && !playing) {
+        if (audioRef.current?.paused) {
           audioRef.current.play().catch(() => {});
+        }
+      },
+      toggle: () => {
+        if (!audioRef.current) return;
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(() => {});
+        } else {
+          audioRef.current.pause();
         }
       },
       isPlaying: playing,
@@ -288,6 +302,26 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
           </span>
           <span style={{ color: "#4b5563" }}>/</span>
           <span>{formatTime(duration || sample.duration)}</span>
+        </div>
+
+        {/* Volume */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+          <span style={{ color: "#6b7280", fontSize: "14px", userSelect: "none" }}>
+            {volume === 0 ? "🔇" : volume < 0.5 ? "🔉" : "🔊"}
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setVolume(v);
+              audioRef.current.volume = v;
+            }}
+            style={{ width: "80px", accentColor: "#f97316", cursor: "pointer" }}
+          />
         </div>
       </div>
 

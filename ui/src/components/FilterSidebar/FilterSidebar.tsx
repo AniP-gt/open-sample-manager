@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { FilterState } from "../../types/sample";
+import { useFavoritesStore } from "../../store/useFavoritesStore";
 
 interface FilterSidebarProps {
   scannedPaths: string[];
@@ -14,6 +15,7 @@ interface FilterSidebarProps {
   onImportPaths?: (paths: string[]) => void;
   width?: number;
   bottomInset?: number; // space to leave at the bottom (e.g. player height)
+  favoritesOnly?: boolean;
 }
 
 interface TreeNode {
@@ -219,7 +221,9 @@ export function FilterSidebar({
   onImportPaths,
   width = 180,
   bottomInset = 0,
+  favoritesOnly = false,
 }: FilterSidebarProps) {
+  const { favorites } = useFavoritesStore();
   // Sidebar is now a simple file tree container; no top/bottom split or resizer.
 
   // No filter controls here anymore; counts and tags are rendered in the DetailPanel
@@ -309,6 +313,30 @@ export function FilterSidebar({
           paddingBottom: `${12 + bottomInset}px`,
         }}
       >
+        <div style={{ padding: "8px 12px 4px" }}>
+          <button
+            onClick={() => onFilterChange({ favoritesOnly: !favoritesOnly })}
+            style={{
+              background: favoritesOnly ? "#f6e05e25" : "#f6e05e0a",
+              border: `1px solid ${favoritesOnly ? "#f6e05e80" : "#f6e05e30"}`,
+              color: favoritesOnly ? "#f6e05e" : "#9ca3af",
+              borderRadius: "3px",
+              padding: "6px 10px",
+              fontSize: "11px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              letterSpacing: "0.08em",
+              transition: "background 0.15s, border-color 0.15s, color 0.15s",
+            }}
+          >
+            <span>{favoritesOnly ? "★" : "☆"}</span>
+            <span>FAVORITES {favorites.length > 0 ? `(${favorites.length})` : ""}</span>
+          </button>
+        </div>
         {scannedPaths.length > 0 ? (
           <>
             <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>

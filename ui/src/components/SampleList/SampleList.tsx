@@ -4,8 +4,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
-import { TypeBadge } from "../TypeBadge/TypeBadge";
+import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
 import { isTextInputElement } from "../../utils/keyboard";
+import { useFavoritesStore } from "../../store/useFavoritesStore";
 
 interface SampleListProps {
   samples: Sample[];
@@ -38,6 +39,7 @@ interface SampleListProps {
   isLoadingPrevious?: boolean;
   // Whether previous items can be loaded.
   canLoadPrevious?: boolean;
+  instrumentColorCoding?: boolean;
 }
 
 // Helper: extract file system paths from a DataTransfer-like object. Exported
@@ -167,6 +169,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       onLoadPrevious,
       isLoadingPrevious,
       canLoadPrevious,
+      instrumentColorCoding = false,
     } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -174,7 +177,9 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   // Widen DUR (index 5) and the actions column (index 6) to avoid overlap
   // between the duration text and action buttons (emoji icons).
   // Increase TYPE column (index 2) to reduce wrapping of "one-shot" badge
-  const [colWidths, setColWidths] = useState<string[]>(["28px", "0.9fr", "110px", "90px", "60px", "86px", "88px"]);
+  const [colWidths, setColWidths] = useState<string[]>(["44px", "28px", "0.9fr", "110px", "90px", "60px", "86px", "88px"]);
+  const { favorites, toggleFavorite } = useFavoritesStore();
+  const favSet = useMemo(() => new Set(favorites), [favorites]);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
   const draggedColumnRef = useRef<number | null>(null);
   const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
@@ -191,8 +196,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       document.removeEventListener("mouseup", resizeHandlersRef.current.onUp);
     }
 
-    const minWidths = [20, 120, 60, 60, 40, 40, 30];
-    const maxWidths = [400, 1600, 800, 800, 400, 400, 400];
+    const minWidths = [36, 20, 120, 60, 60, 40, 40, 30];
+    const maxWidths = [80, 400, 1600, 800, 800, 400, 400, 400];
 
     const onMove = (e: MouseEvent) => {
       const active = activeResize.current;
@@ -466,24 +471,6 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     return () => obs.disconnect();
   }, [onLoadPrevious, isLoadingPrevious, canLoadPrevious]);
 
-  // Optional: wire a simple Load More footer when the parent exposes the
-  // dev helper on window.__osm_load_more. This avoids changing many call
-  // sites at once while keeping the UI usable in dev mode.
-  useEffect(() => {
-    // noop - keep placeholder for future wiring
-  }, []);
-
-  // The actual load-more invocation is performed by the dev helper exposed on
-  // window.__osm_load_more. We intentionally do not define an exported or
-  // prop-driven handler here to keep this change minimally invasive; the
-  // helper is attached by the App container during development.
-
-
-  // Render the footer below the list when running in development to enable
-  // quick manual testing of the pagination flow. We defer to the dev helper
-  // exposed on window.__osm_load_more which performs the actual invocation.
-
-
   useImperativeHandle(ref, () => ({
     focusSelected: () => {
       if (!selectedSample) return;
@@ -576,46 +563,13 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           color: "#374151",
         }}
       >
-        <div style={{ position: "relative" }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => {
-          const el = headerRefs.current[0];
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563", fontSize: "16px" }}>☆</div>
+        <div style={{ position: "relative" }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => {
+          const el = headerRefs.current[1];
           if (!el) return;
-          startColumnResize(0, e.clientX, el.getBoundingClientRect().width);
+          startColumnResize(1, e.clientX, el.getBoundingClientRect().width);
         }}>
-          <SortHeader field="id" currentSort={sort} onSort={onSortChange} columnIndex={0} draggedColumnRef={draggedColumnRef}>#</SortHeader>
-        </div>
-
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[1] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[1];
-              if (!el) return;
-              startColumnResize(1, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[1];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              // Consider the mouse "near the right edge" when within 10px of the right
-              // (this allows hovering the small resizer which sits slightly outside).
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 1 : h === 1 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))}
-          >
-          <SortHeader field="file_name" currentSort={sort} onSort={onSortChange} columnIndex={1} draggedColumnRef={draggedColumnRef}>FILENAME</SortHeader>
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 1 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 1 || draggedColumnRef.current === 1 ? "#f97316" : hoveredCol === 1 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
+          <SortHeader field="id" currentSort={sort} onSort={onSortChange} columnIndex={1} draggedColumnRef={draggedColumnRef}>#</SortHeader>
         </div>
 
           <div
@@ -630,12 +584,14 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
               const el = headerRefs.current[2];
               if (!el) return;
               const rect = el.getBoundingClientRect();
+              // Consider the mouse "near the right edge" when within 10px of the right
+              // (this allows hovering the small resizer which sits slightly outside).
               const near = Math.abs(rect.right - e.clientX) <= 10;
               setHoveredCol((h) => (near ? 2 : h === 2 ? null : h));
             }}
             onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))}
           >
-          <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>TYPE</SortHeader>
+          <SortHeader field="file_name" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>FILENAME</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -650,24 +606,24 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           </div>
         </div>
 
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[3] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[3];
-            if (!el) return;
-            startColumnResize(3, e.clientX, el.getBoundingClientRect().width);
-          }}
-          onMouseMove={(e) => {
-            const el = headerRefs.current[3];
-            if (!el) return;
-            const rect = el.getBoundingClientRect();
-            const near = Math.abs(rect.right - e.clientX) <= 10;
-            setHoveredCol((h) => (near ? 3 : h === 3 ? null : h));
-          }}
-          onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}
-        >
-          <SortHeader field="instrument_type" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>INST</SortHeader>
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[3] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[3];
+              if (!el) return;
+              startColumnResize(3, e.clientX, el.getBoundingClientRect().width);
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[3];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 3 : h === 3 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}
+          >
+          <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>TYPE</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -682,24 +638,24 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           </div>
         </div>
 
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[4] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[4];
-              if (!el) return;
-              startColumnResize(4, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[4];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 4 : h === 4 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}
-          >
-          <SortHeader field="bpm" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>BPM</SortHeader>
+        <div
+          style={{ position: "relative" }}
+          ref={(el) => (headerRefs.current[4] = el)}
+          onMouseDown={(e) => {
+            const el = headerRefs.current[4];
+            if (!el) return;
+            startColumnResize(4, e.clientX, el.getBoundingClientRect().width);
+          }}
+          onMouseMove={(e) => {
+            const el = headerRefs.current[4];
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            const near = Math.abs(rect.right - e.clientX) <= 10;
+            setHoveredCol((h) => (near ? 4 : h === 4 ? null : h));
+          }}
+          onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}
+        >
+          <SortHeader field="instrument_type" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>INST</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -731,7 +687,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             }}
             onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))}
           >
-          <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={5} draggedColumnRef={draggedColumnRef}>DUR</SortHeader>
+          <SortHeader field="bpm" currentSort={sort} onSort={onSortChange} columnIndex={5} draggedColumnRef={draggedColumnRef}>BPM</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -763,7 +719,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             }}
             onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))}
           >
-          <div />
+          <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={6} draggedColumnRef={draggedColumnRef}>DUR</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -771,6 +727,38 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
                 height: "70%",
                 cursor: "col-resize",
                 background: activeResize.current?.index === 6 || draggedColumnRef.current === 6 ? "#f97316" : hoveredCol === 6 ? "#374151" : "transparent",
+                borderRadius: 2,
+                transition: "width 0.12s, background 0.12s",
+              }}
+            />
+          </div>
+        </div>
+
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[7] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[7];
+              if (!el) return;
+              startColumnResize(7, e.clientX, el.getBoundingClientRect().width);
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[7];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 7 : h === 7 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))}
+          >
+          <div />
+          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
+            <div
+              style={{
+                width: hoveredCol === 7 ? 8 : 4,
+                height: "70%",
+                cursor: "col-resize",
+                background: activeResize.current?.index === 7 || draggedColumnRef.current === 7 ? "#f97316" : hoveredCol === 7 ? "#374151" : "transparent",
                 borderRadius: 2,
                 transition: "width 0.12s, background 0.12s",
               }}
@@ -849,7 +837,13 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
                 selectedSample?.id === s.id
                   ? "2px solid #f97316"
                   : "2px solid transparent",
-              background: selectedSample?.id === s.id ? "#111827" : "transparent",
+              background: selectedSample?.id === s.id
+                ? instrumentColorCoding
+                  ? `linear-gradient(${getInstrumentColor(s.instrument_type).bg}, ${getInstrumentColor(s.instrument_type).bg}), #111827`
+                  : "#111827"
+                : instrumentColorCoding
+                  ? getInstrumentColor(s.instrument_type).bg
+                  : "transparent",
               alignItems: "center",
               transition: "background 0.1s",
               cursor: samplePaths[s.id] ? "grab" : "default",
@@ -881,6 +875,21 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             }}
             onClick={() => onSampleSelect(s)}
           >
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); toggleFavorite(s.id); }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: favSet.has(s.id) ? "#f6e05e" : "#4b5563",
+                fontSize: "22px",
+              }}
+              title={favSet.has(s.id) ? "Remove from favorites" : "Add to favorites"}
+            >
+              {favSet.has(s.id) ? "★" : "☆"}
+            </div>
             <div style={{ fontSize: "14px", color: "#374151" }}>{s.id}</div>
             <div>
               <div
@@ -925,7 +934,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
                   fontWeight: 600,
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "#f97316",
+                  color: instrumentColorCoding ? getInstrumentColor(s.instrument_type).color : "#f97316",
                   cursor: "pointer",
                 }}
               >
