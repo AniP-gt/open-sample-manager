@@ -7,6 +7,7 @@ import type { FilterState, Sample, SortState, SortField } from "../../types/samp
 import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
 import { isTextInputElement } from "../../utils/keyboard";
 import { useFavoritesStore } from "../../store/useFavoritesStore";
+import { GridView } from "./GridView";
 
 interface SampleListProps {
   samples: Sample[];
@@ -178,6 +179,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   // between the duration text and action buttons (emoji icons).
   // Increase TYPE column (index 2) to reduce wrapping of "one-shot" badge
   const [colWidths, setColWidths] = useState<string[]>(["44px", "28px", "0.9fr", "110px", "90px", "60px", "86px", "88px"]);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -550,8 +552,52 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         >
           {sorted.length}/{samples.length} RESULTS
         </span>
+        <div style={{ display: "flex", gap: "4px" }}>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="List view"
+            style={{
+              background: viewMode === "list" ? "#1f2937" : "transparent",
+              border: "1px solid #1f2937",
+              color: viewMode === "list" ? "#f97316" : "#6b7280",
+              padding: "4px 8px",
+              borderRadius: "2px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+              fontSize: "12px",
+            }}
+          >
+            ☰
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            title="Grid view"
+            style={{
+              background: viewMode === "grid" ? "#1f2937" : "transparent",
+              border: "1px solid #1f2937",
+              color: viewMode === "grid" ? "#f97316" : "#6b7280",
+              padding: "4px 8px",
+              borderRadius: "2px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+              fontSize: "12px",
+            }}
+          >
+            ▦
+          </button>
+        </div>
       </div>
 
+      {viewMode === "grid" ? (
+        <GridView
+          samples={sorted}
+          selectedId={selectedSample?.id ?? null}
+          onSelect={onSampleSelect}
+        />
+      ) : (
+      <>
       <div
         style={{
           display: "grid",
@@ -820,14 +866,12 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           <div
             key={s.id}
             data-index={virtualRow.index}
-            ref={(el: HTMLDivElement | null) => {
-              if (el) virtualizer.measureElement(el);
-            }}
             style={{
               position: "absolute",
               top: 0,
               left: 0,
               width: "100%",
+              height: `${rowHeight}px`,
               transform: `translateY(${virtualRow.start}px)`,
               display: "grid",
               gridTemplateColumns: colWidths.join(" "),
@@ -891,19 +935,21 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
               {favSet.has(s.id) ? "★" : "☆"}
             </div>
             <div style={{ fontSize: "14px", color: "#374151" }}>{s.id}</div>
-            <div>
+            <div style={{ overflow: "hidden", minWidth: 0 }}>
               <div
                 style={{
                   fontSize: "16px",
                   color: "#d1d5db",
                   letterSpacing: "0.02em",
                   marginBottom: "3px",
-                  wordBreak: "break-word",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {s.file_name}
               </div>
-              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "4px", overflow: "hidden" }}>
                 {s.tags.map((t) => (
                   <span
                     key={t}
@@ -1145,6 +1191,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }));
