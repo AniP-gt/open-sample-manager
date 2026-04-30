@@ -80,6 +80,7 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         embedding: None,
         playback_type: None,
         instrument_type: None,
+        musical_key: None,
     }
 }
 

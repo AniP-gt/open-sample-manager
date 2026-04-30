@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::analysis::bpm::estimate_bpm;
 use crate::analysis::decoder::decode_to_mono_f32;
+use crate::analysis::key::detect_key;
 use crate::analysis::kick::detect_kick;
 use crate::analysis::loop_classifier::{classify_loop, compute_energy_ratio, LoopType};
 use crate::db::operations::{insert_sample, SampleInput};
@@ -92,6 +93,7 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
 
     let bpm_result = estimate_bpm(&decoded.samples, decoded.sample_rate);
     let kick_result = detect_kick(&decoded.samples, decoded.sample_rate);
+    let musical_key = detect_key(&decoded.samples, decoded.sample_rate);
 
     #[allow(clippy::cast_precision_loss)]
     let duration = decoded.samples.len() as f64 / f64::from(decoded.sample_rate);
@@ -149,6 +151,7 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
         embedding: Some(emb_bytes),
         playback_type: Some(playback_type.to_string()),
         instrument_type: Some(instrument_type.to_string()),
+        musical_key,
     })
 }
 

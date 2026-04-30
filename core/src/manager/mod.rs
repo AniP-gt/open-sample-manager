@@ -285,6 +285,7 @@ impl SampleManager {
             embedding: row.embedding,
             playback_type: Some(pt),
             instrument_type: Some(it),
+            musical_key: row.musical_key,
         };
         Ok(crate::db::operations::update_sample(&self.conn, &input)?)
     }
