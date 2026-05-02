@@ -191,6 +191,9 @@ export function App() {
         onScanClick={() => {
           void scanState.handleScanClick();
         }}
+        onReScanClick={() => {
+          void scanState.handleReScanClick();
+        }}
         onSettingsClick={() => uiState.setSettingsOpen(true)}
         onReload={() => {
           void sampleState.handleSearch(sampleState.filters.search);
@@ -200,6 +203,7 @@ export function App() {
       <RescanPrompt
         isOpen={scanState.rescanPromptOpen}
         path={scanState.rescanPendingPath}
+        isIncremental={true}
         onRescan={async () => {
           if (!scanState.rescanPendingPath) return;
           scanState.setRescanPromptOpen(false);

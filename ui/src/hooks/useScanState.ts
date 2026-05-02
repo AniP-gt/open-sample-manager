@@ -119,6 +119,44 @@ export function useScanState({
     }
   };
 
+  const handleReScanClick = async () => {
+    try {
+      setScanning(true);
+      setScanProgress(null);
+      setError(null);
+
+      let lastProgressUpdate = 0;
+      const progressThrottleMs = 100;
+
+      const unlisten = await listen<ScanProgress>("scan-progress", (event) => {
+        const now = Date.now();
+        if (now - lastProgressUpdate >= progressThrottleMs) {
+          lastProgressUpdate = now;
+          setScanProgress(event.payload);
+        }
+      });
+
+      const count = await invoke<number>("re_scan_all_samples");
+      setScanned(true);
+      await runSearch(getFilters().search);
+      await fetchAllSamplePaths();
+
+      setScanProgress({
+        stage: "complete",
+        current: 0,
+        total: 0,
+        currentFile: `Re-scanned ${count} samples`,
+      });
+
+      unlisten();
+    } catch (e) {
+      handleInvokeError(e);
+    } finally {
+      setScanning(false);
+      setScanProgress(null);
+    }
+  };
+
   const handleSidebarImport = async (rawPaths: string[]) => {
     const { handleImportPaths } = await import("../utils/handleImportPaths");
     await handleImportPaths(rawPaths, {
@@ -304,6 +342,7 @@ export function useScanState({
     setError,
     performScan,
     handleScanClick,
+    handleReScanClick,
     handleSidebarImport,
     handleImportPaths,
     handleInvokeError,

@@ -4,6 +4,7 @@ interface HeaderProps {
   onScanClick: () => void;
   onSettingsClick: () => void;
   onReload?: () => void;
+  onReScanClick?: () => void;
   // When true, show the import drop affordance (app-level drag is active)
   isDragOver?: boolean;
   // View mode toggle
@@ -11,7 +12,7 @@ interface HeaderProps {
   onViewModeChange: (mode: 'sample' | 'midi') => void;
 }
 
-export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, isDragOver, viewMode, onViewModeChange }: HeaderProps) {
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, viewMode, onViewModeChange }: HeaderProps) {
   return (
     <div
       style={{
@@ -179,23 +180,44 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
             DROP TO IMPORT
           </div>
           ) : (
-          <button
-            onClick={onScanClick}
-            style={{
-              fontSize: "15px",
-              letterSpacing: "0.1em",
-              background: "#f97316",
-              color: "#000",
-              border: "none",
-              padding: "6px 14px",
-              borderRadius: "2px",
-              cursor: "pointer",
-              fontFamily: "'Courier New', monospace",
-              fontWeight: 700,
-            }}
-          >
-            SCAN LIBRARY
-          </button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              onClick={onScanClick}
+              style={{
+                fontSize: "15px",
+                letterSpacing: "0.1em",
+                background: "#f97316",
+                color: "#000",
+                border: "none",
+                padding: "6px 14px",
+                borderRadius: "2px",
+                cursor: "pointer",
+                fontFamily: "'Courier New', monospace",
+                fontWeight: 700,
+              }}
+            >
+              SCAN LIBRARY
+            </button>
+            {(onReScanClick && sampleCount > 0) && (
+              <button
+                onClick={onReScanClick}
+                title="Re-analyze all samples (update key detection)"
+                style={{
+                  fontSize: "12px",
+                  letterSpacing: "0.08em",
+                  background: "transparent",
+                  color: "#6b7280",
+                  border: "1px solid #1f2937",
+                  padding: "6px 10px",
+                  borderRadius: "2px",
+                  cursor: "pointer",
+                  fontFamily: "'Courier New', monospace",
+                }}
+              >
+                RE-SCAN
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

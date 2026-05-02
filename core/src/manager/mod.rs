@@ -233,6 +233,49 @@ impl SampleManager {
         Ok(crate::db::operations::clear_all_samples(&self.conn)?)
     }
 
+    pub fn re_scan_all_samples(&self, mut progress: impl FnMut(ScanProgress)) -> Result<usize, ManagerError> {
+        let paths: Vec<String> = crate::db::operations::get_all_sample_paths(&self.conn)?;
+        let total = paths.len();
+
+        progress(ScanProgress {
+            stage: ScanStage::Analyzing,
+            current: 0,
+            total,
+            current_file: "Starting re-scan...".to_string(),
+        });
+
+        let mut count = 0usize;
+        for (idx, path) in paths.iter().enumerate() {
+            progress(ScanProgress {
+                stage: ScanStage::Analyzing,
+                current: idx + 1,
+                total,
+                current_file: path.clone(),
+            });
+
+            match analyze::analyze(path.as_ref()) {
+                Ok(input) => {
+                    let updated = crate::db::operations::update_sample(&self.conn, &input)?;
+                    if updated > 0 {
+                        count += 1;
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to analyze {}: {}", path, e);
+                }
+            }
+        }
+
+        progress(ScanProgress {
+            stage: ScanStage::Complete,
+            current: total,
+            total,
+            current_file: format!("Re-scanned {} samples", count),
+        });
+
+        Ok(count)
+    }
+
     pub fn move_sample(&self, old_path: &str, new_path: &str) -> Result<String, ManagerError> {
         std::fs::rename(old_path, new_path)?;
         crate::db::operations::move_sample_path(&self.conn, old_path, new_path)?;

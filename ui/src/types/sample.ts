@@ -47,7 +47,7 @@ export interface FilterState {
   filterKey: string;
 }
 
-export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate";
+export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate" | "musical_key";
 export type SortDirection = "asc" | "desc";
 
 export interface SortState {

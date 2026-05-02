@@ -149,6 +149,28 @@ fn clear_all_samples(state: tauri::State<'_, AppState>) -> Result<usize, Command
 }
 
 #[tauri::command]
+async fn re_scan_all_samples(app_handle: AppHandle, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
+    let mgr = Arc::clone(&state.manager);
+    let handle = app_handle.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = mgr.lock().expect("AppState mutex poisoned");
+        manager.re_scan_all_samples(move |prog| {
+            let event = ScanProgressEvent::from(&prog);
+            let _ = handle.emit("scan-progress", &event);
+        }).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+
+    result
+}
+
+#[tauri::command]
 async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Result<String, CommandError> {
     // Run the potentially blocking filesystem operation in a blocking task
     // so the async runtime isn't blocked. Also remove DB row after successful
@@ -533,6 +555,7 @@ fn main() {
         list_all_sample_paths,
         delete_sample,
         clear_all_samples,
+        re_scan_all_samples,
         move_sample,
         send_to_trash,
         update_sample_classification,

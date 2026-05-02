@@ -178,7 +178,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   // Widen DUR (index 5) and the actions column (index 6) to avoid overlap
   // between the duration text and action buttons (emoji icons).
   // Increase TYPE column (index 2) to reduce wrapping of "one-shot" badge
-  const [colWidths, setColWidths] = useState<string[]>(["44px", "28px", "0.9fr", "110px", "90px", "60px", "86px", "88px"]);
+  const [colWidths, setColWidths] = useState<string[]>(["44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "86px", "88px"]);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
@@ -198,8 +198,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       document.removeEventListener("mouseup", resizeHandlersRef.current.onUp);
     }
 
-    const minWidths = [36, 20, 120, 60, 60, 40, 40, 30];
-    const maxWidths = [80, 400, 1600, 800, 800, 400, 400, 400];
+    const minWidths = [36, 20, 120, 60, 60, 40, 40, 40, 30];
+    const maxWidths = [80, 400, 1600, 800, 800, 400, 400, 400, 200];
 
     const onMove = (e: MouseEvent) => {
       const active = activeResize.current;
@@ -308,7 +308,9 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
       const matchInstrumentType =
         filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
-      return matchSearch && matchType && matchBpmMin && matchBpmMax && matchInstrumentType;
+      const matchKey =
+        filters.filterKey === "" || s.musical_key === filters.filterKey;
+      return matchSearch && matchType && matchBpmMin && matchBpmMax && matchInstrumentType && matchKey;
     });
   }, [samples, filters]);
 
@@ -333,6 +335,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           // sample_rate sort no longer exposed in UI headers, but keep logic
           // so external sort state remains functional.
           return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
+        case "musical_key":
+          return (a.musical_key ?? "").localeCompare(b.musical_key ?? "") * dir;
         default:
           return 0;
       }
@@ -797,7 +801,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             }}
             onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))}
           >
-          <div />
+          <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>KEY</SortHeader>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
               style={{
@@ -805,6 +809,38 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
                 height: "70%",
                 cursor: "col-resize",
                 background: activeResize.current?.index === 7 || draggedColumnRef.current === 7 ? "#f97316" : hoveredCol === 7 ? "#374151" : "transparent",
+                borderRadius: 2,
+                transition: "width 0.12s, background 0.12s",
+              }}
+            />
+          </div>
+        </div>
+
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[8] = el)}
+            onMouseDown={(e) => {
+              const el = headerRefs.current[8];
+              if (!el) return;
+              startColumnResize(8, e.clientX, el.getBoundingClientRect().width);
+            }}
+            onMouseMove={(e) => {
+              const el = headerRefs.current[8];
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const near = Math.abs(rect.right - e.clientX) <= 10;
+              setHoveredCol((h) => (near ? 8 : h === 8 ? null : h));
+            }}
+            onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))}
+          >
+          <div />
+          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
+            <div
+              style={{
+                width: hoveredCol === 8 ? 8 : 4,
+                height: "70%",
+                cursor: "col-resize",
+                background: activeResize.current?.index === 8 || draggedColumnRef.current === 8 ? "#f97316" : hoveredCol === 8 ? "#374151" : "transparent",
                 borderRadius: 2,
                 transition: "width 0.12s, background 0.12s",
               }}
@@ -998,6 +1034,17 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             </div>
             <div style={{ fontSize: "16px", color: "#6b7280" }}>
               {s.duration.toFixed(2)}s
+            </div>
+            <div
+              style={{
+                fontSize: "14px",
+                fontFamily: "'Courier New', monospace",
+                fontWeight: 600,
+                letterSpacing: "0.08em",
+                color: s.musical_key ? "#a78bfa" : "#374151",
+              }}
+            >
+              {s.musical_key ?? "-"}
             </div>
             <div onMouseDown={(e) => e.stopPropagation()} style={{ display: "flex", gap: "6px", justifyContent: "center", position: "relative" }}>
               <button
