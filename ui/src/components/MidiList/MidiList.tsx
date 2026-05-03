@@ -37,6 +37,7 @@ interface MidiListProps {
   midiSearch?: string;
   onMidiSearchChange?: (query: string) => void;
   onTogglePlayback?: () => void;
+  filterKey?: string;
 }
 
 export type MidiListHandle = {
@@ -64,6 +65,7 @@ export const MidiList = forwardRef(function MidiList(
     midiSearch = "",
     onMidiSearchChange = () => {},
     onTogglePlayback,
+    filterKey = "",
   }: MidiListProps,
   ref: React.Ref<MidiListHandle>,
 ) {
@@ -233,12 +235,22 @@ export const MidiList = forwardRef(function MidiList(
   };
 
   
-  // Client-side filter by filename
   const filteredMidis = useMemo(
-    () => midiSearch.trim()
-      ? midis.filter((m) => m.file_name.toLowerCase().includes(midiSearch.toLowerCase()))
-      : midis,
-    [midis, midiSearch],
+    () => {
+      let result = midis;
+      if (midiSearch.trim()) {
+        result = result.filter((m) => m.file_name.toLowerCase().includes(midiSearch.toLowerCase()));
+      }
+      if (filterKey) {
+        result = result.filter((m) => {
+          if (!m.key_estimate) return false;
+          const notePart = m.key_estimate.split(" ")[0];
+          return notePart === filterKey;
+        });
+      }
+      return result;
+    },
+    [midis, midiSearch, filterKey],
   );
 
   // Sorting helpers
