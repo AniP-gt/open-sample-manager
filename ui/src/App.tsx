@@ -368,6 +368,7 @@ export function App() {
               onTogglePlayback={() => {
                 void midiState.togglePlaySelectedMidi();
               }}
+              filterKey={sampleState.filters.filterKey}
             />
 
             {midiState.selectedMidi && uiState.viewMode === "midi" && (
