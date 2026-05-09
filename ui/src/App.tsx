@@ -1,25 +1,18 @@
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import "./styles/global.css";
 import {
   Header,
-  FilterSidebar,
-  SampleList,
-  MidiList,
-  DetailPanel,
   ScannerOverlay,
   SettingsModal,
   PlayerBar,
-  ClassificationEditModal,
-  ConfirmModal,
-  InstrumentTypeManagementModal,
-  MidiTagManagementModal,
-  MidiTagEditModal,
-  MidiDetailPanel,
   RescanPrompt,
+  AppErrorBanner,
+  AppMainPane,
+  AppModals,
   type PlayerBarHandle,
   type MidiListHandle,
 } from "./components";
-import type { SampleListHandle } from "./components/SampleList/SampleList";
+import type { SampleListHandle } from "./components/SampleList/types";
 import { useSampleState } from "./hooks/useSampleState";
 import { useMidiState } from "./hooks/useMidiState";
 import { useScanState } from "./hooks/useScanState";
@@ -28,6 +21,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSettingsStore } from "./store/useSettingsStore";
 import { useFavoritesStore } from "./store/useFavoritesStore";
 import { useRecentStore } from "./store/useRecentStore";
+import { useDisplayedSamples, useFilteredMidis } from "./hooks/useDisplayedSamples";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -43,9 +37,9 @@ const defaultFilters: FilterState = {
 };
 
 export function App() {
-  const sampleListRef = useRef<SampleListHandle | null>(null);
-  const midiListRef = useRef<MidiListHandle | null>(null);
-  const playerBarRef = useRef<PlayerBarHandle | null>(null);
+  const sampleListRef = useRef<SampleListHandle>(null);
+  const midiListRef = useRef<MidiListHandle>(null);
+  const playerBarRef = useRef<PlayerBarHandle>(null);
   const scanImportHandlerRef = useRef<((paths: string[]) => Promise<void>) | null>(null);
   const sampleApiRef = useRef<{
     allSamplePaths: string[];
@@ -117,18 +111,11 @@ export function App() {
     }
   }, [favorites, sampleState.filters.favoritesOnly]);
 
-  const displayedSamples = useMemo(() => {
-    let list = sampleState.samples;
-    if (sampleState.filters.favoritesOnly) {
-      const favSet = new Set(favorites);
-      list = list.filter((s) => favSet.has(s.id));
-    }
-    const key = sampleState.filters.filterKey;
-    if (key && key !== "All") {
-      list = list.filter((s) => s.musical_key === key);
-    }
-    return list;
-  }, [sampleState.samples, sampleState.filters.favoritesOnly, sampleState.filters.filterKey, favorites]);
+  const displayedSamples = useDisplayedSamples(
+    sampleState.samples,
+    sampleState.filters,
+    favorites
+  );
 
   useKeyboardShortcuts({
     viewMode: uiState.viewMode,
@@ -152,18 +139,16 @@ export function App() {
   };
   scanImportHandlerRef.current = scanState.handleImportPaths;
 
-  const confirmOpen = sampleState.confirmOpen || midiState.confirmOpen;
-
   const handleSampleSelectWithRecent = async (sample: Sample) => {
     addRecent(sample.id);
     await sampleState.handleSampleSelect(sample);
   };
 
-  const filteredMidis = useMemo(() => {
-    if (!midiState.midiTagFilterId) return midiState.midis;
-    const tagName = midiState.midiTags.find((t) => t.id === midiState.midiTagFilterId)?.name ?? "";
-    return midiState.midis.filter((m) => m.tag_name === tagName);
-  }, [midiState.midis, midiState.midiTagFilterId, midiState.midiTags]);
+  const filteredMidis = useFilteredMidis(
+    midiState.midis,
+    midiState.midiTagFilterId,
+    midiState.midiTags
+  );
 
   return (
     <div
@@ -220,229 +205,28 @@ export function App() {
         }}
       />
 
-      {scanState.error && (
-        <div
-          style={{
-            margin: "10px 16px 0",
-            padding: "10px 12px",
-            border: "1px solid #ef444480",
-            background: "#7f1d1d55",
-            color: "#fecaca",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <span>{scanState.error}</span>
-          <button
-            type="button"
-            onClick={() => {
-              void sampleState.handleRetry();
-            }}
-            style={{
-              background: "#ef4444",
-              border: "none",
-              borderRadius: "2px",
-              color: "#fff",
-              fontFamily: "'Courier New', monospace",
-              padding: "4px 10px",
-              cursor: "pointer",
-            }}
-          >
-            RETRY
-          </button>
-        </div>
-      )}
+      <AppErrorBanner
+        error={scanState.error}
+        onRetry={() => {
+          void sampleState.handleRetry();
+        }}
+      />
 
       {scanState.scanning && <ScannerOverlay progress={scanState.scanProgress} onDone={() => {}} />}
 
-      <div
-        style={{
-          display: "flex",
-          flex: 1,
-          overflow: "hidden",
-          minWidth: 0,
-          height: sampleState.selected ? "calc(100vh - 57px - 160px)" : "calc(100vh - 57px)",
-          transition: "height 0.3s ease",
-        }}
-      >
-        <FilterSidebar
-          scannedPaths={uiState.viewMode === "midi" ? midiState.midiScannedPaths : sampleState.scannedPaths}
-          filePaths={uiState.viewMode === "midi" ? midiState.allMidiPaths : sampleState.allSamplePaths}
-          selectedPath={
-            uiState.viewMode === "midi"
-              ? (midiState.selectedMidi ? midiState.selectedMidi.path : midiState.directoryPath || null)
-              : (sampleState.selected ? sampleState.samplePaths[sampleState.selected.id] : sampleState.filters.directoryPath || null)
-          }
-          onFilterChange={sampleState.handleFilterChange}
-          onPathSelect={(path) => {
-            const normalizedPath = path.replace(/\\/g, "/");
-            const filePaths = uiState.viewMode === "midi" ? midiState.allMidiPaths : sampleState.allSamplePaths;
-            const isFile = filePaths.some((filePath) => filePath.replace(/\\/g, "/") === normalizedPath);
-
-            if (isFile) {
-              if (uiState.viewMode === "midi") {
-                if (midiState.directoryPath) {
-                  midiState.suppressNextMidiSearch();
-                  midiState.setDirectoryPath("");
-                }
-                void midiState.loadMidiByPath(path);
-                return;
-              }
-
-              if (sampleState.filters.directoryPath) {
-                sampleState.suppressNextSearch();
-                sampleState.handleFilterChange({ directoryPath: "" });
-              }
-              void sampleState.loadSampleByPath(path);
-              return;
-            }
-
-            if (uiState.viewMode === "midi") {
-              if (midiState.isMidiPlaying) {
-                void midiState.togglePlaySelectedMidi();
-              }
-              midiState.setSelectedMidi(null);
-              midiState.setDirectoryPath(midiState.directoryPath === normalizedPath ? "" : normalizedPath);
-              return;
-            }
-
-            playerBarRef.current?.stop();
-            sampleState.setSelected(null);
-            sampleState.handleFilterChange({
-              directoryPath: sampleState.filters.directoryPath === normalizedPath ? "" : normalizedPath,
-            });
-          }}
-          onImportPaths={scanState.handleSidebarImport}
-          width={uiState.sidebarWidth}
-          bottomInset={(uiState.viewMode === "sample" && sampleState.selected) || (uiState.viewMode === "midi" && midiState.selectedMidi) ? 160 : 0}
-          favoritesOnly={sampleState.filters.favoritesOnly}
-          filterKey={sampleState.filters.filterKey}
-          samples={sampleState.samples}
-          onSampleSelect={(s) => {
-            void handleSampleSelectWithRecent(s);
-          }}
-        />
-
-        <div
-          onMouseDown={uiState.handleMouseDown}
-          style={{
-            width: "4px",
-            background: uiState.isResizing ? "#f97316" : "#1f2937",
-            cursor: "col-resize",
-            transition: "background 0.2s",
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            if (!uiState.isResizing) e.currentTarget.style.background = "#374151";
-          }}
-          onMouseLeave={(e) => {
-            if (!uiState.isResizing) e.currentTarget.style.background = "#1f2937";
-          }}
-        />
-
-        {uiState.viewMode === "sample" ? (
-          <SampleList
-            ref={sampleListRef}
-            samples={displayedSamples}
-            samplePaths={sampleState.samplePaths}
-            filters={sampleState.filters}
-            sort={sampleState.sort}
-            selectedSample={sampleState.selected}
-            onSampleSelect={handleSampleSelectWithRecent}
-            onFilterChange={sampleState.handleFilterChange}
-            onSortChange={sampleState.setSort}
-            onDeleteSample={(id) => {
-              void sampleState.handleDeleteSample(id);
-            }}
-            onTrashSample={(id) => {
-              sampleState.requestTrash(id);
-            }}
-            onTypeClick={sampleState.handleTypeClick}
-            onImportPaths={scanState.handleImportPaths}
-            onLoadMore={sampleState.loadMore}
-            isLoadingMore={sampleState.isLoadingMore}
-            canLoadMore={sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit}
-            onLoadPrevious={sampleState.loadPrevious}
-            isLoadingPrevious={sampleState.isLoadingPrevious}
-            canLoadPrevious={sampleState.canLoadPrevious}
-            onTogglePlayback={sampleState.togglePlayback}
-            instrumentColorCoding={instrumentColorCoding}
-          />
-        ) : (
-          <>
-            <MidiList
-              ref={midiListRef}
-              midis={filteredMidis}
-              selectedMidi={midiState.selectedMidi}
-              onMidiSelect={midiState.handleMidiSelect}
-              onTagBadgeClick={(midi) => {
-                midiState.setMidiTagEditTarget(midi);
-                midiState.setMidiTagEditOpen(true);
-              }}
-              midiTags={midiState.midiTags}
-              onTagFilterChange={(id: number | null) => midiState.setMidiTagFilterId(id)}
-              tagFilterId={midiState.midiTagFilterId}
-              onTrashMidi={(id) => {
-                midiState.requestTrashMidi(id);
-              }}
-              onLoadMore={midiState.loadMoreMidi}
-              isLoadingMore={midiState.isLoadingMoreMidi}
-              canLoadMore={
-                midiState.lastFetchCountMidi === null ? true : midiState.lastFetchCountMidi === uiState.pageLimit
-              }
-              onLoadPrevious={midiState.loadPreviousMidi}
-              isLoadingPrevious={midiState.isLoadingPreviousMidi}
-              canLoadPrevious={midiState.canLoadPreviousMidi}
-              onImportPaths={scanState.handleImportPaths}
-              externalIsDragOver={uiState.isDragOver}
-              midiSearch={midiState.midiSearch}
-              onMidiSearchChange={midiState.setMidiSearch}
-              onTogglePlayback={() => {
-                void midiState.togglePlaySelectedMidi();
-              }}
-              filterKey={sampleState.filters.filterKey}
-            />
-
-            {midiState.selectedMidi && uiState.viewMode === "midi" && (
-              <div style={{ position: "relative", width: "min(260px, 40vw)" }}>
-                <MidiDetailPanel
-                  midi={midiState.selectedMidi}
-                  midiTags={midiState.midiTags}
-                  tagFilterId={midiState.midiTagFilterId ?? null}
-                  onTagFilterChange={(id: number | null) => midiState.setMidiTagFilterId(id)}
-                  onManageTags={() => midiState.setMidiTagModalOpen(true)}
-                  bottomInset={160}
-                  isPlaying={midiState.isMidiPlaying}
-                  onTogglePlay={() => {
-                    void midiState.togglePlaySelectedMidi();
-                  }}
-                  timidityStatus={midiState._timidityStatus}
-                />
-              </div>
-            )}
-          </>
-        )}
-
-        {sampleState.selected && uiState.viewMode === "sample" && (
-          <DetailPanel
-            sample={sampleState.selected}
-            path={sampleState.samplePaths[sampleState.selected.id]}
-            onSelect={(s) => {
-              void handleSampleSelectWithRecent(s);
-            }}
-            samples={displayedSamples}
-            filters={sampleState.filters}
-            onFilterChange={sampleState.handleFilterChange}
-            allInstrumentTypeNames={sampleState.instrumentTypes.map((t) => t.name) as import("./types/sample").InstrumentType[]}
-            onError={(message) => {
-              scanState.setError(message);
-            }}
-            bottomInset={sampleState.selected ? 160 : 0}
-          />
-        )}
-      </div>
+      <AppMainPane
+        uiState={uiState}
+        scanState={scanState}
+        sampleState={sampleState}
+        midiState={midiState}
+        playerBarRef={playerBarRef}
+        sampleListRef={sampleListRef}
+        midiListRef={midiListRef}
+        displayedSamples={displayedSamples}
+        filteredMidis={filteredMidis}
+        instrumentColorCoding={instrumentColorCoding}
+        handleSampleSelectWithRecent={handleSampleSelectWithRecent}
+      />
 
       {sampleState.selected && (
         <PlayerBar
@@ -467,82 +251,7 @@ export function App() {
         onInstrumentColorCodingChange={setInstrumentColorCoding}
       />
 
-      <ConfirmModal
-        isOpen={confirmOpen}
-        title={
-          sampleState.pendingTrashSampleId === -1
-            ? "Clear All Data"
-            : midiState.pendingTrashMidiId
-              ? "Move MIDI to Trash"
-              : "Move to Trash"
-        }
-        message={
-          sampleState.pendingTrashSampleId === -1
-            ? "Are you sure you want to clear all samples and MIDI files from the library index? This will remove all samples and MIDI files from the application's index (your files on disk will NOT be deleted). This action cannot be undone in the app."
-            : midiState.pendingTrashMidiId
-              ? `Are you sure you want to move '${midiState.midis.find((m) => m.id === midiState.pendingTrashMidiId)?.file_name ?? "this MIDI file"}' to the Trash?`
-              : `Are you sure you want to move '${sampleState.samples.find((s) => s.id === sampleState.pendingTrashSampleId)?.file_name ?? "this file"}' to the Trash?`
-        }
-        danger={sampleState.pendingTrashSampleId === -1}
-        onConfirm={async () => {
-          if (midiState.pendingTrashMidiId) {
-            await midiState.confirmTrashMidi();
-          } else {
-            await sampleState.confirmTrash();
-          }
-        }}
-        onCancel={() => {
-          if (midiState.pendingTrashMidiId) {
-            midiState.setPendingTrashMidiId(null);
-            midiState.setConfirmOpen(false);
-          } else {
-            sampleState.cancelTrash();
-          }
-        }}
-      />
-
-      <ClassificationEditModal
-        isOpen={sampleState.classificationModalOpen}
-        sample={sampleState.classificationSample}
-        editInstrumentType={sampleState.editInstrumentType}
-        editSampleType={sampleState.editSampleType}
-        instrumentTypes={sampleState.instrumentTypes.map((t) => t.name)}
-        onInstrumentTypeChange={sampleState.setEditInstrumentType}
-        onSampleTypeChange={sampleState.handleSampleTypeSelect}
-        onSave={sampleState.handleClassificationSave}
-        onClose={() => sampleState.setClassificationModalOpen(false)}
-        onManageClick={() => sampleState.setInstrumentTypeModalOpen(true)}
-      />
-
-      <InstrumentTypeManagementModal
-        isOpen={sampleState.instrumentTypeModalOpen}
-        instrumentTypes={sampleState.instrumentTypes}
-        onAdd={sampleState.handleAddInstrumentType}
-        onDelete={sampleState.handleDeleteInstrumentType}
-        onUpdate={sampleState.handleUpdateInstrumentType}
-        onClose={() => sampleState.setInstrumentTypeModalOpen(false)}
-      />
-
-      <MidiTagManagementModal
-        isOpen={midiState.midiTagModalOpen}
-        midiTags={midiState.midiTags}
-        onAdd={midiState.handleAddMidiTag}
-        onDelete={midiState.handleDeleteMidiTag}
-        onUpdate={midiState.handleUpdateMidiTag}
-        onClose={() => midiState.setMidiTagModalOpen(false)}
-      />
-
-      <MidiTagEditModal
-        isOpen={midiState.midiTagEditOpen}
-        midi={midiState.midiTagEditTarget}
-        midiTags={midiState.midiTags}
-        onSave={midiState.handleMidiTagChange}
-        onClose={() => midiState.setMidiTagEditOpen(false)}
-        onManageClick={() => {
-          midiState.setMidiTagEditOpen(false);
-          midiState.setMidiTagModalOpen(true);
-        }}
-      />
+      <AppModals sampleState={sampleState} midiState={midiState} />
     </div>
   );
 }

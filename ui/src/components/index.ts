@@ -7,7 +7,7 @@ export { Header } from "./Header/Header";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { SampleList } from "./SampleList/SampleList";
 export { MidiList } from "./MidiList/MidiList";
-export type { MidiListHandle } from "./MidiList/MidiList";
+export type { MidiListHandle } from "./MidiList/types";
 export { MidiDetailPanel } from "./MidiDetailPanel/MidiDetailPanel";
 export { DetailPanel } from "./DetailPanel/DetailPanel";
 export { PlayerBar } from "./PlayerBar/PlayerBar";
@@ -21,3 +21,7 @@ export { InstrumentTypeManagementModal } from "./InstrumentTypeManagementModal/I
 export { MidiTagManagementModal } from "./MidiTagManagementModal/MidiTagManagementModal";
 export { MidiTagEditModal } from "./MidiTagEditModal/MidiTagEditModal";
 export { RescanPrompt } from "./RescanPrompt/RescanPrompt";
+
+export { AppModals } from "./AppModals/AppModals";
+export { AppMainPane } from "./AppMainPane/AppMainPane";
+export { AppErrorBanner } from "./AppErrorBanner/AppErrorBanner";

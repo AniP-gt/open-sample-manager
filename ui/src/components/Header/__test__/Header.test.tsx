@@ -50,6 +50,22 @@ describe('Header', () => {
     expect(onViewModeChange).toHaveBeenCalledWith('midi');
   });
 
+  test('calls onViewModeChange when sample list toggle is clicked', () => {
+    const onViewModeChange = vi.fn();
+    render(
+      <Header
+        sampleCount={0}
+        scanned={false}
+        onScanClick={vi.fn()}
+        onSettingsClick={vi.fn()}
+        viewMode="midi"
+        onViewModeChange={onViewModeChange}
+      />
+    );
+    fireEvent.click(screen.getByText('Sample List'));
+    expect(onViewModeChange).toHaveBeenCalledWith('sample');
+  });
+
   test('shows drag over affordance', () => {
     render(
       <Header
