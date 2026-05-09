@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayerBarHandle, MidiListHandle } from "../../components";
-import type { SampleListHandle } from "../../components/SampleList/SampleList";
+import type { SampleListHandle } from "../../components/SampleList/types";
 import type { Midi } from "../../types/midi";
 import type { TauriSampleRow } from "../../types/tauri";
 import { useSampleState } from "../useSampleState";
