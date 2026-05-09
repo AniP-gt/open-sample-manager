@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Sample, FilterState, SortState, SampleType, InstrumentTypeRow } from "../types/sample";
 import type { Midi } from "../types/midi";
@@ -39,7 +39,9 @@ export function useSampleState({
     filterInstrumentType: "",
     favoritesOnly: false,
     filterKey: "",
+    directoryPath: "",
   });
+  const suppressSearchRef = useRef(false);
   const [sort, setSort] = useState<SortState>({ field: "id", direction: "asc" });
   const [scannedPaths, setScannedPaths] = useState<string[]>([]);
   const [allSamplePaths, setAllSamplePaths] = useState<string[]>([]);
@@ -68,6 +70,7 @@ export function useSampleState({
       query: query || null,
       limit: pageLimit,
       offset: 0,
+      directoryPath: filters.directoryPath || null,
     });
     const nextSamples = rows.map(mapRowToSample);
     const nextPaths: Record<number, string> = {};
@@ -381,6 +384,7 @@ export function useSampleState({
         query: filters.search || null,
         limit: pageLimit,
         offset: nextOffset,
+        directoryPath: filters.directoryPath || null,
       });
       const nextSamples = rows.map(mapRowToSample);
       setSamples((prev) => {
@@ -414,6 +418,7 @@ export function useSampleState({
         query: filters.search || null,
         limit: pageLimit,
         offset: prevOffset,
+        directoryPath: filters.directoryPath || null,
       });
       const nextSamples = rows.map(mapRowToSample);
       setSamples((prev) => {
@@ -479,8 +484,16 @@ export function useSampleState({
   }, []);
 
   useEffect(() => {
+    if (suppressSearchRef.current) {
+      suppressSearchRef.current = false;
+      return;
+    }
     void handleSearch(filters.search);
-  }, [filters.search]);
+  }, [filters.search, filters.directoryPath]);
+
+  const suppressNextSearch = () => {
+    suppressSearchRef.current = true;
+  };
 
   useEffect(() => {
     const handler = () => {
@@ -498,6 +511,7 @@ export function useSampleState({
     samplePaths,
     filters,
     setFilters,
+    suppressNextSearch,
     sort,
     setSort,
     scannedPaths,

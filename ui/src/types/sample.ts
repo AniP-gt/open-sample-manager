@@ -45,6 +45,7 @@ export interface FilterState {
   favoritesOnly: boolean;
   /** Pitch class filter (e.g. "C", "C#"); empty string = no filter. */
   filterKey: string;
+  directoryPath?: string;
 }
 
 export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate" | "musical_key";

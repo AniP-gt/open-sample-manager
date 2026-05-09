@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Midi, MidiTagRow, TimidityStatus } from "../types/midi";
 import { getErrorMessage } from "../utils/sampleMapper";
@@ -27,6 +27,8 @@ export function useMidiState({
   const [midiTagFilterId, setMidiTagFilterId] = useState<number | null>(null);
   const [midiSearch, setMidiSearch] = useState("");
   const [debouncedMidiSearch, setDebouncedMidiSearch] = useState("");
+  const [directoryPath, setDirectoryPath] = useState("");
+  const suppressMidiSearchRef = useRef(false);
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
   const [midiTagEditTarget, setMidiTagEditTarget] = useState<Midi | null>(null);
@@ -86,17 +88,26 @@ export function useMidiState({
     }
   };
 
-  const runMidiSearch = async (query: string) => {
+  const runMidiSearch = useCallback(async (query: string) => {
     try {
       if (query.trim()) {
-        const rows = await invoke<Midi[]>("search_midis_paginated", { query, limit: pageLimit, offset: 0 });
+        const rows = await invoke<Midi[]>("search_midis_paginated", {
+          query,
+          limit: pageLimit,
+          offset: 0,
+          directoryPath: directoryPath || null,
+        });
         setMidis(rows);
         setLastFetchCountMidi(rows.length);
         setCurrentMidiOffset(0);
         setCanLoadMoreMidi(rows.length >= pageLimit);
         setCanLoadPreviousMidi(false);
       } else {
-        const rows = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
+        const rows = await invoke<Midi[]>("list_midis_paginated", {
+          limit: pageLimit,
+          offset: 0,
+          directoryPath: directoryPath || null,
+        });
         setMidis(rows);
         setLastFetchCountMidi(rows.length);
         setCurrentMidiOffset(0);
@@ -106,7 +117,7 @@ export function useMidiState({
     } catch (e) {
       console.error("MIDI search failed:", e);
     }
-  };
+  }, [directoryPath, pageLimit]);
 
   const requestTrashMidi = (id: number) => {
     setPendingTrashMidiId(id);
@@ -125,9 +136,7 @@ export function useMidiState({
 
     try {
       await invoke<string>("send_to_trash", { path });
-      const rows = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
-      setMidis(rows);
-      setLastFetchCountMidi(rows.length);
+      await runMidiSearch(debouncedMidiSearch);
       await fetchAllMidiPaths();
       if (selectedMidi?.id === pendingTrashMidiId) setSelectedMidi(null);
     } catch (e) {
@@ -189,10 +198,12 @@ export function useMidiState({
             query: debouncedMidiSearch,
             limit: pageLimit,
             offset: nextOffset,
+            directoryPath: directoryPath || null,
           })
         : await invoke<Midi[]>("list_midis_paginated", {
             limit: pageLimit,
             offset: nextOffset,
+            directoryPath: directoryPath || null,
           });
       setMidis((prev) => {
         const existing = new Set(prev.map((m) => m.id));
@@ -221,10 +232,12 @@ export function useMidiState({
             query: debouncedMidiSearch,
             limit: pageLimit,
             offset: prevOffset,
+            directoryPath: directoryPath || null,
           })
         : await invoke<Midi[]>("list_midis_paginated", {
             limit: pageLimit,
             offset: prevOffset,
+            directoryPath: directoryPath || null,
           });
       setMidis((prev) => {
         const existing = new Set(prev.map((m) => m.id));
@@ -311,16 +324,10 @@ export function useMidiState({
 
   useEffect(() => {
     if (viewMode === "midi") {
-      invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 })
-        .then((rows) => {
-          setMidis(rows);
-          setLastFetchCountMidi(rows.length);
-        })
-        .catch(console.error);
       void fetchAllMidiPaths();
       invoke<MidiTagRow[]>("get_midi_tags").then(setMidiTags).catch(console.error);
     }
-  }, [viewMode, pageLimit]);
+  }, [viewMode]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedMidiSearch(midiSearch), 300);
@@ -329,9 +336,17 @@ export function useMidiState({
 
   useEffect(() => {
     if (viewMode === "midi") {
+      if (suppressMidiSearchRef.current) {
+        suppressMidiSearchRef.current = false;
+        return;
+      }
       void runMidiSearch(debouncedMidiSearch);
     }
-  }, [debouncedMidiSearch, viewMode]);
+  }, [debouncedMidiSearch, directoryPath, pageLimit, runMidiSearch, viewMode]);
+
+  const suppressNextMidiSearch = () => {
+    suppressMidiSearchRef.current = true;
+  };
 
   useEffect(() => {
     if (viewMode !== "midi") return;
@@ -363,6 +378,8 @@ export function useMidiState({
     midiSearch,
     setMidiSearch,
     debouncedMidiSearch,
+    directoryPath,
+    setDirectoryPath,
     midiTagModalOpen,
     setMidiTagModalOpen,
     midiTagEditOpen,
@@ -384,6 +401,7 @@ export function useMidiState({
     fetchAllMidiPaths,
     loadMidiByPath,
     runMidiSearch,
+    suppressNextMidiSearch,
     requestTrashMidi,
     confirmTrashMidi,
     handleMidiTagChange,

@@ -13,6 +13,7 @@ type UseScanStateParams = {
   runSearch: (query: string) => Promise<Sample[]>;
   fetchAllSamplePaths: () => Promise<void>;
   fetchAllMidiPaths: () => Promise<void>;
+  getMidiDirectoryPath?: () => string;
   viewMode: "sample" | "midi";
   pageLimit: number;
   setMidis: React.Dispatch<React.SetStateAction<Midi[]>>;
@@ -26,6 +27,7 @@ export function useScanState({
   runSearch,
   fetchAllSamplePaths,
   fetchAllMidiPaths,
+  getMidiDirectoryPath = () => "",
   viewMode,
   pageLimit,
   setMidis,
@@ -72,7 +74,7 @@ export function useScanState({
       try {
         await invoke<number>("scan_midi_directory", { path: scanPath });
         if (viewMode === "midi") {
-          const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
+          const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0, directoryPath: getMidiDirectoryPath() || null });
           setMidis(midiList);
           setLastFetchCountMidi(midiList.length);
           await fetchAllMidiPaths();
@@ -170,7 +172,7 @@ export function useScanState({
     });
     await fetchAllSamplePaths();
     if (viewMode === "midi") {
-      const rows = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
+      const rows = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0, directoryPath: getMidiDirectoryPath() || null });
       setMidis(rows);
       setLastFetchCountMidi(rows.length);
       await fetchAllMidiPaths();
@@ -239,7 +241,7 @@ export function useScanState({
             const lastSlash = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
             const folderPath = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
             await invoke<number>("scan_midi_directory", { path: folderPath });
-            const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
+            const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0, directoryPath: getMidiDirectoryPath() || null });
             setMidis(midiList);
             setLastFetchCountMidi(midiList.length);
             await fetchAllMidiPaths();
@@ -284,7 +286,7 @@ export function useScanState({
         try {
           await invoke<number>("scan_midi_directory", { path: dir });
           if (viewMode === "midi") {
-            const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
+            const midiList = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0, directoryPath: getMidiDirectoryPath() || null });
             setMidis(midiList);
             setLastFetchCountMidi(midiList.length);
             await fetchAllMidiPaths();
