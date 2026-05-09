@@ -1,99 +1,77 @@
 # UI KNOWLEDGE BASE
 
-**Generated:** 2026-03-05T11:59:00+0900
+**Generated:** 2026-05-09T22:22:11+0900
+**Commit:** a14778f
 **Branch:** main
 
 ## OVERVIEW
-React + TypeScript frontend for search/filter/scan UX, wired to Tauri commands through typed invoke calls and local mapping logic.
+React + TypeScript frontend for sample/MIDI search, scanning, playback, drag-out, classification edits, and settings. Tauri IPC is typed at call sites and backend rows are normalized manually.
 
 ## STRUCTURE
-```
+```text
 ui/
-|- src/App.tsx              # JSX/rendering only — composes domain hooks, passes props
-|- src/hooks/               # Domain hooks (state + IPC logic)
-|   |- useSampleState.ts    # Samples: search, filter, CRUD, classification
-|   |- useMidiState.ts      # MIDI: list, tags, playback, pagination
-|   |- useScanState.ts      # Scan/import: directory scan, sidebar import, progress
-|   `- useUIState.ts        # UI state: sidebar width, drag-over, viewMode, pageLimit
-|- src/store/               # Zustand global stores
-|   `- useSettingsStore.ts  # autoPlayOnSelect (persisted via localStorage)
-|- src/components/*/        # one-folder-per-component pattern (23 components)
-|- src/types/               # Shared domain types
-|   |- sample.ts            # Sample, FilterState, SortState, InstrumentTypeRow
-|   |- scan.ts              # ScanProgress
-|   |- midi.ts              # Midi, MidiTag, MidiTagRow, TimidityStatus
-|   `- tauri.ts             # TauriSampleRow (raw backend row shape)
-|- src/utils/               # Pure functions + utilities
-|   |- sampleMapper.ts      # normalizeSampleType, mapRowToSample, getErrorMessage
-|   |- importHelpers.ts     # Import path classification helpers
-|   |- handleImportPaths.ts # Core import-path orchestration logic
-|   |- audioCache.ts        # Audio blob URL cache
-|   `- dataTransfer.ts      # Drag-and-drop data transfer helpers
-|- src/test/                # Vitest setup and integration specs
-|- vite.config.ts           # dev server port 5174 + Vitest + Tauri watch rules
-`- tsconfig*.json           # project references: tsconfig.app.json + tsconfig.node.json
+|- src/App.tsx              # Hook composition + layout; keep logic out
+|- src/hooks/               # Domain hooks: sample, MIDI, scan/import, UI
+|- src/store/               # Zustand persisted stores
+|- src/components/          # One-folder-per-component, barrel exported
+|- src/types/               # Shared sample/MIDI/scan/Tauri row types
+|- src/utils/               # Pure search/import/path/cache/mapping helpers
+|- src/__test__/            # Vitest setup + integration-style UI specs
+|- src/**/__test__/         # Co-located component/util tests
+|- public/pitch-processor.js # AudioWorklet used by pitch shift control
+`- vite.config.ts           # port 5174, Vitest jsdom, Tauri watch ignore
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |---|---|---|
-| Sample state + IPC | `ui/src/hooks/useSampleState.ts` | Search, filter, CRUD, classification |
-| MIDI state + IPC | `ui/src/hooks/useMidiState.ts` | List, tags, playback, pagination |
-| Scan/import logic | `ui/src/hooks/useScanState.ts` | Directory scan, sidebar import, progress |
-| UI state | `ui/src/hooks/useUIState.ts` | Sidebar resize, drag-over, viewMode |
-| Global settings | `ui/src/store/useSettingsStore.ts` | Zustand; persisted to localStorage (`osm_settings`) |
-| Backend row → UI type | `ui/src/utils/sampleMapper.ts` | `mapRowToSample`, `normalizeSampleType` |
-| Raw backend row shape | `ui/src/types/tauri.ts` | `TauriSampleRow` |
-| Type contracts | `ui/src/types/sample.ts`, `ui/src/types/scan.ts` | Domain model used across components |
-| MIDI types | `ui/src/types/midi.ts` | Midi, MidiTag, MidiTagRow shapes |
-| Similarity UI flow | `ui/src/components/DetailPanel/`, `ui/src/components/EmbeddingResultsModal/` | Embedding search interaction |
-| Component exports | `ui/src/components/index.ts` | Barrel list for top-level imports |
-| Test setup | `ui/src/test/setup.ts`, `ui/src/test/placeholder.test.ts` | Vitest + jest-dom bootstrapping |
-| Import/drop utilities | `ui/src/utils/` | Import path handling, audio cache, drag transfer |
+| App composition | `src/App.tsx` | Hook dependency order and modal/layout wiring |
+| Sample state + IPC | `src/hooks/useSampleState.ts` | Search, pagination, CRUD, classification, trash |
+| MIDI state + IPC | `src/hooks/useMidiState.ts` | List/search/tags/playback, TiMidity status |
+| Scan/import state | `src/hooks/useScanState.ts` | Directory dialog, scan events, drag/drop import paths |
+| UI mode/drag state | `src/hooks/useUIState.ts` | View mode, sidebar resize, Tauri drag listeners |
+| Persisted settings | `src/store/useSettingsStore.ts` | `osm_settings`: autoPlay + instrument color coding |
+| Favorites/recent | `src/store/useFavoritesStore.ts`, `src/store/useRecentStore.ts` | `osm-favorites`, `osm-recent` |
+| Backend row mapping | `src/utils/sampleMapper.ts` | `mapRowToSample`, unknown value normalization |
+| Fuzzy list search | `src/utils/search.ts` | NFKC multi-term ordered subsequence matching |
+| Sample table hotspot | `src/components/SampleList/` | Virtualized sample list; see local AGENTS.md |
+| MIDI table hotspot | `src/components/MidiList/` | Virtualized MIDI list; see local AGENTS.md |
+| WaveSurfer controls | `src/components/WaveSurferPlayer/`, `src/components/PlayerBar/` | WaveSurfer, spectrogram, loop marker, pitch worklet |
+| Test setup | `src/__test__/setup.ts`, `vite.config.ts` | Vitest globals + jsdom |
 
 ## ARCHITECTURE
+Hook composition in `App.tsx` is dependency ordered:
 
-### Hook composition in App.tsx
-Hooks are composed in this order (dependency order matters):
-
-```
-useUIState          → no deps
-useScanState        → depends on: refs, sampleApiRef, midiApiRef, scanImportHandlerRef
-useMidiState        → depends on: scanState.setError, scanState.setScanning, scanState.setScanProgress
-useSampleState      → depends on: scanState.setError, midiState.{setMidis,setSelectedMidi,fetchAllMidiPaths}
+```text
+useUIState -> useScanState -> useMidiState -> useSampleState
 ```
 
-Cross-hook communication uses stable `useRef` bridges to avoid circular deps:
-- `sampleApiRef` — passed into `useScanState` to call sample methods after scan completes
-- `midiApiRef` — passed into `useScanState` to call MIDI methods after scan
-- `scanImportHandlerRef` — holds `useScanState.handleImportPaths` for use in MIDI hook
+Cross-hook communication uses refs rather than circular hook dependencies:
+- `sampleApiRef`: sample methods used by scan/import flow.
+- `midiApiRef`: MIDI methods used after scan/import.
+- `scanImportHandlerRef`: import handler exposed to Tauri drag listeners.
 
-### State management strategy
-- **Domain hooks** (`src/hooks/`) — useState for component-coupled state
-- **Zustand** (`src/store/`) — global settings that need cross-component sharing or persistence
-- **No Redux / Context** — intentional; this is a single-page desktop app
-
-### confirmOpen composition
-`sampleState.confirmOpen` and `midiState.confirmOpen` are OR-combined in App.tsx:
-```typescript
-const confirmOpen = sampleState.confirmOpen || midiState.confirmOpen;
-```
+State split:
+- Domain hooks own IPC-coupled state.
+- Zustand stores own cross-component persisted preferences/lists.
+- Utilities stay framework-agnostic and do not call Tauri directly except injected helpers in testable orchestration utilities.
 
 ## CONVENTIONS
-- Keep explicit value mapping between backend rows and UI types (normalize unknowns safely).
-- Build pipeline requires typecheck before Vite build (`npm run build`).
-- Vite dev server is fixed to port `5174` (strictPort true); keep in sync with Tauri devUrl.
-- Component organization is directory-per-component with inline style objects (no Tailwind, no CSS modules).
-- All invoke calls are typed; do not add untyped or `any`-shaped invocations.
-- New state/logic belongs in the appropriate domain hook, not App.tsx.
-- Shared utilities (pure functions) go in `src/utils/`; shared types go in `src/types/`.
+- Vite dev server is fixed to `5174` with `strictPort: true`; keep Tauri devUrl aligned.
+- `npm run build` means `npm run typecheck && vite build`.
+- Component styles are inline objects plus sparse global CSS; no Tailwind/CSS modules.
+- Add new top-level components to `src/components/index.ts`.
+- Tauri invoke payloads stay explicit; normalize unknown backend values before setting UI state.
+- Tests live in `src/__test__` for integration specs or co-located `__test__` folders for component/util behavior.
+- `matchesFuzzySearch` normalizes NFKC and splits ASCII/full-width whitespace; preserve Japanese-width behavior.
 
 ## ANTI-PATTERNS
-- Do not pass `any`-shaped payloads from IPC directly into UI state without normalization.
-- Do not remove `src-tauri` watch ignore rule in `ui/vite.config.ts`.
-- Do not bypass retry/error handling flow when adding new async invoke actions.
-- Do not add business logic directly into App.tsx — it should remain JSX/rendering only.
-- Do not duplicate scan/import logic in `useSampleState` — `useScanState` owns that domain.
+- Do not pass `any`-shaped IPC payloads into state without mapping.
+- Do not remove `src-tauri` from Vite watch ignore.
+- Do not add business logic directly into `App.tsx`.
+- Do not duplicate scan/import logic between hooks and utils; `useScanState` orchestrates and `handleImportPaths` owns reusable path flow.
+- Do not mutate persisted store shapes without a merge/default strategy for existing localStorage.
+- Do not access WaveSurfer internals outside the player/pitch-control boundary.
 
 ## COMMANDS
 ```bash
@@ -104,7 +82,7 @@ npm run build --prefix ui
 ```
 
 ## NOTES
-- `App.tsx` is now ~460 lines (JSX only); was ~1460 lines before refactor.
-- No generated Tauri types; all backend→UI mapping is manual via `mapRowToSample` in `src/utils/sampleMapper.ts`.
-- Test files use hardcoded `/Users/alice/...` macOS paths — acceptable for desktop-only app.
-- Zustand `persist` middleware syncs `autoPlayOnSelect` to localStorage under key `osm_settings`.
+- Large hotspots: `SampleList.tsx`, `MidiList.tsx`, `useSampleState.ts`, `App.tsx`.
+- `@tanstack/react-virtual` powers both list views; tests mock it where needed.
+- UI tests use hardcoded `/Users/alice/...` paths to simulate desktop file paths.
+- `public/pitch-processor.js` is loaded by `AudioWorklet.addModule('/pitch-processor.js')`.
