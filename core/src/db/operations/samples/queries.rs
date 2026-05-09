@@ -1,0 +1,104 @@
+use rusqlite::{params, Connection};
+
+use crate::db::operations::types::SampleRow;
+
+use super::{row_to_sample, OptionalExt};
+
+pub fn get_sample_by_path(
+    conn: &Connection,
+    path: &str,
+) -> Result<Option<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
+         FROM samples WHERE path = ?1",
+    )?;
+    stmt.query_row(params![path], row_to_sample).optional()
+}
+
+pub fn get_sample_by_id(conn: &Connection, id: i64) -> Result<Option<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
+         FROM samples WHERE id = ?1",
+    )?;
+    stmt.query_row(params![id], row_to_sample).optional()
+}
+
+pub fn list_samples_paginated(
+    conn: &Connection,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples ORDER BY id LIMIT ?1 OFFSET ?2",
+    )?;
+    let rows = stmt.query_map(params![limit as i64, offset as i64], row_to_sample)?;
+    rows.collect()
+}
+
+pub fn list_samples_around_id(
+    conn: &Connection,
+    target_id: i64,
+    limit: usize,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let half = (limit as i64) / 2;
+
+    let max_id: i64 = conn.query_row("SELECT MAX(id) FROM samples", [], |row| row.get(0))?;
+
+    let before = if target_id - half < 1 {
+        target_id - 1
+    } else {
+        half
+    };
+    let after = half;
+
+    let mut before_rows: Vec<SampleRow> = {
+        let start_id = (target_id - before).max(1);
+        let mut stmt = conn.prepare_cached(
+            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id DESC",
+        )?;
+        let rows = stmt
+            .query_map(params![start_id, target_id], row_to_sample)?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows
+    };
+    before_rows.reverse();
+
+    let after_limit = limit - before_rows.len();
+    let after_end = (target_id + after).min(max_id + 1);
+    let after_rows: Vec<SampleRow> = if after_limit > 0 {
+        let mut stmt = conn.prepare_cached(
+            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id",
+        )?;
+        let rows = stmt
+            .query_map(params![target_id, after_end], row_to_sample)?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows
+    } else {
+        vec![]
+    };
+
+    let mut result = before_rows;
+    result.extend(after_rows);
+    result.truncate(limit);
+    Ok(result)
+}
+
+pub fn get_all_sample_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached("SELECT path FROM samples ORDER BY id")?;
+    let rows = stmt.query_map([], |row| row.get(0))?.collect();
+    rows
+}
+
+pub(in crate::db::operations::samples) fn list_all_samples(
+    conn: &Connection,
+) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
+                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
+         FROM samples ORDER BY id",
+    )?;
+    let rows = stmt.query_map([], row_to_sample)?.collect();
+    rows
+}
