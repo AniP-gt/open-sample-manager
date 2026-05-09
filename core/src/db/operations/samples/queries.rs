@@ -51,8 +51,6 @@ pub fn list_samples_around_id(
     } else {
         half
     };
-    let after = half;
-
     let mut before_rows: Vec<SampleRow> = {
         let start_id = (target_id - before).max(1);
         let mut stmt = conn.prepare_cached(
@@ -66,7 +64,7 @@ pub fn list_samples_around_id(
     before_rows.reverse();
 
     let after_limit = limit - before_rows.len();
-    let after_end = (target_id + after).min(max_id + 1);
+    let after_end = (target_id + after_limit as i64).min(max_id + 1);
     let after_rows: Vec<SampleRow> = if after_limit > 0 {
         let mut stmt = conn.prepare_cached(
             "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id",

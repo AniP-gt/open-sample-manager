@@ -6,6 +6,7 @@ use crate::db::schema::init_database;
 mod crud;
 mod embedding;
 mod lifecycle;
+mod queries;
 mod search;
 
 pub(super) fn setup_db() -> Connection {
