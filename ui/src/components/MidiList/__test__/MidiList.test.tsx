@@ -6,6 +6,8 @@ import { Midi } from '../../../types/midi';
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockImplementation((cmd) => {
     if (cmd === 'get_drag_icon_path') return Promise.resolve('/tmp/icon.png');
+    if (cmd === 'copy_to_clipboard') return Promise.resolve();
+    if (cmd === 'open_folder') return Promise.resolve();
     return Promise.resolve();
   }),
 }));
@@ -42,7 +44,7 @@ const mockMidis: Midi[] = [
   {
     id: 2,
     file_name: 'test-midi-2.mid',
-    path: '/test2.mid',
+    path: '/path/to/test2.mid',
     tempo: 130,
     time_signature_numerator: 3,
     time_signature_denominator: 4,
@@ -63,7 +65,7 @@ describe('MidiList', () => {
     vi.useFakeTimers();
     const handleSelect = vi.fn();
     const handleTogglePlay = vi.fn();
-    
+
     const { unmount } = render(
       <MidiList
         midis={mockMidis}
@@ -129,24 +131,6 @@ describe('MidiList', () => {
   });
 
   test('renders empty state when no midis', () => {
-    const handleSearchChange = vi.fn();
-    render(
-      <MidiList
-        midis={mockMidis}
-        selectedMidi={null}
-        onMidiSelect={vi.fn()}
-        onTogglePlayback={vi.fn()}
-        onTrashMidi={vi.fn()}
-        midiSearch=""
-        onMidiSearchChange={handleSearchChange}
-      />
-    );
-
-    const searchInput = screen.getByPlaceholderText('Search by filename...');
-    fireEvent.change(searchInput, { target: { value: 'drum' } });
-
-    expect(handleSearchChange).toHaveBeenCalledWith('drum');
-  });
     render(
       <MidiList
         midis={[]}
@@ -178,7 +162,7 @@ describe('MidiList', () => {
         onMidiSelect={vi.fn()}
       />
     );
-    
+
     expect(screen.getByText('test-midi.mid')).toBeInTheDocument();
     expect(screen.getByText('120.0 BPM')).toBeInTheDocument();
     expect(screen.getByText('4/4')).toBeInTheDocument();
@@ -195,7 +179,7 @@ describe('MidiList', () => {
         onMidiSearchChange={onMidiSearchChange}
       />
     );
-    
+
     fireEvent.change(screen.getByPlaceholderText('Search by filename...'), { target: { value: 'drums' } });
     expect(onMidiSearchChange).toHaveBeenCalledWith('drums');
   });
@@ -209,7 +193,7 @@ describe('MidiList', () => {
         onMidiSelect={onMidiSelect}
       />
     );
-    
+
     fireEvent.click(screen.getByText('test-midi.mid'));
     expect(onMidiSelect).toHaveBeenCalledWith(mockMidis[0]);
   });
@@ -217,7 +201,7 @@ describe('MidiList', () => {
   test('handles load more and load previous', () => {
     const onLoadMore = vi.fn();
     const onLoadPrevious = vi.fn();
-    
+
     const { rerender } = render(
       <MidiList
         midis={mockMidis}
@@ -231,7 +215,7 @@ describe('MidiList', () => {
         isLoadingPrevious={false}
       />
     );
-    
+
     rerender(
       <MidiList
         midis={mockMidis}
@@ -240,34 +224,37 @@ describe('MidiList', () => {
         canLoadMore={false}
       />
     );
-    
+
     expect(screen.getByText('No more results')).toBeInTheDocument();
   });
-  
-  test('handles sorting headers', () => {
-    render(
+
+  test('handles sorting headers and row order', () => {
+    const { container } = render(
       <MidiList
         midis={mockMidis}
         selectedMidi={null}
         onMidiSelect={vi.fn()}
       />
     );
-    
-    fireEvent.click(screen.getByText('FILENAME'));
-    fireEvent.click(screen.getByText('TAG'));
-    fireEvent.click(screen.getByText('TEMPO'));
-    fireEvent.click(screen.getByText('TIME SIG'));
-    fireEvent.click(screen.getByText('TRACKS'));
-    fireEvent.click(screen.getByText('NOTES'));
-    fireEvent.click(screen.getByText('KEY'));
-    fireEvent.click(screen.getByText('DURATION'));
-    
-    fireEvent.click(screen.getByText('FILENAME'));
-    
-    const buttons = screen.getAllByRole('button');
-    if (buttons.length > 0) {
-      fireEvent.click(buttons[0]);
-    }
+
+    const rowsBefore = container.querySelectorAll('.midi-row');
+    expect(rowsBefore[0]).toHaveTextContent('test-midi.mid');
+    expect(rowsBefore[1]).toHaveTextContent('test-midi-2.mid');
+
+    fireEvent.click(screen.getByText(/DURATION/));
+    const rowsAfter = container.querySelectorAll('.midi-row');
+    expect(rowsAfter[0]).toHaveTextContent('test-midi-2.mid');
+    expect(rowsAfter[1]).toHaveTextContent('test-midi.mid');
+
+    fireEvent.click(screen.getByText(/DURATION/));
+    const rowsDesc = container.querySelectorAll('.midi-row');
+    expect(rowsDesc[0]).toHaveTextContent('test-midi.mid');
+    expect(rowsDesc[1]).toHaveTextContent('test-midi-2.mid');
+
+    fireEvent.click(screen.getByText(/FILENAME/));
+    const rowsName = container.querySelectorAll('.midi-row');
+    expect(rowsName[0]).toHaveTextContent('test-midi-2.mid');
+    expect(rowsName[1]).toHaveTextContent('test-midi.mid');
   });
 
   test('handles trash button click', () => {
@@ -280,8 +267,145 @@ describe('MidiList', () => {
         onTrashMidi={onTrashMidi}
       />
     );
-    
+
     const trashBtns = screen.getAllByTitle('Send to Trash');
     fireEvent.click(trashBtns[0]);
     expect(onTrashMidi).toHaveBeenCalledWith(1);
   });
+
+  test('handles tag badge callback', () => {
+    const onTagClick = vi.fn();
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        onTagBadgeClick={onTagClick}
+      />
+    );
+    const tagBadge = screen.getByText('drums');
+    fireEvent.click(tagBadge);
+    expect(onTagClick).toHaveBeenCalledWith(mockMidis[0]);
+  });
+
+  test('handles drop import overlay', () => {
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+      />
+    );
+    const container = screen.getByTestId('midi-list-root');
+    fireEvent.dragEnter(container, { dataTransfer: { types: ['Files'] } });
+    expect(screen.getByText(/Drop files or folders to import/i)).toBeInTheDocument();
+  });
+
+
+  test('handles drag drop', () => {
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+      />
+    );
+    const root = screen.getByTestId('midi-list-root');
+    fireEvent.drop(root, { dataTransfer: { files: [{ path: '/test.mid' }] } });
+    expect(screen.queryByText(/Drop files or folders to import/i)).not.toBeInTheDocument();
+  });
+
+  test('loading states', () => {
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        isLoadingPrevious={true}
+        isLoadingMore={true}
+      />
+    );
+    expect(screen.getAllByText('Loading...').length).toBeGreaterThan(0);
+  });
+
+  test('handles open folder and copy path buttons', async () => {
+    vi.useFakeTimers();
+    const invokeMock = (await import('@tauri-apps/api/core')).invoke as unknown as ReturnType<typeof vi.fn>;
+    invokeMock.mockClear();
+
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+      />
+    );
+
+    const openBtns = screen.getAllByTitle('Show in Finder');
+    fireEvent.click(openBtns[0]);
+    expect(invokeMock).toHaveBeenCalledWith('open_folder', { path: '/test.mid' });
+
+    fireEvent.click(openBtns[1]);
+    expect(invokeMock).toHaveBeenCalledWith('open_folder', { path: '/path/to' });
+
+    const copyBtns = screen.getAllByTitle('Copy Full Path');
+    fireEvent.click(copyBtns[0]);
+    expect(invokeMock).toHaveBeenCalledWith('copy_to_clipboard', { text: '/test.mid' });
+
+    await vi.runAllTimersAsync();
+
+    invokeMock.mockRejectedValueOnce(new Error('Failed to copy'));
+    fireEvent.click(copyBtns[0]);
+    await vi.runAllTimersAsync();
+
+    vi.useRealTimers();
+  });
+
+  test('handles trash stop propagation', () => {
+    const onTrashMidi = vi.fn();
+    const onMidiSelect = vi.fn();
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={onMidiSelect}
+        onTrashMidi={onTrashMidi}
+      />
+    );
+
+    const trashBtns = screen.getAllByTitle('Send to Trash');
+    fireEvent.click(trashBtns[0]);
+    expect(onTrashMidi).toHaveBeenCalledWith(1);
+    expect(onMidiSelect).not.toHaveBeenCalled();
+  });
+
+  test('handles tag badge callback with no tag', () => {
+    const midisWithNoTag = [{ ...mockMidis[0], tag_name: null as unknown as string }];
+    const onTagClick = vi.fn();
+    render(
+      <MidiList
+        midis={midisWithNoTag}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        onTagBadgeClick={onTagClick}
+      />
+    );
+    const tagBadge = screen.getByText('+ tag');
+    fireEvent.click(tagBadge);
+    expect(onTagClick).toHaveBeenCalledWith(midisWithNoTag[0]);
+  });
+
+  test('handles key filtering', () => {
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        filterKey="A"
+      />
+    );
+
+    expect(screen.getByText('test-midi-2.mid')).toBeInTheDocument();
+    expect(screen.queryByText('test-midi.mid')).not.toBeInTheDocument();
+  });
+});

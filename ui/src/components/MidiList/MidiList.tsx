@@ -1,48 +1,19 @@
-import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
-import type { MidiTagRow } from "../../types/midi";
 import { invoke } from "@tauri-apps/api/core";
-// Reuse the robust extractor implemented for SampleList
 import { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
-import { isTextInputElement } from "../../utils/keyboard";
-import type { Midi } from "../../types/midi";
+import type { MidiListProps, MidiListHandle } from "./types";
+import { useMidiColumnResize } from "./hooks/useMidiColumnResize";
+import { useMidiSort } from "./hooks/useMidiSort";
+import { useMidiKeyboard } from "./hooks/useMidiKeyboard";
+import { MidiListSearch } from "./components/MidiListSearch";
+import { MidiListEmpty } from "./components/MidiListEmpty";
+import { MidiListHeader } from "./components/MidiListHeader";
+import { MidiListRow } from "./components/MidiListRow";
+import { MidiListOverlay } from "./components/MidiListOverlay";
 
-
-
-interface MidiListProps {
-  midis: Midi[];
-  selectedMidi: Midi | null;
-  onMidiSelect: (midi: Midi) => void;
-  onTagBadgeClick?: (midi: Midi) => void;
-  midiTags?: MidiTagRow[];
-  onTagFilterChange?: (tagId: number | null) => void;
-  tagFilterId?: number | null;
-  onMidiTagChange?: (midiId: number, tagName: string | null) => void;
-  // Optional: called when files/folders are dropped/imported from sidebar
-  onImportPaths?: (paths: string[]) => void;
-  // When running inside Tauri, the host may indicate a drag-over state
-  externalIsDragOver?: boolean;
-  // Pagination handlers
-  onLoadMore?: () => Promise<void> | void;
-  isLoadingMore?: boolean;
-  canLoadMore?: boolean;
-  onLoadPrevious?: () => Promise<void> | void;
-  isLoadingPrevious?: boolean;
-  canLoadPrevious?: boolean;
-  // Called to request that a midi be sent to trash (parent handles actual deletion)
-  onTrashMidi?: (id: number) => void;
-  // Search
-  midiSearch?: string;
-  onMidiSearchChange?: (query: string) => void;
-  onTogglePlayback?: () => void;
-  filterKey?: string;
-}
-
-export type MidiListHandle = {
-  focusSelected: () => void;
-};
+export type { MidiListProps, MidiListHandle } from "./types";
 
 export const MidiList = forwardRef(function MidiList(
   {
@@ -73,248 +44,42 @@ export const MidiList = forwardRef(function MidiList(
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
-  const [toast, setToast] = useState<{ message: string; visible: boolean; midiId: number | null }>({ message: "", visible: false, midiId: null });
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
-  // Prepared (backend-copied) paths for drag-out operations
   const preparedPathsRef = useRef<Record<number, string>>({});
-  // Filesystem path to the drag cursor icon (1x1 transparent PNG written to temp by Rust).
   const dragIconPathRef = useRef<string>("");
+
   useEffect(() => {
     void invoke<string>("get_drag_icon_path").then((p) => {
       dragIconPathRef.current = p;
     }).catch(() => {});
   }, []);
-  // Props accepted for API parity; reference them so TypeScript doesn't warn about unused vars
-  // These are intentionally no-ops in this component because the detail panel is
-  // rendered by the App container for consistent layout with the Sample detail.
+
   void midiTags;
   void onTagFilterChange;
   void tagFilterId;
 
-  // Resizable columns state and helpers (mirror SampleList behavior)
-  const defaultColWidths = ["36px", "400px", "110px", "86px", "86px", "60px", "60px", "64px", "86px", "88px"];
-  const STORAGE_KEY = "midiListColWidths_v1";
-  const [colWidths, setColWidths] = useState<string[]>(defaultColWidths);
-  const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const draggedColumnRef = useRef<number | null>(null);
-  const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
-  const [hoveredCol, setHoveredCol] = useState<number | null>(null);
-  // Sorting state: which column and direction
-  const [sortBy, setSortBy] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const {
+    colWidths,
+    headerRefs,
+    draggedColumnRef,
+    activeResize,
+    hoveredCol,
+    setHoveredCol,
+    startColumnResize,
+    onResizerKeyDown,
+  } = useMidiColumnResize();
 
-  // Shared min/max width constraints (px) for keyboard + mouse handlers
-  const minWidths = [20, 120, 60, 60, 40, 40, 30, 40, 60, 40];
-  const maxWidths = [400, 1600, 800, 800, 400, 400, 400, 400, 800, 400];
+  const {
+    sortBy,
+    sortDir,
+    filteredMidis,
+    sortedMidis,
+    headerClick,
+    headerKeyDown,
+  } = useMidiSort(midis, filterKey);
 
-  // Column resize: only attach document listeners while actively dragging
-  const resizeHandlersRef = useRef<{ onMove: (e: MouseEvent) => void; onUp: () => void } | null>(null);
-  const startColumnResize = (index: number, startX: number, startWidth: number) => {
-    activeResize.current = { index, startX, startWidth, wasDragging: false };
-
-    if (resizeHandlersRef.current) {
-      document.removeEventListener("mousemove", resizeHandlersRef.current.onMove);
-      document.removeEventListener("mouseup", resizeHandlersRef.current.onUp);
-    }
-
-    const onMove = (e: MouseEvent) => {
-      const active = activeResize.current;
-      if (!active) return;
-      const dx = e.clientX - active.startX;
-      let next = Math.max(10, Math.round(active.startWidth + dx));
-      const min = minWidths[active.index] ?? 20;
-      const max = maxWidths[active.index] ?? 2000;
-      next = Math.max(min, Math.min(max, next));
-      setColWidths((prev) => {
-        const copy = [...prev];
-        copy[active.index] = `${next}px`;
-        return copy;
-      });
-      if (!active.wasDragging && Math.abs(dx) > 3) {
-        active.wasDragging = true;
-      }
-      document.body.style.cursor = "col-resize";
-    };
-
-    const onUp = () => {
-      const active = activeResize.current;
-      if (active) {
-        if (active.wasDragging) {
-          draggedColumnRef.current = active.index;
-        } else {
-          draggedColumnRef.current = null;
-        }
-      }
-      activeResize.current = null;
-      document.body.style.cursor = "";
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      resizeHandlersRef.current = null;
-    };
-
-    resizeHandlersRef.current = { onMove, onUp };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
-
-  // Load persisted widths from localStorage on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as string[];
-        if (Array.isArray(parsed) && parsed.length === defaultColWidths.length) {
-          setColWidths(parsed);
-        }
-      }
-    } catch (err) {
-      // ignore and fall back to defaults
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persist widths when they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(colWidths));
-    } catch (err) {
-      // ignore storage failures
-    }
-  }, [colWidths]);
-
-  // Helper for keyboard resizing
-  const adjustColumnWidth = (index: number, deltaPx: number) => {
-    const el = headerRefs.current[index];
-    const currentPx = (() => {
-      const val = colWidths[index];
-      if (typeof val === "string" && val.endsWith("px")) return parseInt(val, 10) || 0;
-      if (el) return Math.round(el.getBoundingClientRect().width);
-      return 120;
-    })();
-    const min = minWidths[index] ?? 20;
-    const max = maxWidths[index] ?? 2000;
-    const next = Math.max(min, Math.min(max, Math.round(currentPx + deltaPx)));
-    setColWidths((prev) => {
-      const copy = [...prev];
-      copy[index] = `${next}px`;
-      return copy;
-    });
-  };
-
-  const onResizerKeyDown = (e: React.KeyboardEvent, index: number) => {
-    e.stopPropagation();
-    const key = e.key;
-    if (key === "ArrowLeft") {
-      adjustColumnWidth(index, -8);
-      e.preventDefault();
-    } else if (key === "ArrowRight") {
-      adjustColumnWidth(index, 8);
-      e.preventDefault();
-    } else if (key === "PageDown") {
-      adjustColumnWidth(index, -32);
-      e.preventDefault();
-    } else if (key === "PageUp") {
-      adjustColumnWidth(index, 32);
-      e.preventDefault();
-    } else if (key === "Home") {
-      setColWidths((prev) => {
-        const copy = [...prev];
-        copy[index] = `${maxWidths[index] ?? 800}px`;
-        return copy;
-      });
-      e.preventDefault();
-    } else if (key === "End") {
-      setColWidths((prev) => {
-        const copy = [...prev];
-        copy[index] = `${minWidths[index] ?? 20}px`;
-        return copy;
-      });
-      e.preventDefault();
-    }
-  };
-
-  
-  const filteredMidis = useMemo(
-    () => {
-      let result = midis;
-      if (filterKey) {
-        result = result.filter((m) => {
-          if (!m.key_estimate) return false;
-          const notePart = m.key_estimate.split(" ")[0];
-          return notePart === filterKey;
-        });
-      }
-      return result;
-    },
-    [midis, filterKey],
-  );
-
-  // Sorting helpers
-  const headerClick = (key: string) => {
-    if (sortBy === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortBy(key);
-      setSortDir("asc");
-    }
-  };
-
-  const headerKeyDown = (e: React.KeyboardEvent, key: string) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      headerClick(key);
-    }
-  };
-
-  const getSortValue = (m: Midi, key: string): number | string | null => {
-    switch (key) {
-      case "id":
-        return m.id;
-      case "file_name":
-        return m.file_name?.toLowerCase() ?? "";
-      case "tag_name":
-        return m.tag_name?.toLowerCase() ?? null;
-      case "tempo":
-        return m.tempo ?? null;
-      case "time_sig":
-        return m.time_signature_numerator != null ? (m.time_signature_numerator * 1000 + (m.time_signature_denominator ?? 0)) : null;
-      case "track_count":
-        return m.track_count ?? null;
-      case "note_count":
-        return m.note_count ?? null;
-      case "key_estimate":
-        return m.key_estimate?.toLowerCase() ?? null;
-      case "duration":
-        return m.duration ?? null;
-      default:
-        return null;
-    }
-  };
-
-  const sortedMidis = useMemo(() => {
-    if (!sortBy) return filteredMidis;
-    const copy = [...filteredMidis];
-    copy.sort((a, b) => {
-      const av = getSortValue(a, sortBy);
-      const bv = getSortValue(b, sortBy);
-      // null/undefined handling: treat nulls as greater so they appear last
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-
-      if (typeof av === "number" && typeof bv === "number") {
-        return sortDir === "asc" ? av - bv : bv - av;
-      }
-      // string compare
-      const as = String(av);
-      const bs = String(bv);
-      const cmp = as.localeCompare(bs);
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-    return copy;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredMidis, sortBy, sortDir]);
+  useMidiKeyboard(listRef, sortedMidis, selectedMidi, onMidiSelect, onTogglePlayback);
 
   const midiRowHeight = 48;
   const virtualizer = useVirtualizer({
@@ -324,73 +89,6 @@ export const MidiList = forwardRef(function MidiList(
     overscan: 5,
   });
 
-  // Debounce arrow-key navigation to avoid flooding IPC during key-repeat
-  const arrowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSelectRef = useRef<Midi | null>(null);
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key;
-      if (key !== "ArrowDown" && key !== "ArrowUp" && key !== " ") return;
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      const listRoot = listRef.current;
-      if (!listRoot) return;
-      const target = event.target as Element | null;
-      if (isTextInputElement(target)) return;
-      if (target && target !== document.body && target !== document.documentElement && !listRoot.contains(target)) {
-        return;
-      }
-      if (key === " ") {
-        if (!selectedMidi || !onTogglePlayback) return;
-        event.preventDefault();
-        event.stopPropagation();
-        onTogglePlayback();
-        return;
-      }
-      if (sortedMidis.length === 0) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const currentIndex = selectedMidi ? sortedMidis.findIndex((m) => m.id === selectedMidi.id) : -1;
-      let nextIndex = currentIndex;
-      if (event.key === "ArrowDown") {
-        if (currentIndex < sortedMidis.length - 1) {
-          nextIndex = currentIndex + 1;
-        } else if (currentIndex === -1) {
-          nextIndex = 0;
-        }
-      } else {
-        if (currentIndex > 0) {
-          nextIndex = currentIndex - 1;
-        } else if (currentIndex === -1) {
-          nextIndex = sortedMidis.length - 1;
-        }
-      }
-
-      if (nextIndex < 0 || nextIndex >= sortedMidis.length) return;
-      const nextMidi = sortedMidis[nextIndex];
-      if (!nextMidi) return;
-      if (!selectedMidi || nextMidi.id !== selectedMidi.id) {
-        pendingSelectRef.current = nextMidi;
-        if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
-        arrowDebounceRef.current = setTimeout(() => {
-          const pending = pendingSelectRef.current;
-          if (pending) {
-            onMidiSelect(pending);
-            pendingSelectRef.current = null;
-          }
-        }, 80);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
-    };
-  }, [selectedMidi, onMidiSelect, sortedMidis, onTogglePlayback]);
-
-  // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const root = scrollRef.current;
@@ -413,7 +111,6 @@ export const MidiList = forwardRef(function MidiList(
     return () => obs.disconnect();
   }, [onLoadMore, isLoadingMore, canLoadMore]);
 
-  // IntersectionObserver: load previous when top sentinel becomes visible
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     const root = scrollRef.current;
@@ -457,41 +154,8 @@ export const MidiList = forwardRef(function MidiList(
   }));
 
   if (midis.length === 0) {
-    return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#0a0c12" }}>
-        {/* Search bar — always visible even when no MIDIs are indexed */}
-        <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            value={midiSearch}
-            onChange={(e) => onMidiSearchChange(e.target.value)}
-            placeholder="Search by filename..."
-            style={{ flex: 1, fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
-          />
-        </div>
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#6b7280",
-            fontSize: "14px",
-            fontFamily: "'Courier New', monospace",
-          }}
-        >
-          {midiSearch.trim()
-            ? `No results for '${midiSearch}'`
-            : "No MIDI files indexed. Switch to Sample List or scan a directory containing MIDI files."}
-        </div>
-      </div>
-    );
+    return <MidiListEmpty midiSearch={midiSearch} onMidiSearchChange={onMidiSearchChange} />;
   }
-
-  
 
   return (
     <div
@@ -526,608 +190,80 @@ export const MidiList = forwardRef(function MidiList(
         if (paths.length > 0) onImportPaths?.(paths);
       }}
     >
-      
+      <MidiListSearch
+        midiSearch={midiSearch}
+        onMidiSearchChange={onMidiSearchChange}
+        filteredCount={filteredMidis.length}
+        totalCount={midis.length}
+      />
+      <MidiListHeader
+        colWidths={colWidths}
+        headerRefs={headerRefs}
+        startColumnResize={startColumnResize}
+        hoveredCol={hoveredCol}
+        setHoveredCol={setHoveredCol}
+        activeResize={activeResize}
+        draggedColumnRef={draggedColumnRef}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        headerClick={headerClick}
+        headerKeyDown={headerKeyDown}
+        onResizerKeyDown={onResizerKeyDown}
+      />
 
-      {/* Render a SampleList-like grid for MIDI rows to match appearance.
-          Keep the original table markup wrapped in a disabled conditional
-          so tests and existing code paths remain available for reference. */}
-      {(() => {
-        return (
-          <>
-            {/* Search bar — mirrors SampleList search form */}
-            <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                value={midiSearch}
-                onChange={(e) => onMidiSearchChange(e.target.value)}
-                placeholder="Search by filename..."
-                style={{ flex: 1, fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
-              />
-              <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
-                {filteredMidis.length}/{midis.length} RESULTS
-              </span>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: colWidths.join(" "),
-                padding: "6px 12px",
-                borderBottom: "1px solid #0f1117",
-                fontSize: "13px",
-                letterSpacing: "0.14em",
-                color: "#374151",
-                alignItems: "center",
-              }}
-            >
-            <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[0] = el)} onMouseDown={(e) => { const el = headerRefs.current[0]; if (!el) return; startColumnResize(0, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[0]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 0 : h === 0 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 0 ? null : h))} onClick={() => headerClick("id")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "id")}>
-                <div style={{ fontSize: 13, color: "#374151", userSelect: "none" }}>#{sortBy === "id" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 0)}
-                    style={{ width: hoveredCol === 0 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 0 || draggedColumnRef.current === 0 ? "#f97316" : hoveredCol === 0 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => { const el = headerRefs.current[1]; if (!el) return; startColumnResize(1, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[1]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 1 : h === 1 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 1 ? null : h))} onClick={() => headerClick("file_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "file_name")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", letterSpacing: "0.06em", userSelect: "none" }}>FILENAME{sortBy === "file_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 1)}
-                    style={{ width: hoveredCol === 1 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 1 || draggedColumnRef.current === 1 ? "#f97316" : hoveredCol === 1 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[2] = el)} onMouseDown={(e) => { const el = headerRefs.current[2]; if (!el) return; startColumnResize(2, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[2]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 2 : h === 2 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))} onClick={() => headerClick("tag_name")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tag_name")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", userSelect: "none" }}>TAG{sortBy === "tag_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 2)}
-                    style={{ width: hoveredCol === 2 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 2 || draggedColumnRef.current === 2 ? "#f97316" : hoveredCol === 2 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[3] = el)} onMouseDown={(e) => { const el = headerRefs.current[3]; if (!el) return; startColumnResize(3, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[3]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 3 : h === 3 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))} onClick={() => headerClick("tempo")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "tempo")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>TEMPO{sortBy === "tempo" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 3)}
-                    style={{ width: hoveredCol === 3 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 3 || draggedColumnRef.current === 3 ? "#f97316" : hoveredCol === 3 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[4] = el)} onMouseDown={(e) => { const el = headerRefs.current[4]; if (!el) return; startColumnResize(4, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[4]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 4 : h === 4 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))} onClick={() => headerClick("time_sig")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "time_sig")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", userSelect: "none" }}>TIME SIG{sortBy === "time_sig" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 4)}
-                    style={{ width: hoveredCol === 4 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 4 || draggedColumnRef.current === 4 ? "#f97316" : hoveredCol === 4 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[5] = el)} onMouseDown={(e) => { const el = headerRefs.current[5]; if (!el) return; startColumnResize(5, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[5]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 5 : h === 5 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))} onClick={() => headerClick("track_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "track_count")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>TRACKS{sortBy === "track_count" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 5)}
-                    style={{ width: hoveredCol === 5 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 5 || draggedColumnRef.current === 5 ? "#f97316" : hoveredCol === 5 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[6] = el)} onMouseDown={(e) => { const el = headerRefs.current[6]; if (!el) return; startColumnResize(6, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[6]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 6 : h === 6 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))} onClick={() => headerClick("note_count")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "note_count")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>NOTES{sortBy === "note_count" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 6)}
-                    style={{ width: hoveredCol === 6 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 6 || draggedColumnRef.current === 6 ? "#f97316" : hoveredCol === 6 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[7] = el)} onMouseDown={(e) => { const el = headerRefs.current[7]; if (!el) return; startColumnResize(7, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[7]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 7 : h === 7 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))} onClick={() => headerClick("key_estimate")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "key_estimate")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", userSelect: "none" }}>KEY{sortBy === "key_estimate" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 7)}
-                    style={{ width: hoveredCol === 7 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 7 || draggedColumnRef.current === 7 ? "#f97316" : hoveredCol === 7 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: "pointer" }} ref={(el) => (headerRefs.current[8] = el)} onMouseDown={(e) => { const el = headerRefs.current[8]; if (!el) return; startColumnResize(8, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[8]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 8 : h === 8 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))} onClick={() => headerClick("duration")} role="button" tabIndex={0} onKeyDown={(e) => headerKeyDown(e, "duration")}>
-                <div style={{ fontSize: 13, color: "#9ca3af", textAlign: "right", userSelect: "none" }}>DURATION{sortBy === "duration" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</div>
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 8)}
-                    style={{ width: hoveredCol === 8 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 8 || draggedColumnRef.current === 8 ? "#f97316" : hoveredCol === 8 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ position: "relative", cursor: hoveredCol === 9 ? "col-resize" : undefined }} ref={(el) => (headerRefs.current[9] = el)} onMouseDown={(e) => { const el = headerRefs.current[9]; if (!el) return; startColumnResize(9, e.clientX, el.getBoundingClientRect().width); }} onMouseMove={(e) => { const el = headerRefs.current[9]; if (!el) return; const rect = el.getBoundingClientRect(); const near = Math.abs(rect.right - e.clientX) <= 10; setHoveredCol((h) => (near ? 9 : h === 9 ? null : h)); }} onMouseLeave={() => setHoveredCol((h) => (h === 9 ? null : h))}>
-                <div />
-                <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-                  <div
-                    title="Resize column"
-                    role="separator"
-                    tabIndex={0}
-                    onKeyDown={(e) => onResizerKeyDown(e, 9)}
-                    style={{ width: hoveredCol === 9 ? 8 : 4, height: "70%", cursor: "col-resize", background: activeResize.current?.index === 9 || draggedColumnRef.current === 9 ? "#f97316" : hoveredCol === 9 ? "#374151" : "transparent", borderRadius: 2, transition: "width 0.12s, background 0.12s" }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
-      {/* Top sentinel for upward scrolling */}
-              <div
-                ref={topSentinelRef}
-                aria-hidden
-                style={{ height: 1, width: "100%", visibility: "hidden" }}
-              />
-      {/* Right-side detail panel moved to App for consistent layout with Sample DetailPanel */}
-              {sortedMidis.length === 0 && midiSearch.trim() ? (
-                <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
-                  No results for &apos;{midiSearch}&apos;
-                </div>
-              ) : (
-                <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
-                  {virtualizer.getVirtualItems().map((virtualRow) => {
-                    const midi = sortedMidis[virtualRow.index];
-                    if (!midi) return null;
-                    const isSelected = selectedMidi?.id === midi.id;
-                    return (
-                      <div
-                        key={midi.id}
-                        className={`midi-row ${isSelected ? "active" : ""}`}
-                        draggable={!!midi.path}
-                        onClick={() => onMidiSelect(midi)}
-                        onMouseDown={(e) => {
-                          if (midi.path && e.button === 0 && !preparedPathsRef.current[midi.id]) {
-                            void invoke("prepare_drag_file", { path: midi.path }).then((res) => {
-                              if (typeof res === "string" && res) preparedPathsRef.current[midi.id] = res;
-                            }).catch(() => {});
-                          }
-                        }}
-                        onDragStart={(e) => {
-                          const originalPath = midi.path;
-                          if (!originalPath) { e.preventDefault(); return; }
-                          e.preventDefault();
-                          const path = preparedPathsRef.current[midi.id] || originalPath;
-                          void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
-                            console.warn("[midi-dragout] startDrag failed:", err);
-                          });
-                          setTimeout(() => {
-                            const prepared = preparedPathsRef.current[midi.id];
-                            if (prepared) {
-                              void invoke("delete_file", { path: prepared }).catch(() => {});
-                              delete preparedPathsRef.current[midi.id];
-                            }
-                          }, 1500);
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          height: `${virtualRow.size}px`,
-                          transform: `translateY(${virtualRow.start}px)`,
-                          display: "grid",
-                          gridTemplateColumns: colWidths.join(" "),
-                          padding: "8px 12px",
-                          borderBottom: "1px solid #0d0f16",
-                          borderLeft: isSelected ? "2px solid #f97316" : "2px solid transparent",
-                          background: isSelected ? "#111827" : "transparent",
-                          alignItems: "center",
-                          boxSizing: "border-box",
-                          cursor: midi.path ? "grab" : "default",
-                        }}
-                      >
-                        <div style={{ fontSize: "14px", color: "#374151" }}>{midi.id}</div>
-                        <div>
-                          <div style={{ fontSize: "16px", color: "#d1d5db", letterSpacing: "0.02em", marginBottom: 3, wordBreak: "break-word" }}>{midi.file_name}</div>
-                        </div>
-                        <div onClick={(e) => { e.stopPropagation(); onTagBadgeClick?.(midi); }}>
-                          <span style={{ display: "inline-block", background: midi.tag_name ? "#22d3ee18" : "transparent", border: `1px solid ${midi.tag_name ? "#22d3ee55" : "#1a1f2e"}`, borderRadius: 2, color: midi.tag_name ? "#22d3ee" : "#4b5563", fontSize: 11, fontFamily: "'Courier New', monospace", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", padding: "3px 8px", cursor: "pointer", minWidth: 64, textAlign: "center" }}>{midi.tag_name || "+ tag"}</span>
-                        </div>
-                        <div style={{ fontSize: 14, color: midi.tempo ? "#22d3ee" : "#374151", textAlign: "right", fontWeight: midi.tempo ? 700 : 400 }}>{midi.tempo ? `${midi.tempo.toFixed(1)} BPM` : "—"}</div>
-                        <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "center" }}>{midi.time_signature_numerator}/{midi.time_signature_denominator}</div>
-                        <div style={{ fontSize: 14, color: "#a78bfa", textAlign: "right" }}>{midi.track_count ?? "—"}</div>
-                        <div style={{ fontSize: 14, color: "#34d399", textAlign: "right" }}>{midi.note_count ?? "—"}</div>
-                        <div style={{ fontSize: 14, color: "#fbbf24", textAlign: "center" }}>{midi.key_estimate ?? "—"}</div>
-                        <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "right" }}>{midi.duration ? formatDuration(midi.duration) : "—"}</div>
-                        <div style={{ display: "flex", gap: 6, justifyContent: "center", position: "relative" }} onMouseDown={(e) => e.stopPropagation()}>
-                          <button
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const path = midi.path;
-                              if (path) {
-                                let folderPath = path;
-                                const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-                                if (lastSlash > 0) folderPath = path.substring(0, lastSlash);
-                                try { await invoke("open_folder", { path: folderPath }); } catch (err) { console.error("Failed to open folder:", err); }
-                              }
-                            }}
-                            style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-                            title="Show in Finder"
-                          >📂</button>
-                          <button
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const path = midi.path;
-                              if (path) {
-                                try { await invoke("copy_to_clipboard", { text: path }); setToast({ message: "Path copied!", visible: true, midiId: midi.id }); }
-                                catch (err) { console.error("Clipboard write failed:", err); setToast({ message: "Copy failed", visible: true, midiId: midi.id }); }
-                                setTimeout(() => setToast((p) => ({ ...p, visible: false, midiId: null })), 1500);
-                              }
-                            }}
-                            style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-                            title="Copy Full Path"
-                          >📋</button>
-                          {toast.visible && toast.midiId === midi.id && (
-                            <div style={{ position: "absolute", right: "60px", background: "#1f2937", color: "#22c55e", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace", zIndex: 100, border: "1px solid #22c55e", whiteSpace: "nowrap", animation: "fadeIn 0.15s ease" }}>{toast.message}</div>
-                          )}
-                          <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onTrashMidi?.(midi.id); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }} title="Send to Trash">🗑</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
-            </div>
-          </>
-        );
-      })()}
-
-      {false && (
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "12px",
-          fontFamily: "'Courier New', monospace",
-        }}
-      >
-        <thead
-          style={{
-            position: "sticky",
-            top: 0,
-            background: "#1f2937",
-            zIndex: 1,
-          }}
-        >
-          <tr>
-            <th style={{ padding: "8px 12px", textAlign: "left", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              FILE NAME
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "left", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              TAG
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "right", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              TEMPO
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              TIME SIG
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "right", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              TRACKS
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "right", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              NOTES
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              KEY
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "right", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              DURATION
-            </th>
-            <th style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af", borderBottom: "1px solid #374151" }}>
-              
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {midis.map((midi) => {
-            const isSelected = selectedMidi?.id === midi.id;
-            return (
-              <tr
-                key={midi.id}
-                className={`midi-row ${isSelected ? "active" : ""}`}
-                onClick={() => onMidiSelect(midi)}
-                style={{
-                  background: isSelected ? "#3b82f620" : "transparent",
-                  cursor: midi.path ? "grab" : "pointer",
-                  transition: "background 0.1s ease",
-                }}
-                draggable={!!midi.path}
-                onMouseDown={(e) => {
-                  if (!midi.path || e.button !== 0) return;
-                  const startX = e.clientX;
-                  const startY = e.clientY;
-                  const handleMouseMove = (moveEvent: MouseEvent) => {
-                    const dx = Math.abs(moveEvent.clientX - startX);
-                    const dy = Math.abs(moveEvent.clientY - startY);
-                    if (dx > 5 || dy > 5) {
-                      document.removeEventListener('mousemove', handleMouseMove);
-                      document.removeEventListener('mouseup', handleMouseUp);
-                      (async () => {
-                        const originalPath = midi.path;
-                        if (!originalPath) return;
-                        try {
-                          const prepared = await invoke("prepare_drag_file", { path: originalPath }).catch((err) => {
-                            console.warn("prepare_drag_file failed:", err);
-                            return null;
-                          });
-                          const p = typeof prepared === "string" ? prepared : String(prepared ?? "");
-                          if (p) preparedPathsRef.current[midi.id] = p;
-                          const platformStr = ((navigator as any)?.platform || '') + (navigator.userAgent || '');
-                          const isMac = /Mac|iPhone|iPad|Macintosh/.test(platformStr);
-                          if (!isMac) return;
-                          const usable = p || originalPath;
-                          try {
-                            await startDrag({ item: [usable], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" });
-                          } catch (err) {
-                            console.warn("[midi-dragout] startDrag failed:", err);
-                          }
-                        } catch (err) {
-                          console.warn("onMouseDown handler error:", err);
-                        }
-                      })();
-                    }
-                  };
-                  const handleMouseUp = () => {
-                    document.removeEventListener('mousemove', handleMouseMove);
-                    document.removeEventListener('mouseup', handleMouseUp);
-                  };
-                  document.addEventListener('mousemove', handleMouseMove);
-                  document.addEventListener('mouseup', handleMouseUp);
-                }}
-                onDragStart={(e) => {
-                  const originalPath = midi.path;
-                  if (!originalPath) return;
-                  const prepared = preparedPathsRef.current[midi.id];
-                  const usablePath = prepared ?? originalPath;
-                  const isWindows = usablePath.match(/^[A-Z]:/);
-                  const fileUrl = isWindows
-                    ? `file:///${usablePath.replace(/\\/g, '/')}`
-                    : `file://${usablePath}`;
-                  try {
-                    e.dataTransfer.setData("text/uri-list", fileUrl);
-                    e.dataTransfer.setData("text/plain", fileUrl);
-                    e.dataTransfer.effectAllowed = "copy";
-                  } catch {}
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = "#1f2937";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = "transparent";
-                }}
-              >
-                <td style={{ padding: "8px 12px", color: "#e2e8f0", borderBottom: "1px solid #1f2937" }}>
-                  {midi.file_name}
-                </td>
-                <td
-                  style={{ padding: "8px 8px", borderBottom: "1px solid #1f2937" }}
-                  onClick={(e) => { e.stopPropagation(); onTagBadgeClick?.(midi); }}
-                >
-                  <span
-                    style={{
-                      display: "inline-block",
-                      background: midi.tag_name ? "#22d3ee18" : "transparent",
-                      border: `1px solid ${midi.tag_name ? "#22d3ee55" : "#1f2937"}`,
-                      borderRadius: "2px",
-                      color: midi.tag_name ? "#22d3ee" : "#4b5563",
-                      fontSize: "11px",
-                      fontFamily: "'Courier New', monospace",
-                      fontWeight: 600,
-                      letterSpacing: "0.05em",
-                      textTransform: "uppercase",
-                      padding: "3px 8px",
-                      cursor: "pointer",
-                      minWidth: "64px",
-                      textAlign: "center",
-                    }}
-                  >
-                    {midi.tag_name || "+ tag"}
-                  </span>
-                </td>
-                <td style={{ padding: "8px 12px", color: "#22d3ee", textAlign: "right", borderBottom: "1px solid #1f2937" }}>
-                  {midi.tempo ? `${midi.tempo.toFixed(1)} BPM` : "—"}
-                </td>
-                <td style={{ padding: "8px 12px", color: "#9ca3af", textAlign: "center", borderBottom: "1px solid #1f2937" }}>
-                  {midi.time_signature_numerator}/{midi.time_signature_denominator}
-                </td>
-                <td style={{ padding: "8px 12px", color: "#a78bfa", textAlign: "right", borderBottom: "1px solid #1f2937" }}>
-                  {midi.track_count ?? "—"}
-                </td>
-                <td style={{ padding: "8px 12px", color: "#34d399", textAlign: "right", borderBottom: "1px solid #1f2937" }}>
-                  {midi.note_count ?? "—"}
-                </td>
-                <td style={{ padding: "8px 12px", color: "#fbbf24", textAlign: "center", borderBottom: "1px solid #1f2937" }}>
-                  {midi.key_estimate ?? "—"}
-                </td>
-                <td style={{ padding: "8px 12px", color: "#9ca3af", textAlign: "right", borderBottom: "1px solid #1f2937" }}>
-                  {midi.duration ? formatDuration(midi.duration) : "—"}
-                </td>
-                <td style={{ padding: "8px 12px", borderBottom: "1px solid #1f2937", display: "flex", gap: 6, justifyContent: "center", position: "relative" }} onMouseDown={(e) => e.stopPropagation()}>
-                  <button
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      const path = midi.path;
-                      if (path) {
-                        let folderPath = path;
-                        const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\\\"));
-                        if (lastSlash > 0) {
-                          folderPath = path.substring(0, lastSlash);
-                        }
-                        try {
-                          await invoke("open_folder", { path: folderPath });
-                        } catch (err) {
-                          console.error("Failed to open folder:", err);
-                        }
-                      }
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-                    title="Show in Finder"
-                  >
-                    📂
-                  </button>
-                  <button
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      const path = midi.path;
-                      if (path) {
-                        try {
-                          await invoke("copy_to_clipboard", { text: path });
-                          setToast({ message: "Path copied!", visible: true, midiId: midi.id });
-                        } catch (err) {
-                          console.error("Clipboard write failed:", err);
-                          setToast({ message: "Copy failed", visible: true, midiId: midi.id });
-                        }
-                        setTimeout(() => {
-                          setToast((prev) => ({ ...prev, visible: false, midiId: null }));
-                        }, 1500);
-                      }
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-                    title="Copy Full Path"
-                  >
-                    📋
-                  </button>
-                  {toast.visible && toast.midiId === midi.id && (
-                    <div style={{ position: "absolute", right: "60px", background: "#1f2937", color: "#22c55e", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontFamily: "'Courier New', monospace", zIndex: 100, border: "1px solid #22c55e", whiteSpace: "nowrap", animation: "fadeIn 0.15s ease" }}>
-                      {toast.message}
-                    </div>
-                  )}
-                  <button
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTrashMidi?.(midi.id);
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }}
-                    title="Send to Trash"
-                  >
-                    🗑
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      )}
-
-      {/* Local HTML5 drag overlay. Render when either the parent forces an
-          external app-level drag (externalIsDragOver) or this component sees
-          a native HTML5 drag (isDragOver). Render markup to match SampleList
-          so integration tests can find a single element with text 'IMPORT'. */}
-
-      {(externalIsDragOver || isDragOver) && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(2,6,23,0.65)",
-            zIndex: 40,
-            pointerEvents: "none",
-            transition: "opacity 160ms ease",
-          }}
-          aria-hidden={!isDragOver}
-        >
-          <div style={{ textAlign: "center", color: "#f1f5f9", transform: isDragOver ? 'scale(1)' : 'scale(0.98)', transition: 'transform 140ms ease' }}>
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8 }} aria-hidden>
-              <path d="M12 3v10" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M8 7l4-4 4 4" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <rect x="3" y="11" width="18" height="10" rx="2" stroke="#f97316" strokeWidth="1.2" />
-            </svg>
-            <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>IMPORT</div>
-            <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>Drop files or folders to import into the library</div>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
+        <div ref={topSentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
+        {sortedMidis.length === 0 && midiSearch.trim() ? (
+          <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
+            No results for &apos;{midiSearch}&apos;
           </div>
-        </div>
-      )}
+        ) : (
+          <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const midi = sortedMidis[virtualRow.index];
+              if (!midi) return null;
+              const isSelected = selectedMidi?.id === midi.id;
+              return (
+                <MidiListRow
+                  key={midi.id}
+                  midi={midi}
+                  isSelected={isSelected}
+                  virtualRow={virtualRow}
+                  colWidths={colWidths}
+                  onMidiSelect={onMidiSelect}
+                  onTagBadgeClick={onTagBadgeClick}
+                  onTrashMidi={onTrashMidi}
+                  preparedPathsRef={preparedPathsRef}
+                  dragIconPathRef={dragIconPathRef}
+                />
+              );
+            })}
+          </div>
+        )}
+        <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
+      </div>
 
-      {/* Sentinel element observed by IntersectionObserver to trigger loading more */}
-      <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
+      <MidiListOverlay isDragOver={externalIsDragOver || isDragOver} />
 
       <div style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af" }}>
         {isLoadingPrevious ? (
           <div style={{ fontSize: 13 }}>Loading...</div>
-        ) : canLoadPrevious ? (
-          onLoadPrevious ? (
-            <button
-              type="button"
-              onClick={() => { if (onLoadPrevious) void onLoadPrevious(); }}
-              style={{
-                background: "#111827",
-                border: "1px solid #1f2937",
-                color: "#f97316",
-                padding: "6px 10px",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
-              }}
-            >
-              Load previous
-            </button>
-          ) : null
+        ) : canLoadPrevious && onLoadPrevious ? (
+          <button
+            type="button"
+            onClick={() => { void onLoadPrevious(); }}
+            style={{
+              background: "#111827",
+              border: "1px solid #1f2937",
+              color: "#f97316",
+              padding: "6px 10px",
+              borderRadius: 4,
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+            }}
+          >
+            Load previous
+          </button>
         ) : null}
       </div>
 
@@ -1136,33 +272,24 @@ export const MidiList = forwardRef(function MidiList(
           <div style={{ fontSize: 13 }}>Loading...</div>
         ) : canLoadMore === false ? (
           <div style={{ fontSize: 13 }}>No more results</div>
-        ) : (
-          onLoadMore ? (
-            <button
-              type="button"
-              onClick={() => { if (onLoadMore) void onLoadMore(); }}
-              style={{
-                background: "#111827",
-                border: "1px solid #1f2937",
-                color: "#f97316",
-                padding: "6px 10px",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
-              }}
-            >
-              Load more
-            </button>
-          ) : null
-        )}
+        ) : onLoadMore ? (
+          <button
+            type="button"
+            onClick={() => { void onLoadMore(); }}
+            style={{
+              background: "#111827",
+              border: "1px solid #1f2937",
+              color: "#f97316",
+              padding: "6px 10px",
+              borderRadius: 4,
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+            }}
+          >
+            Load more
+          </button>
+        ) : null}
       </div>
-
     </div>
   );
 });
-
-function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
