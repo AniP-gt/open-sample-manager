@@ -90,7 +90,7 @@ fn test_search_samples_paginated_applies_offset_after_fuzzy_filter() {
     .expect("insert failed");
     insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav")).expect("insert failed");
 
-    let page = search_samples_paginated(&conn, "kick", 1, 1).expect("search page failed");
+    let page = search_samples_paginated(&conn, "kick", 1, 1, None).expect("search page failed");
     assert_eq!(page.len(), 1);
     assert_eq!(page[0].file_name, "beta_kick.wav");
 }

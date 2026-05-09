@@ -43,7 +43,7 @@ fn list_samples_paginated_returns_deterministic_page() {
     insert_sample(&conn, &make_input("/samples/three.wav", "three.wav"))
         .expect("insert three failed");
 
-    let page = list_samples_paginated(&conn, 2, 1).expect("list failed");
+    let page = list_samples_paginated(&conn, 2, 1, None).expect("list failed");
 
     assert_eq!(page.len(), 2);
     assert_eq!(page[0].file_name, "two.wav");
