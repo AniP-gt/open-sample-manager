@@ -1,312 +1,70 @@
-import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useMemo, memo, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import type { FilterState, Sample, SortState, SortField } from "../../types/sample";
-import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
-import { isTextInputElement } from "../../utils/keyboard";
 import { useFavoritesStore } from "../../store/useFavoritesStore";
 import { GridView } from "./GridView";
+import type { SampleListProps, SampleListHandle } from "./types";
+import { useColumnResize } from "./useColumnResize";
+import { useDragDropList } from "./useDragDropList";
+import { useKeyboardNavigation } from "./useKeyboardNavigation";
+import { SampleListListView } from "./SampleListListView";
 
-interface SampleListProps {
-  samples: Sample[];
-  samplePaths: Record<number, string>;
-  filters: FilterState;
-  sort: SortState;
-  selectedSample: Sample | null;
-  onSampleSelect: (sample: Sample) => void;
-  onFilterChange: (filters: Partial<FilterState>) => void;
-  onSortChange: (sort: SortState) => void;
-  onDeleteSample: (id: number) => void;
-  onTrashSample?: (id: number) => void;
-  onTypeClick?: (sample: Sample) => void;
-  onTogglePlayback?: () => void;
-  // Called when files/folders are dropped onto the list. Paths will be
-  // best-effort resolved from the DataTransfer payload (file.path when
-  // available, otherwise file names or URI list entries).
-  onImportPaths?: (paths: string[]) => void;
-  // When true, externally force the drop overlay (useful for dev/testing)
-  externalIsDragOver?: boolean;
-  // Called to request next page when scrolling to the bottom.
-  onLoadMore?: () => Promise<void>;
-  // Whether the parent is currently loading more items.
-  isLoadingMore?: boolean;
-  // Whether more items can be loaded (parent decides based on last fetch length).
-  canLoadMore?: boolean;
-  // Called to request previous page when scrolling to the top.
-  onLoadPrevious?: () => Promise<void>;
-  // Whether the parent is currently loading previous items.
-  isLoadingPrevious?: boolean;
-  // Whether previous items can be loaded.
-  canLoadPrevious?: boolean;
-  instrumentColorCoding?: boolean;
-}
-
-// Helper: extract file system paths from a DataTransfer-like object. Exported
-// so unit tests can import it directly. Kept lightweight and defensive to
-// support both browser and Tauri drag payloads.
-export function extractPathsFromDataTransfer(dataTransfer: DataTransfer | null): string[] {
-  const paths: string[] = [];
-
-  const items = (dataTransfer as any)?.items;
-  if (items && items.length > 0) {
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.kind !== "file") continue;
-      try {
-        const file = item.getAsFile?.();
-        if (!file) continue;
-        const maybePath = (file as File & { path?: string }).path;
-        if (maybePath) {
-          paths.push(maybePath);
-          continue;
-        }
-        // Fallback to filename when full path is unavailable in browser
-        paths.push(file.name);
-      } catch (err) {
-        // ignore
-      }
-    }
-  }
-
-  // If no paths collected, try URI list or plain text payloads
-  if (paths.length === 0) {
-    const uriList = (dataTransfer as any)?.getData?.("text/uri-list") || (dataTransfer as any)?.getData?.("text/plain") || "";
-    if (uriList) {
-      const lines = uriList.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
-      for (const line of lines) {
-        if (line.startsWith("file://")) {
-          try {
-            // decodeURI to handle spaces and non-ascii
-            const decoded = decodeURI(line.replace(/^file:\/\//, ""));
-            // On windows file:///C:/path -> remove leading slash if present
-            const winMatch = decoded.match(/^\/?[A-Za-z]:/);
-            const path = winMatch ? decoded.replace(/^\//, "") : decoded;
-            paths.push(path);
-          } catch {
-            paths.push(line);
-          }
-        } else {
-          paths.push(line);
-        }
-      }
-    }
-  }
-
-  // Deduplicate while preserving order
-  return Array.from(new Set(paths));
-}
-
-function SortHeader({
-  field,
-  currentSort,
-  onSort,
-  children,
-  columnIndex,
-  draggedColumnRef,
-}: {
-  field: SortField;
-  currentSort: SortState;
-  onSort: (sort: SortState) => void;
-  children: React.ReactNode;
-  columnIndex?: number;
-  draggedColumnRef?: React.MutableRefObject<number | null>;
-}) {
-  const isActive = currentSort.field === field;
-  const direction = isActive ? currentSort.direction : "asc";
-
-  return (
-    <div
-      onClick={() => {
-        // If this column was just used for dragging, ignore the click (it was a resize)
-        if (typeof columnIndex === "number" && draggedColumnRef?.current === columnIndex) {
-          draggedColumnRef.current = null;
-          return;
-        }
-        onSort({
-          field,
-          direction: isActive && direction === "asc" ? "desc" : "asc",
-        });
-      }}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "4px",
-        cursor: "pointer",
-        userSelect: "none",
-      }}
-    >
-      {children}
-      {isActive && (
-        <span style={{ color: "#f97316", fontSize: "10px" }}>
-          {direction === "asc" ? "▲" : "▼"}
-        </span>
-      )}
-    </div>
-  );
-}
-
-export type SampleListHandle = {
-  focusSelected: () => void;
-};
+export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
+export type { SampleListHandle, SampleListProps } from "./types";
 
 export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
-    const {
-      samples,
-      samplePaths,
-      filters,
-      sort,
-      selectedSample,
-      onSampleSelect,
-      onFilterChange,
-      onSortChange,
-      onTrashSample,
-      onTypeClick,
-      onTogglePlayback,
-      onLoadMore,
-      isLoadingMore,
-      canLoadMore,
-      onLoadPrevious,
-      isLoadingPrevious,
-      canLoadPrevious,
-      instrumentColorCoding = false,
-    } = props;
+  const {
+    samples,
+    samplePaths,
+    filters,
+    sort,
+    selectedSample,
+    onSampleSelect,
+    onFilterChange,
+    onSortChange,
+    onTrashSample,
+    onTypeClick,
+    onTogglePlayback,
+    onLoadMore,
+    isLoadingMore,
+    canLoadMore,
+    onLoadPrevious,
+    isLoadingPrevious,
+    canLoadPrevious,
+    instrumentColorCoding = false,
+  } = props;
+
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  // Column widths as strings so we can mix px and flexible units like '1fr'.
-  // Widen DUR (index 5) and the actions column (index 6) to avoid overlap
-  // between the duration text and action buttons (emoji icons).
-  // Increase TYPE column (index 2) to reduce wrapping of "one-shot" badge
-  const [colWidths, setColWidths] = useState<string[]>(["44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "86px", "88px"]);
+  const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
+  const preparedPathsRef = useRef<Record<number, string>>({});
+
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
-  const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const draggedColumnRef = useRef<number | null>(null);
-  const activeResize = useRef<{ index: number; startX: number; startWidth: number; wasDragging: boolean } | null>(null);
-  const [hoveredCol, setHoveredCol] = useState<number | null>(null);
 
-  // Column resize: only attach document listeners while actively dragging
-  const resizeHandlersRef = useRef<{ onMove: (e: MouseEvent) => void; onUp: () => void } | null>(null);
-  const startColumnResize = useCallback((index: number, startX: number, startWidth: number) => {
-    activeResize.current = { index, startX, startWidth, wasDragging: false };
+  const { colWidths, startColumnResize, draggedColumnRef, activeResize } = useColumnResize([
+    "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "86px", "88px"
+  ]);
 
-    // Remove any stale handlers first
-    if (resizeHandlersRef.current) {
-      document.removeEventListener("mousemove", resizeHandlersRef.current.onMove);
-      document.removeEventListener("mouseup", resizeHandlersRef.current.onUp);
-    }
-
-    const minWidths = [36, 20, 120, 60, 60, 40, 40, 40, 30];
-    const maxWidths = [80, 400, 1600, 800, 800, 400, 400, 400, 200];
-
-    const onMove = (e: MouseEvent) => {
-      const active = activeResize.current;
-      if (!active) return;
-      const dx = e.clientX - active.startX;
-      let next = Math.max(10, Math.round(active.startWidth + dx));
-      const min = minWidths[active.index] ?? 20;
-      const max = maxWidths[active.index] ?? 2000;
-      next = Math.max(min, Math.min(max, next));
-      setColWidths((prev) => {
-        const copy = [...prev];
-        copy[active.index] = `${next}px`;
-        return copy;
-      });
-      if (!active.wasDragging && Math.abs(dx) > 3) {
-        active.wasDragging = true;
-      }
-      document.body.style.cursor = "col-resize";
-    };
-
-    const onUp = () => {
-      const active = activeResize.current;
-      if (active) {
-        if (active.wasDragging) {
-          draggedColumnRef.current = active.index;
-        } else {
-          draggedColumnRef.current = null;
-        }
-      }
-      activeResize.current = null;
-      document.body.style.cursor = "";
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      resizeHandlersRef.current = null;
-    };
-
-    resizeHandlersRef.current = { onMove, onUp };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, []);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const topSentinelRef = useRef<HTMLDivElement | null>(null);
-  // Prepared (backend-copied) paths for drag operations. We start preparing on
-  // mouse down so the async backend copy has time to finish before the
-  // synchronous dragstart handler runs (browsers require setData to be sync).
-  const preparedPathsRef = useRef<Record<number, string>>({});
-  // Filesystem path to the drag cursor icon (1x1 transparent PNG written to temp by Rust).
-  // Fetched once on mount; tauri-plugin-drag requires a real FS path, not base64.
-  const dragIconPathRef = useRef<string>("");
-  const [toast, setToast] = useState<{ message: string; visible: boolean; sampleId: number | null }>({ message: "", visible: false, sampleId: null });
-  const dragCounter = useRef(0);
-
-  useEffect(() => {
-    void invoke<string>("get_drag_icon_path").then((p) => {
-      dragIconPathRef.current = p;
-    }).catch(() => {});
-  }, []);
-
-  const extractPathsFromDrop = (e: React.DragEvent) => extractPathsFromDataTransfer(e.dataTransfer ?? null);
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current += 1;
-    setIsDragOver(true);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    try {
-      e.dataTransfer.dropEffect = "copy";
-    } catch {}
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current -= 1;
-    if (dragCounter.current <= 0) {
-      dragCounter.current = 0;
-      setIsDragOver(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current = 0;
-    setIsDragOver(false);
-    const paths = extractPathsFromDrop(e);
-    if (paths.length > 0) {
-      props.onImportPaths?.(paths);
-    }
-  };
+  const {
+    isDragOver,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    dragIconPathRef
+  } = useDragDropList(props.onImportPaths);
 
   const filtered = useMemo(() => {
     return samples.filter((s) => {
-      const matchType =
-        filters.filterType === "all" || s.sample_type === filters.filterType;
-      const matchBpmMin =
-        filters.filterBpmMin === "" ||
-        (s.bpm && s.bpm >= parseFloat(filters.filterBpmMin));
-      const matchBpmMax =
-        filters.filterBpmMax === "" ||
-        (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
-      const matchInstrumentType =
-        filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
-      const matchKey =
-        filters.filterKey === "" || s.musical_key === filters.filterKey;
+      const matchType = filters.filterType === "all" || s.sample_type === filters.filterType;
+      const matchBpmMin = filters.filterBpmMin === "" || (s.bpm && s.bpm >= parseFloat(filters.filterBpmMin));
+      const matchBpmMax = filters.filterBpmMax === "" || (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
+      const matchInstrumentType = filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
+      const matchKey = filters.filterKey === "" || s.musical_key === filters.filterKey;
       return matchType && matchBpmMin && matchBpmMax && matchInstrumentType && matchKey;
     });
   }, [samples, filters]);
@@ -316,33 +74,21 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     const dir = sort.direction === "asc" ? 1 : -1;
     copy.sort((a, b) => {
       switch (sort.field) {
-        case "id":
-          return (a.id - b.id) * dir;
-        case "file_name":
-          return a.file_name.localeCompare(b.file_name) * dir;
-        case "sample_type":
-          return a.sample_type.localeCompare(b.sample_type) * dir;
-        case "instrument_type":
-          return a.instrument_type.localeCompare(b.instrument_type) * dir;
-        case "bpm":
-          return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
-        case "duration":
-          return (a.duration - b.duration) * dir;
-        case "sample_rate":
-          // sample_rate sort no longer exposed in UI headers, but keep logic
-          // so external sort state remains functional.
-          return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
-        case "musical_key":
-          return (a.musical_key ?? "").localeCompare(b.musical_key ?? "") * dir;
-        default:
-          return 0;
+        case "id": return (a.id - b.id) * dir;
+        case "file_name": return a.file_name.localeCompare(b.file_name) * dir;
+        case "sample_type": return a.sample_type.localeCompare(b.sample_type) * dir;
+        case "instrument_type": return a.instrument_type.localeCompare(b.instrument_type) * dir;
+        case "bpm": return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
+        case "duration": return (a.duration - b.duration) * dir;
+        case "sample_rate": return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
+        case "musical_key": return (a.musical_key ?? "").localeCompare(b.musical_key ?? "") * dir;
+        default: return 0;
       }
     });
     return copy;
   }, [filtered, sort]);
 
   const rowHeight = 48;
-
   const virtualizer = useVirtualizer({
     count: sorted.length,
     getScrollElement: useCallback(() => scrollRef.current, []),
@@ -350,71 +96,13 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     overscan: 5,
   });
 
-  // Debounce arrow-key navigation to avoid flooding IPC during key-repeat
-  const arrowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSelectRef = useRef<Sample | null>(null);
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key;
-      if (key !== "ArrowDown" && key !== "ArrowUp" && key !== " ") return;
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      const listRoot = listRef.current;
-      if (!listRoot) return;
-      const target = event.target as Element | null;
-      if (isTextInputElement(target)) return;
-      if (target && target !== document.body && target !== document.documentElement && !listRoot.contains(target)) {
-        return;
-      }
-      if (key === " ") {
-        if (!selectedSample || !onTogglePlayback) return;
-        event.preventDefault();
-        event.stopPropagation();
-        onTogglePlayback();
-        return;
-      }
-      if (sorted.length === 0) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const currentIndex = selectedSample ? sorted.findIndex((s) => s.id === selectedSample.id) : -1;
-      let nextIndex = currentIndex;
-      if (event.key === "ArrowDown") {
-        if (currentIndex < sorted.length - 1) {
-          nextIndex = currentIndex + 1;
-        } else if (currentIndex === -1) {
-          nextIndex = 0;
-        }
-      } else {
-        if (currentIndex > 0) {
-          nextIndex = currentIndex - 1;
-        } else if (currentIndex === -1) {
-          nextIndex = sorted.length - 1;
-        }
-      }
-
-      if (nextIndex < 0 || nextIndex >= sorted.length) return;
-      const nextSample = sorted[nextIndex];
-      if (!nextSample) return;
-      if (!selectedSample || nextSample.id !== selectedSample.id) {
-        pendingSelectRef.current = nextSample;
-        if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
-        arrowDebounceRef.current = setTimeout(() => {
-          const pending = pendingSelectRef.current;
-          if (pending) {
-            onSampleSelect(pending);
-            pendingSelectRef.current = null;
-          }
-        }, 80);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      if (arrowDebounceRef.current) clearTimeout(arrowDebounceRef.current);
-    };
-  }, [sorted, selectedSample, onSampleSelect, onTogglePlayback]);
+  useKeyboardNavigation({
+    sorted,
+    selectedSample,
+    onSampleSelect,
+    onTogglePlayback,
+    listRef
+  });
 
   const lastScrolledRef = useRef<number | null>(null);
   useEffect(() => {
@@ -423,53 +111,43 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     if (targetIndex === -1) return;
     if (lastScrolledRef.current === selectedSample.id) return;
     lastScrolledRef.current = selectedSample.id;
-
     virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" });
   }, [selectedSample, sorted, virtualizer]);
 
-  // IntersectionObserver: load more when sentinel becomes visible
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const root = listRef.current;
     if (!sentinel || !root || !onLoadMore) return;
-
     const obs = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            if (isLoadingMore) return;
-            if (canLoadMore === false) return;
-            // Fire and forget
+            if (isLoadingMore || canLoadMore === false) return;
             void onLoadMore();
           }
         }
       },
       { root, rootMargin: "200px", threshold: 0.1 }
     );
-
     obs.observe(sentinel);
     return () => obs.disconnect();
   }, [onLoadMore, isLoadingMore, canLoadMore]);
 
-  // IntersectionObserver: load previous when top sentinel becomes visible
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     const root = listRef.current;
     if (!sentinel || !root || !onLoadPrevious) return;
-
     const obs = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            if (isLoadingPrevious) return;
-            if (canLoadPrevious === false) return;
+            if (isLoadingPrevious || canLoadPrevious === false) return;
             void onLoadPrevious();
           }
         }
       },
       { root, rootMargin: "200px", threshold: 0.1 }
     );
-
     obs.observe(sentinel);
     return () => obs.disconnect();
   }, [onLoadPrevious, isLoadingPrevious, canLoadPrevious]);
@@ -500,36 +178,14 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
 
   return (
     <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        position: "relative",
-      }}
+      style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div
-        style={{
-          padding: "10px 16px",
-          borderBottom: "1px solid #0f1117",
-          background: "#0a0c12",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-        }}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#374151"
-          strokeWidth="2"
-        >
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "10px" }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
         </svg>
@@ -537,705 +193,60 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           value={filters.search}
           onChange={(e) => onFilterChange({ search: e.target.value })}
           placeholder="Search by filename, tag, key..."
-          style={{
-            flex: 1,
-            fontSize: "16px",
-            color: "#9ca3af",
-            letterSpacing: "0.04em",
-          }}
+          style={{ flex: 1, fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em" }}
         />
-        <span
-          style={{
-            fontSize: "14px",
-            color: "#374151",
-            letterSpacing: "0.1em",
-          }}
-        >
+        <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
         <div style={{ display: "flex", gap: "4px" }}>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            title="List view"
-            style={{
-              background: viewMode === "list" ? "#1f2937" : "transparent",
-              border: "1px solid #1f2937",
-              color: viewMode === "list" ? "#f97316" : "#6b7280",
-              padding: "4px 8px",
-              borderRadius: "2px",
-              cursor: "pointer",
-              fontFamily: "'Courier New', monospace",
-              fontSize: "12px",
-            }}
-          >
-            ☰
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("grid")}
-            title="Grid view"
-            style={{
-              background: viewMode === "grid" ? "#1f2937" : "transparent",
-              border: "1px solid #1f2937",
-              color: viewMode === "grid" ? "#f97316" : "#6b7280",
-              padding: "4px 8px",
-              borderRadius: "2px",
-              cursor: "pointer",
-              fontFamily: "'Courier New', monospace",
-              fontSize: "12px",
-            }}
-          >
-            ▦
-          </button>
+          <button type="button" onClick={() => setViewMode("list")} title="List view" style={{ background: viewMode === "list" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "list" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>☰</button>
+          <button type="button" onClick={() => setViewMode("grid")} title="Grid view" style={{ background: viewMode === "grid" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "grid" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>▦</button>
         </div>
       </div>
 
       {viewMode === "grid" ? (
-        <GridView
-          samples={sorted}
-          selectedId={selectedSample?.id ?? null}
-          onSelect={onSampleSelect}
-        />
+        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={onSampleSelect} />
       ) : (
-      <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: colWidths.join(" "),
-          padding: "6px 16px",
-          borderBottom: "1px solid #0f1117",
-          fontSize: "13px",
-          letterSpacing: "0.14em",
-          color: "#374151",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563", fontSize: "16px" }}>☆</div>
-        <div style={{ position: "relative" }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => {
-          const el = headerRefs.current[1];
-          if (!el) return;
-          startColumnResize(1, e.clientX, el.getBoundingClientRect().width);
-        }}>
-          <SortHeader field="id" currentSort={sort} onSort={onSortChange} columnIndex={1} draggedColumnRef={draggedColumnRef}>#</SortHeader>
-        </div>
-
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[2] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[2];
-              if (!el) return;
-              startColumnResize(2, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[2];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              // Consider the mouse "near the right edge" when within 10px of the right
-              // (this allows hovering the small resizer which sits slightly outside).
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 2 : h === 2 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 2 ? null : h))}
-          >
-          <SortHeader field="file_name" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>FILENAME</SortHeader>
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 2 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 2 || draggedColumnRef.current === 2 ? "#f97316" : hoveredCol === 2 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
-        </div>
-
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[3] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[3];
-              if (!el) return;
-              startColumnResize(3, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[3];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 3 : h === 3 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 3 ? null : h))}
-          >
-          <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>TYPE</SortHeader>
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 3 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 3 || draggedColumnRef.current === 3 ? "#f97316" : hoveredCol === 3 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
-        </div>
-
         <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[4] = el)}
-          onMouseDown={(e) => {
-            const el = headerRefs.current[4];
-            if (!el) return;
-            startColumnResize(4, e.clientX, el.getBoundingClientRect().width);
+          style={{ flex: 1, overflowY: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}
+          ref={(el: HTMLDivElement | null) => {
+            listRef.current = el;
+            scrollRef.current = el;
           }}
-          onMouseMove={(e) => {
-            const el = headerRefs.current[4];
-            if (!el) return;
-            const rect = el.getBoundingClientRect();
-            const near = Math.abs(rect.right - e.clientX) <= 10;
-            setHoveredCol((h) => (near ? 4 : h === 4 ? null : h));
-          }}
-          onMouseLeave={() => setHoveredCol((h) => (h === 4 ? null : h))}
         >
-          <SortHeader field="instrument_type" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>INST</SortHeader>
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 4 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 4 || draggedColumnRef.current === 4 ? "#f97316" : hoveredCol === 4 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
+          <SampleListListView
+            samples={sorted}
+            samplePaths={samplePaths}
+            selectedSample={selectedSample}
+            colWidths={colWidths}
+            rowHeight={rowHeight}
+            sort={sort}
+            onSortChange={onSortChange}
+            onSampleSelect={onSampleSelect}
+            onTypeClick={onTypeClick}
+            onTrashSample={onTrashSample}
+            onToggleFavorite={toggleFavorite}
+            favorites={favSet}
+            instrumentColorCoding={instrumentColorCoding}
+            dragIconPath={dragIconPathRef.current}
+            preparedPathsRef={preparedPathsRef}
+            headerRefs={headerRefs}
+            startColumnResize={startColumnResize}
+            draggedColumnRef={draggedColumnRef}
+            activeResize={activeResize}
+            virtualizer={virtualizer}
+            isDragOver={isDragOver}
+            externalIsDragOver={props.externalIsDragOver}
+            topSentinelRef={topSentinelRef}
+            sentinelRef={sentinelRef}
+            isLoadingPrevious={isLoadingPrevious}
+            canLoadPrevious={canLoadPrevious}
+            onLoadPrevious={onLoadPrevious}
+            isLoadingMore={isLoadingMore}
+            canLoadMore={canLoadMore}
+            onLoadMore={onLoadMore}
+          />
         </div>
-
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[5] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[5];
-              if (!el) return;
-              startColumnResize(5, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[5];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 5 : h === 5 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 5 ? null : h))}
-          >
-          <SortHeader field="bpm" currentSort={sort} onSort={onSortChange} columnIndex={5} draggedColumnRef={draggedColumnRef}>BPM</SortHeader>
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 5 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 5 || draggedColumnRef.current === 5 ? "#f97316" : hoveredCol === 5 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
-        </div>
-
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[6] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[6];
-              if (!el) return;
-              startColumnResize(6, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[6];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 6 : h === 6 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 6 ? null : h))}
-          >
-          <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={6} draggedColumnRef={draggedColumnRef}>DUR</SortHeader>
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 6 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 6 || draggedColumnRef.current === 6 ? "#f97316" : hoveredCol === 6 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
-        </div>
-
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[7] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[7];
-              if (!el) return;
-              startColumnResize(7, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[7];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 7 : h === 7 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 7 ? null : h))}
-          >
-          <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>KEY</SortHeader>
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 7 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 7 || draggedColumnRef.current === 7 ? "#f97316" : hoveredCol === 7 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
-        </div>
-
-          <div
-            style={{ position: "relative" }}
-            ref={(el) => (headerRefs.current[8] = el)}
-            onMouseDown={(e) => {
-              const el = headerRefs.current[8];
-              if (!el) return;
-              startColumnResize(8, e.clientX, el.getBoundingClientRect().width);
-            }}
-            onMouseMove={(e) => {
-              const el = headerRefs.current[8];
-              if (!el) return;
-              const rect = el.getBoundingClientRect();
-              const near = Math.abs(rect.right - e.clientX) <= 10;
-              setHoveredCol((h) => (near ? 8 : h === 8 ? null : h));
-            }}
-            onMouseLeave={() => setHoveredCol((h) => (h === 8 ? null : h))}
-          >
-          <div />
-          <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: hoveredCol === 8 ? 8 : 4,
-                height: "70%",
-                cursor: "col-resize",
-                background: activeResize.current?.index === 8 || draggedColumnRef.current === 8 ? "#f97316" : hoveredCol === 8 ? "#374151" : "transparent",
-                borderRadius: 2,
-                transition: "width 0.12s, background 0.12s",
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          paddingBottom: selectedSample ? "160px" : undefined,
-          boxSizing: "border-box",
-        }}
-        ref={(el: HTMLDivElement | null) => {
-          listRef.current = el;
-          scrollRef.current = el;
-        }}
-      >
-        {(props.externalIsDragOver || isDragOver) && (
-        <div
-            role="status"
-            aria-live="polite"
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(2,6,23,0.65)",
-              zIndex: 40,
-              pointerEvents: "none",
-              transition: "opacity 160ms ease",
-            }}
-            aria-hidden={!isDragOver}
-          >
-            <div style={{ textAlign: "center", color: "#f1f5f9", transform: isDragOver ? 'scale(1)' : 'scale(0.98)', transition: 'transform 140ms ease' }}>
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8 }} aria-hidden>
-                <path d="M12 3v10" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M8 7l4-4 4 4" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <rect x="3" y="11" width="18" height="10" rx="2" stroke="#f97316" strokeWidth="1.2" />
-              </svg>
-              <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>IMPORT</div>
-              <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>Drop files or folders to import into the library</div>
-            </div>
-          </div>
-        )}
-        {/* Top sentinel for upward scrolling */}
-        <div
-          ref={topSentinelRef}
-          aria-hidden
-          style={{ height: 1, width: "100%", visibility: "hidden" }}
-        />
-        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const s = sorted[virtualRow.index];
-          return (
-          <div
-            key={s.id}
-            data-index={virtualRow.index}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: `${rowHeight}px`,
-              transform: `translateY(${virtualRow.start}px)`,
-              display: "grid",
-              gridTemplateColumns: colWidths.join(" "),
-              padding: "6px 12px",
-              borderBottom: "1px solid #0d0f16",
-              borderLeft:
-                selectedSample?.id === s.id
-                  ? "2px solid #f97316"
-                  : "2px solid transparent",
-              background: selectedSample?.id === s.id
-                ? instrumentColorCoding
-                  ? `linear-gradient(${getInstrumentColor(s.instrument_type).bg}, ${getInstrumentColor(s.instrument_type).bg}), #111827`
-                  : "#111827"
-                : instrumentColorCoding
-                  ? getInstrumentColor(s.instrument_type).bg
-                  : "transparent",
-              alignItems: "center",
-              transition: "background 0.1s",
-              cursor: samplePaths[s.id] ? "grab" : "default",
-            }}
-            className={`sample-row ${selectedSample?.id === s.id ? "active" : ""}`}
-            draggable={!!samplePaths[s.id]}
-            onMouseDown={(e) => {
-              if (samplePaths[s.id] && e.button === 0 && !preparedPathsRef.current[s.id]) {
-                void invoke("prepare_drag_file", { path: samplePaths[s.id] }).then((res) => {
-                  if (typeof res === "string" && res) preparedPathsRef.current[s.id] = res;
-                }).catch(() => {});
-              }
-            }}
-            onDragStart={(e) => {
-              const originalPath = samplePaths[s.id];
-              if (!originalPath) { e.preventDefault(); return; }
-              e.preventDefault();
-              const path = preparedPathsRef.current[s.id] || originalPath;
-              void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
-                console.warn("[dragout-debug] startDrag failed:", err);
-              });
-              setTimeout(() => {
-                const prepared = preparedPathsRef.current[s.id];
-                if (prepared) {
-                  void invoke("delete_file", { path: prepared }).catch(() => {});
-                  delete preparedPathsRef.current[s.id];
-                }
-              }, 1500);
-            }}
-            onClick={() => onSampleSelect(s)}
-          >
-            <div
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); toggleFavorite(s.id); }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                color: favSet.has(s.id) ? "#f6e05e" : "#4b5563",
-                fontSize: "22px",
-              }}
-              title={favSet.has(s.id) ? "Remove from favorites" : "Add to favorites"}
-            >
-              {favSet.has(s.id) ? "★" : "☆"}
-            </div>
-            <div style={{ fontSize: "14px", color: "#374151" }}>{s.id}</div>
-            <div style={{ overflow: "hidden", minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: "16px",
-                  color: "#d1d5db",
-                  letterSpacing: "0.02em",
-                  marginBottom: "3px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {s.file_name}
-              </div>
-              <div style={{ display: "flex", gap: "4px", overflow: "hidden" }}>
-                {s.tags.map((t) => (
-                  <span
-                    key={t}
-                    style={{
-                      fontSize: "13px",
-                      padding: "1px 4px",
-                      background: "#0f1117",
-                      color: "#4b5563",
-                      border: "1px solid #1a1f2e",
-                      borderRadius: "1px",
-                    }}
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div onMouseDown={(e) => e.stopPropagation()}>
-              <TypeBadge type={s.sample_type} onClick={() => onTypeClick?.(s)} />
-            </div>
-            <div onMouseDown={(e) => e.stopPropagation()}>
-              <span
-                onClick={() => onTypeClick?.(s)}
-                onMouseDown={(e) => e.stopPropagation()}
-                style={{
-                  fontSize: "10px",
-                  fontFamily: "'Courier New', monospace",
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: instrumentColorCoding ? getInstrumentColor(s.instrument_type).color : "#f97316",
-                  cursor: "pointer",
-                }}
-              >
-                {s.instrument_type}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: "16px",
-                color: s.bpm ? "#22d3ee" : "#374151",
-                fontWeight: s.bpm ? 700 : 400,
-              }}
-            >
-              {s.bpm ? `${Math.floor(s.bpm)}` : "-"}
-            </div>
-            <div style={{ fontSize: "16px", color: "#6b7280" }}>
-              {s.duration.toFixed(2)}s
-            </div>
-            <div
-              style={{
-                fontSize: "14px",
-                fontFamily: "'Courier New', monospace",
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                color: s.musical_key ? "#a78bfa" : "#374151",
-              }}
-            >
-              {s.musical_key ?? "-"}
-            </div>
-            <div onMouseDown={(e) => e.stopPropagation()} style={{ display: "flex", gap: "6px", justifyContent: "center", position: "relative" }}>
-              <button
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  const path = samplePaths[s.id];
-                  if (path) {
-                    let folderPath = path;
-                    const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-                    if (lastSlash > 0) {
-                      folderPath = path.substring(0, lastSlash);
-                    }
-                    try {
-                      await invoke("open_folder", { path: folderPath });
-                    } catch (err) {
-                      console.error("Failed to open folder:", err);
-                    }
-                  }
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#6b7280",
-                  cursor: "pointer",
-                  padding: "4px",
-                  fontSize: "14px",
-                  transition: "color 0.15s, transform 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#9ca3af";
-                  e.currentTarget.style.transform = "scale(1.15)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#6b7280";
-                  e.currentTarget.style.transform = "scale(1)";
-                }}
-                title="Show in Finder"
-              >
-                📂
-              </button>
-              <button
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  const path = samplePaths[s.id];
-                  if (path) {
-                    try {
-                      await invoke("copy_to_clipboard", { text: path });
-                      setToast({ message: "Path copied!", visible: true, sampleId: s.id });
-                    } catch (err) {
-                      console.error("Clipboard write failed:", err);
-                      setToast({ message: "Copy failed", visible: true, sampleId: s.id });
-                    }
-                    setTimeout(() => {
-                      setToast((prev) => ({ ...prev, visible: false, sampleId: null }));
-                    }, 1500);
-                  }
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#6b7280",
-                  cursor: "pointer",
-                  padding: "4px",
-                  fontSize: "14px",
-                  transition: "color 0.15s, transform 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#9ca3af";
-                  e.currentTarget.style.transform = "scale(1.15)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#6b7280";
-                  e.currentTarget.style.transform = "scale(1)";
-                }}
-                title="Copy Full Path"
-              >
-                📋
-              </button>
-              {toast.visible && toast.sampleId === s.id && (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: "60px",
-                    background: "#1f2937",
-                    color: "#22c55e",
-                    padding: "4px 10px",
-                    borderRadius: "4px",
-                    fontSize: "11px",
-                    fontFamily: "'Courier New', monospace",
-                    zIndex: 100,
-                    border: "1px solid #22c55e",
-                    whiteSpace: "nowrap",
-                    animation: "fadeIn 0.15s ease",
-                  }}
-                >
-                  {toast.message}
-                </div>
-              )}
-              <button
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTrashSample?.(s.id);
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#ef4444",
-                  cursor: "pointer",
-                  padding: "4px",
-                  fontSize: "14px",
-                  transition: "color 0.15s, transform 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#f87171";
-                  e.currentTarget.style.transform = "scale(1.15)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#ef4444";
-                  e.currentTarget.style.transform = "scale(1)";
-                }}
-                title="Send to Trash"
-              >
-                🗑
-              </button>
-            </div>
-          </div>
-          );
-        })}
-        </div>
-        <div
-          ref={sentinelRef}
-          aria-hidden
-          style={{ height: 1, width: "100%", visibility: "hidden" }}
-        />
-
-        <div style={{ padding: "6px 12px", textAlign: "center", color: "#9ca3af" }}>
-          {isLoadingPrevious ? (
-            <div style={{ fontSize: 13 }}>Loading...</div>
-          ) : canLoadPrevious ? (
-            onLoadPrevious ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void onLoadPrevious();
-                }}
-                style={{
-                  background: "#111827",
-                  border: "1px solid #1f2937",
-                  color: "#f97316",
-                  padding: "6px 10px",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                  fontFamily: "'Courier New', monospace",
-                }}
-              >
-                Load previous
-              </button>
-            ) : null
-          ) : null}
-        </div>
-
-        <div style={{ padding: "8px 16px", textAlign: "center", color: "#9ca3af" }}>
-          {isLoadingMore ? (
-            <div style={{ fontSize: 13 }}>Loading...</div>
-          ) : canLoadMore === false ? (
-            <div style={{ fontSize: 13 }}>No more results</div>
-          ) : (
-            // Provide a small manual trigger when parent exposes onLoadMore for debugging
-            onLoadMore ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void onLoadMore();
-                }}
-                style={{
-                  background: "#111827",
-                  border: "1px solid #1f2937",
-                  color: "#f97316",
-                  padding: "6px 10px",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                  fontFamily: "'Courier New', monospace",
-                }}
-              >
-                Load more
-              </button>
-            ) : null
-          )}
-        </div>
-      </div>
-      </>
       )}
     </div>
   );
