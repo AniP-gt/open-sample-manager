@@ -190,9 +190,13 @@ impl SampleManager {
         &self,
         limit: usize,
         offset: usize,
+        directory_path: Option<&str>,
     ) -> Result<Vec<SampleRow>, ManagerError> {
         Ok(crate::db::operations::list_samples_paginated(
-            &self.conn, limit, offset,
+            &self.conn,
+            limit,
+            offset,
+            directory_path,
         )?)
     }
 
@@ -211,9 +215,14 @@ impl SampleManager {
         query: &str,
         limit: usize,
         offset: usize,
+        directory_path: Option<&str>,
     ) -> Result<Vec<SampleRow>, ManagerError> {
         Ok(crate::db::operations::search_samples_paginated(
-            &self.conn, query, limit, offset,
+            &self.conn,
+            query,
+            limit,
+            offset,
+            directory_path,
         )?)
     }
 
@@ -371,8 +380,9 @@ impl SampleManager {
         &self,
         limit: usize,
         offset: usize,
+        directory_path: Option<&str>,
     ) -> Result<Vec<MidiRow>, ManagerError> {
-        midi::list_midis_paginated(&self.conn, limit, offset)
+        midi::list_midis_paginated(&self.conn, limit, offset, directory_path)
     }
 
     pub fn list_midis_around_id(
@@ -408,8 +418,9 @@ impl SampleManager {
         query: &str,
         limit: usize,
         offset: usize,
+        directory_path: Option<&str>,
     ) -> Result<Vec<MidiRow>, ManagerError> {
-        midi::search_midis_paginated(&self.conn, query, limit, offset)
+        midi::search_midis_paginated(&self.conn, query, limit, offset, directory_path)
     }
 }
 

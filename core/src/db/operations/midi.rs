@@ -81,7 +81,23 @@ pub fn list_midis_paginated(
     conn: &Connection,
     limit: usize,
     offset: usize,
+    directory_path: Option<&str>,
 ) -> Result<Vec<MidiRow>, rusqlite::Error> {
+    if let Some(directory_path) = normalize_directory_path(directory_path) {
+        let like_pattern = directory_like_pattern(&directory_path);
+        let sql = format!(
+            "{} WHERE REPLACE(m.path, '\\', '/') = ?1 OR REPLACE(m.path, '\\', '/') LIKE ?2 ESCAPE '\\' ORDER BY m.id LIMIT ?3 OFFSET ?4",
+            MIDI_SELECT,
+        );
+        let mut stmt = conn.prepare_cached(&sql)?;
+        return stmt
+            .query_map(
+                params![directory_path, like_pattern, limit as i64, offset as i64],
+                row_to_midi,
+            )?
+            .collect();
+    }
+
     let sql = format!("{} ORDER BY m.id LIMIT ?1 OFFSET ?2", MIDI_SELECT);
     let mut stmt = conn.prepare_cached(&sql)?;
     let rows = stmt
@@ -146,9 +162,9 @@ pub fn clear_all_midis(conn: &Connection) -> Result<usize, rusqlite::Error> {
 
 pub fn search_midis(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusqlite::Error> {
     if query.trim().is_empty() {
-        return list_midis_paginated(conn, 1000, 0);
+        return list_midis_paginated(conn, 1000, 0, None);
     }
-    fuzzy_midi_rows(conn, query)
+    fuzzy_midi_rows(conn, query, None)
 }
 
 pub fn search_midis_paginated(
@@ -156,15 +172,34 @@ pub fn search_midis_paginated(
     query: &str,
     limit: usize,
     offset: usize,
+    directory_path: Option<&str>,
 ) -> Result<Vec<MidiRow>, rusqlite::Error> {
     if query.trim().is_empty() {
-        return list_midis_paginated(conn, limit, offset);
+        return list_midis_paginated(conn, limit, offset, directory_path);
     }
-    fuzzy_midi_rows(conn, query).map(|rows| rows.into_iter().skip(offset).take(limit).collect())
+    fuzzy_midi_rows(conn, query, directory_path)
+        .map(|rows| rows.into_iter().skip(offset).take(limit).collect())
 }
 
-fn fuzzy_midi_rows(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusqlite::Error> {
-    let mut stmt = conn.prepare_cached(
+fn fuzzy_midi_rows(
+    conn: &Connection,
+    query: &str,
+    directory_path: Option<&str>,
+) -> Result<Vec<MidiRow>, rusqlite::Error> {
+    let directory_path = normalize_directory_path(directory_path);
+    let sql = if directory_path.is_some() {
+        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo,
+                m.time_signature_numerator, m.time_signature_denominator,
+                m.track_count, m.note_count, m.channel_count, m.key_estimate,
+                m.file_size, m.created_at, m.modified_at,
+                COALESCE(GROUP_CONCAT(t.name, ' '), '') as tag_name
+         FROM midis m
+         LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id
+         LEFT JOIN midi_tags t ON t.id = mft.tag_id
+         WHERE REPLACE(m.path, '\\', '/') = ?1 OR REPLACE(m.path, '\\', '/') LIKE ?2 ESCAPE '\\'
+         GROUP BY m.id
+         ORDER BY m.id"
+    } else {
         "SELECT m.id, m.path, m.file_name, m.duration, m.tempo,
                 m.time_signature_numerator, m.time_signature_denominator,
                 m.track_count, m.note_count, m.channel_count, m.key_estimate,
@@ -174,9 +209,16 @@ fn fuzzy_midi_rows(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusql
          LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id
          LEFT JOIN midi_tags t ON t.id = mft.tag_id
          GROUP BY m.id
-         ORDER BY m.id",
-    )?;
-    let rows = stmt.query_map([], row_to_midi)?;
+         ORDER BY m.id"
+    };
+    let mut stmt = conn.prepare_cached(sql)?;
+
+    let rows = if let Some(directory_path) = directory_path {
+        let like_pattern = directory_like_pattern(&directory_path);
+        stmt.query_map(params![directory_path, like_pattern], row_to_midi)?
+    } else {
+        stmt.query_map([], row_to_midi)?
+    };
 
     rows.filter_map(|row| match row {
         Ok(midi) => {
@@ -189,6 +231,37 @@ fn fuzzy_midi_rows(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusql
         Err(err) => Some(Err(err)),
     })
     .collect()
+}
+
+fn normalize_directory_path(directory_path: Option<&str>) -> Option<String> {
+    let normalized = directory_path?.trim().replace('\\', "/");
+    if normalized.is_empty() {
+        return None;
+    }
+    if normalized == "/" {
+        return Some(normalized);
+    }
+    Some(normalized.trim_end_matches('/').to_string())
+}
+
+fn directory_like_pattern(directory_path: &str) -> String {
+    let escaped = escape_like_pattern(directory_path);
+    if directory_path == "/" {
+        format!("{escaped}%")
+    } else {
+        format!("{escaped}/%")
+    }
+}
+
+fn escape_like_pattern(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        if matches!(ch, '%' | '_' | '\\') {
+            escaped.push('\\');
+        }
+        escaped.push(ch);
+    }
+    escaped
 }
 
 pub fn insert_midi_tag(conn: &Connection, name: &str) -> Result<i64, rusqlite::Error> {

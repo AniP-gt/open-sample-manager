@@ -46,9 +46,13 @@ pub(super) fn list_midis_paginated(
     conn: &rusqlite::Connection,
     limit: usize,
     offset: usize,
+    directory_path: Option<&str>,
 ) -> Result<Vec<MidiRow>, ManagerError> {
     Ok(crate::db::operations::list_midis_paginated(
-        conn, limit, offset,
+        conn,
+        limit,
+        offset,
+        directory_path,
     )?)
 }
 
@@ -83,9 +87,14 @@ pub(super) fn search_midis_paginated(
     query: &str,
     limit: usize,
     offset: usize,
+    directory_path: Option<&str>,
 ) -> Result<Vec<MidiRow>, ManagerError> {
     Ok(crate::db::operations::search_midis_paginated(
-        conn, query, limit, offset,
+        conn,
+        query,
+        limit,
+        offset,
+        directory_path,
     )?)
 }
 

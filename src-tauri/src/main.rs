@@ -94,14 +94,18 @@ fn list_samples_paginated(
     query: Option<String>,
     limit: usize,
     offset: usize,
+    directory_path: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
     let manager = get_manager(&state);
+    let directory_path = directory_path.as_deref();
     match query {
         Some(q) => manager
-            .search_paginated(&q, limit, offset)
+            .search_paginated(&q, limit, offset, directory_path)
             .map_err(CommandError::from),
-        None => manager.list_samples_paginated(limit, offset).map_err(CommandError::from),
+        None => manager
+            .list_samples_paginated(limit, offset, directory_path)
+            .map_err(CommandError::from),
     }
 }
 
@@ -917,10 +921,13 @@ async fn scan_midi_directory(
 fn list_midis_paginated(
     limit: usize,
     offset: usize,
+    directory_path: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
     let manager = get_manager(&state);
-    manager.list_midis_paginated(limit, offset).map_err(CommandError::from)
+    manager
+        .list_midis_paginated(limit, offset, directory_path.as_deref())
+        .map_err(CommandError::from)
 }
 
 /// List MIDI files around a specific ID.
@@ -987,10 +994,11 @@ fn search_midis_paginated(
     query: String,
     limit: usize,
     offset: usize,
+    directory_path: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
     let manager = get_manager(&state);
     manager
-        .search_midis_paginated(&query, limit, offset)
+        .search_midis_paginated(&query, limit, offset, directory_path.as_deref())
         .map_err(CommandError::from)
 }

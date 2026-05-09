@@ -29,7 +29,22 @@ pub fn list_samples_paginated(
     conn: &Connection,
     limit: usize,
     offset: usize,
+    directory_path: Option<&str>,
 ) -> Result<Vec<SampleRow>, rusqlite::Error> {
+    if let Some(directory_path) = normalize_directory_path(directory_path) {
+        let like_pattern = directory_like_pattern(&directory_path);
+        let mut stmt = conn.prepare_cached(
+            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples
+             WHERE REPLACE(path, '\\', '/') = ?1 OR REPLACE(path, '\\', '/') LIKE ?2 ESCAPE '\\'
+             ORDER BY id LIMIT ?3 OFFSET ?4",
+        )?;
+        let rows = stmt.query_map(
+            params![directory_path, like_pattern, limit as i64, offset as i64],
+            row_to_sample,
+        )?;
+        return rows.collect();
+    }
+
     let mut stmt = conn.prepare_cached(
         "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples ORDER BY id LIMIT ?1 OFFSET ?2",
     )?;
@@ -87,6 +102,39 @@ pub fn get_all_sample_paths(conn: &Connection) -> Result<Vec<String>, rusqlite::
     let mut stmt = conn.prepare_cached("SELECT path FROM samples ORDER BY id")?;
     let rows = stmt.query_map([], |row| row.get(0))?.collect();
     rows
+}
+
+pub(in crate::db::operations::samples) fn normalize_directory_path(
+    directory_path: Option<&str>,
+) -> Option<String> {
+    let normalized = directory_path?.trim().replace('\\', "/");
+    if normalized.is_empty() {
+        return None;
+    }
+    if normalized == "/" {
+        return Some(normalized);
+    }
+    Some(normalized.trim_end_matches('/').to_string())
+}
+
+pub(in crate::db::operations::samples) fn directory_like_pattern(directory_path: &str) -> String {
+    let escaped = escape_like_pattern(directory_path);
+    if directory_path == "/" {
+        format!("{escaped}%")
+    } else {
+        format!("{escaped}/%")
+    }
+}
+
+fn escape_like_pattern(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        if matches!(ch, '%' | '_' | '\\') {
+            escaped.push('\\');
+        }
+        escaped.push(ch);
+    }
+    escaped
 }
 
 pub(in crate::db::operations::samples) fn list_all_samples(
