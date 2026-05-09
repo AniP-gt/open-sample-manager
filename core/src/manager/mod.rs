@@ -402,6 +402,15 @@ impl SampleManager {
     pub fn search_midis(&self, query: &str) -> Result<Vec<MidiRow>, ManagerError> {
         midi::search_midis(&self.conn, query)
     }
+
+    pub fn search_midis_paginated(
+        &self,
+        query: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<MidiRow>, ManagerError> {
+        midi::search_midis_paginated(&self.conn, query, limit, offset)
+    }
 }
 
 // ── MIDI tag management ───────────────────────────────────────────────────────

@@ -2,7 +2,8 @@ use std::fs::File;
 use std::path::Path;
 
 use open_sample_manager_core::db::operations::{
-    get_midi_by_path, insert_midi, list_midis_paginated, MidiInput,
+    assign_midi_tag, get_midi_by_path, insert_midi, insert_midi_tag, list_midis_paginated,
+    search_midis_paginated, MidiInput,
 };
 use open_sample_manager_core::db::schema::init_database;
 use open_sample_manager_core::scanner::scan_midi_directory;
@@ -93,6 +94,69 @@ fn midi_db_roundtrip_insert_get_list_paginated() {
 }
 
 #[test]
+fn midi_search_paginated_applies_offset_after_fuzzy_filter() {
+    let conn = Connection::open_in_memory().expect("open in-memory DB");
+    init_database(&conn).expect("init schema");
+
+    for file_name in [
+        "alpha_kick.mid",
+        "beta_kick.mid",
+        "gamma_kick.mid",
+        "snare.mid",
+    ] {
+        let input = MidiInput {
+            path: format!("/tmp/{file_name}"),
+            file_name: file_name.to_string(),
+            duration: None,
+            tempo: None,
+            time_signature_numerator: None,
+            time_signature_denominator: None,
+            track_count: None,
+            note_count: None,
+            channel_count: None,
+            key_estimate: None,
+            file_size: None,
+        };
+        insert_midi(&conn, &input).expect("insert midi");
+    }
+
+    let page = search_midis_paginated(&conn, "kick", 1, 1).expect("search midi page");
+    assert_eq!(page.len(), 1);
+    assert_eq!(page[0].file_name, "beta_kick.mid");
+}
+
+#[test]
+fn midi_search_normalizes_full_width_ascii_and_matches_tags() {
+    let conn = Connection::open_in_memory().expect("open in-memory DB");
+    init_database(&conn).expect("init schema");
+
+    let midi = MidiInput {
+        path: "/tmp/mystery.mid".to_string(),
+        file_name: "mystery.mid".to_string(),
+        duration: None,
+        tempo: None,
+        time_signature_numerator: None,
+        time_signature_denominator: None,
+        track_count: None,
+        note_count: None,
+        channel_count: None,
+        key_estimate: None,
+        file_size: None,
+    };
+    let midi_id = insert_midi(&conn, &midi).expect("insert midi");
+    let tag_id = insert_midi_tag(&conn, "melody-custom").expect("insert tag");
+    assign_midi_tag(&conn, midi_id, tag_id).expect("assign tag");
+
+    let by_tag = search_midis_paginated(&conn, "ｍｌｃ", 10, 0).expect("search midi by tag");
+    assert_eq!(by_tag.len(), 1);
+    assert_eq!(by_tag[0].file_name, "mystery.mid");
+
+    let by_name = search_midis_paginated(&conn, "ｍｙｓ", 10, 0).expect("search midi by name");
+    assert_eq!(by_name.len(), 1);
+    assert_eq!(by_name[0].file_name, "mystery.mid");
+}
+
+#[test]
 fn midi_insert_duplicate_path_returns_error_without_panic() {
     let conn = Connection::open_in_memory().expect("open in-memory DB");
     init_database(&conn).expect("init schema");
@@ -116,7 +180,10 @@ fn midi_insert_duplicate_path_returns_error_without_panic() {
 
     // Duplicate path: UPSERT updates the existing row and returns its rowid.
     let duplicate = insert_midi(&conn, &midi).expect("duplicate insert should not error");
-    assert!(duplicate > 0, "duplicate path upsert should return a valid rowid");
+    assert!(
+        duplicate > 0,
+        "duplicate path upsert should return a valid rowid"
+    );
 }
 
 #[test]
@@ -186,7 +253,6 @@ fn manager_scan_midi_directory_nonexistent_path_returns_zero() {
     assert_eq!(count, 0);
 }
 
-
 #[test]
 fn parse_midi_extracts_metadata_from_minimal_smf() {
     // Minimal SMF format-0 (single track), 480 tpq, 120 BPM (500_000 µs/beat).
@@ -255,5 +321,8 @@ fn parse_midi_extracts_metadata_from_minimal_smf() {
     assert_eq!(result.track_count, Some(1));
     assert_eq!(result.note_count, Some(2), "2 NoteOn events with vel>0");
     assert_eq!(result.channel_count, Some(1));
-    assert!(result.key_estimate.is_some(), "key estimate should be populated");
+    assert!(
+        result.key_estimate.is_some(),
+        "key estimate should be populated"
+    );
 }

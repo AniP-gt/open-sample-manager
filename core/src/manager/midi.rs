@@ -78,6 +78,17 @@ pub(super) fn search_midis(
     Ok(crate::db::operations::search_midis(conn, query)?)
 }
 
+pub(super) fn search_midis_paginated(
+    conn: &rusqlite::Connection,
+    query: &str,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<MidiRow>, ManagerError> {
+    Ok(crate::db::operations::search_midis_paginated(
+        conn, query, limit, offset,
+    )?)
+}
+
 pub(super) fn get_all_midi_tags(
     conn: &rusqlite::Connection,
 ) -> Result<Vec<MidiTagRow>, ManagerError> {

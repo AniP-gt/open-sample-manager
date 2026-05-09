@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection};
 
+use super::fuzzy::matches_fuzzy_query;
 use super::types::{MidiInput, MidiRow, MidiTagRow};
 
 const MIDI_SELECT: &str = "SELECT m.id, m.path, m.file_name, m.duration, m.tempo,
@@ -147,19 +148,7 @@ pub fn search_midis(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusq
     if query.trim().is_empty() {
         return list_midis_paginated(conn, 1000, 0);
     }
-    let sql = format!(
-        "SELECT m.id, m.path, m.file_name, m.duration, m.tempo,
-                m.time_signature_numerator, m.time_signature_denominator,
-                m.track_count, m.note_count, m.channel_count, m.key_estimate,
-                m.file_size, m.created_at, m.modified_at, COALESCE(t.name, '') as tag_name
-         FROM midis_fts f JOIN midis m ON m.id = f.rowid
-         LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id
-         LEFT JOIN midi_tags t ON t.id = mft.tag_id
-         WHERE f.file_name MATCH ?1 ORDER BY rank"
-    );
-    let mut stmt = conn.prepare_cached(&sql)?;
-    let rows = stmt.query_map(params![query], row_to_midi)?.collect();
-    rows
+    fuzzy_midi_rows(conn, query)
 }
 
 pub fn search_midis_paginated(
@@ -171,21 +160,35 @@ pub fn search_midis_paginated(
     if query.trim().is_empty() {
         return list_midis_paginated(conn, limit, offset);
     }
-    let sql = format!(
+    fuzzy_midi_rows(conn, query).map(|rows| rows.into_iter().skip(offset).take(limit).collect())
+}
+
+fn fuzzy_midi_rows(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
         "SELECT m.id, m.path, m.file_name, m.duration, m.tempo,
                 m.time_signature_numerator, m.time_signature_denominator,
                 m.track_count, m.note_count, m.channel_count, m.key_estimate,
-                m.file_size, m.created_at, m.modified_at, COALESCE(t.name, '') as tag_name
-         FROM midis_fts f JOIN midis m ON m.id = f.rowid
+                m.file_size, m.created_at, m.modified_at,
+                COALESCE(GROUP_CONCAT(t.name, ' '), '') as tag_name
+         FROM midis m
          LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id
          LEFT JOIN midi_tags t ON t.id = mft.tag_id
-         WHERE f.file_name MATCH ?1 ORDER BY rank LIMIT ?2 OFFSET ?3"
-    );
-    let mut stmt = conn.prepare_cached(&sql)?;
-    let rows = stmt
-        .query_map(params![query, limit as i64, offset as i64], row_to_midi)?
-        .collect();
-    rows
+         GROUP BY m.id
+         ORDER BY m.id",
+    )?;
+    let rows = stmt.query_map([], row_to_midi)?;
+
+    rows.filter_map(|row| match row {
+        Ok(midi) => {
+            if matches_fuzzy_query(query, &[midi.file_name.as_str(), midi.tag_name.as_str()]) {
+                Some(Ok(midi))
+            } else {
+                None
+            }
+        }
+        Err(err) => Some(Err(err)),
+    })
+    .collect()
 }
 
 pub fn insert_midi_tag(conn: &Connection, name: &str) -> Result<i64, rusqlite::Error> {

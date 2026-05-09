@@ -581,6 +581,7 @@ fn main() {
         delete_midi,
         clear_all_midis,
         search_midis,
+        search_midis_paginated,
         // MIDI tag commands
         get_midi_tags,
         add_midi_tag,
@@ -979,4 +980,17 @@ fn search_midis(
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
     let manager = get_manager(&state);
     manager.search_midis(&query).map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn search_midis_paginated(
+    query: String,
+    limit: usize,
+    offset: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .search_midis_paginated(&query, limit, offset)
+        .map_err(CommandError::from)
 }
