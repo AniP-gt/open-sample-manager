@@ -1,8 +1,8 @@
 // React import not required in this test file (JSX not used directly)
 import { render, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { SampleList } from './SampleList';
-import type { Sample } from '../../types/sample';
+import { SampleList } from '../SampleList';
+import type { Sample } from '../../../types/sample';
 
 const emptySamples: Sample[] = [];
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractPathsFromDataTransfer } from '../../utils/dataTransfer';
+import { extractPathsFromDataTransfer } from '../../../utils/dataTransfer';
 
 function makeDataTransferFromUriList(uriList: string) {
   return {
