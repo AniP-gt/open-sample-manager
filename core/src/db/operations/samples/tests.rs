@@ -4,6 +4,7 @@ use crate::db::operations::SampleInput;
 use crate::db::schema::init_database;
 
 mod crud;
+mod embedding;
 mod lifecycle;
 mod search;
 
