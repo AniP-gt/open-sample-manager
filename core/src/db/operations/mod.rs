@@ -1,3 +1,4 @@
+mod fuzzy;
 mod instrument_types;
 mod midi;
 mod samples;

@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection};
 
+use super::fuzzy::matches_fuzzy_query;
 use super::types::{EmbeddingSearchResult, SampleInput, SampleRow};
 
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
@@ -108,21 +109,7 @@ pub fn search_samples(conn: &Connection, query: &str) -> Result<Vec<SampleRow>, 
     if query.is_empty() {
         return list_all_samples(conn);
     }
-    match run_fts_query(conn, query, None, None) {
-        Ok(rows) => Ok(rows),
-        Err(err) if is_fts5_syntax_error(&err) => {
-            let escaped = escape_fts5_query(query);
-            if escaped.is_empty() {
-                return Ok(Vec::new());
-            }
-            match run_fts_query(conn, &escaped, None, None) {
-                Ok(rows) => Ok(rows),
-                Err(e) if is_fts5_syntax_error(&e) => Ok(Vec::new()),
-                Err(e) => Err(e),
-            }
-        }
-        Err(err) => Err(err),
-    }
+    fuzzy_sample_rows(conn, query).map(|rows| rows.into_iter().map(|(row, _)| row).collect())
 }
 
 pub fn search_samples_paginated(
@@ -135,21 +122,13 @@ pub fn search_samples_paginated(
     if query.is_empty() {
         return list_samples_paginated(conn, limit, offset);
     }
-    match run_fts_query(conn, query, Some(limit), Some(offset)) {
-        Ok(rows) => Ok(rows),
-        Err(err) if is_fts5_syntax_error(&err) => {
-            let escaped = escape_fts5_query(query);
-            if escaped.is_empty() {
-                return Ok(Vec::new());
-            }
-            match run_fts_query(conn, &escaped, Some(limit), Some(offset)) {
-                Ok(rows) => Ok(rows),
-                Err(e) if is_fts5_syntax_error(&e) => Ok(Vec::new()),
-                Err(e) => Err(e),
-            }
-        }
-        Err(err) => Err(err),
-    }
+    fuzzy_sample_rows(conn, query).map(|rows| {
+        rows.into_iter()
+            .skip(offset)
+            .take(limit)
+            .map(|(row, _)| row)
+            .collect()
+    })
 }
 
 pub fn search_by_embedding(
@@ -359,79 +338,36 @@ fn list_all_samples(conn: &Connection) -> Result<Vec<SampleRow>, rusqlite::Error
     rows
 }
 
-fn run_fts_query(
+fn fuzzy_sample_rows(
     conn: &Connection,
     query: &str,
-    limit: Option<usize>,
-    offset: Option<usize>,
-) -> Result<Vec<SampleRow>, rusqlite::Error> {
-    match (limit, offset) {
-        (Some(lim), Some(off)) => {
-            let mut stmt = conn.prepare_cached(
-                "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
-                        s.sample_rate, s.file_size, s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
-                        s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key
-                 FROM samples_fts f JOIN samples s ON s.id = f.rowid
-                 WHERE f.file_name MATCH ?1 ORDER BY rank LIMIT ?2 OFFSET ?3",
-            )?;
-            let rows = stmt
-                .query_map(params![query, lim as i64, off as i64], row_to_sample)?
-                .collect();
-            rows
-        }
-        _ => {
-            let mut stmt = conn.prepare_cached(
-                "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity,
-                        s.sample_rate, s.file_size, s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type,
-                        s.waveform_peaks, s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key
-                 FROM samples_fts f JOIN samples s ON s.id = f.rowid
-                 WHERE f.file_name MATCH ?1 ORDER BY rank",
-            )?;
-            let rows = stmt.query_map(params![query], row_to_sample)?.collect();
-            rows
-        }
-    }
-}
+) -> Result<Vec<(SampleRow, String)>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity, s.sample_rate, s.file_size,
+                s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type, s.waveform_peaks,
+                s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key,
+                COALESCE(GROUP_CONCAT(t.name, ' '), '') AS tag_names
+         FROM samples s
+         LEFT JOIN sample_tags st ON st.sample_id = s.id
+         LEFT JOIN tags t ON t.id = st.tag_id
+         GROUP BY s.id
+         ORDER BY s.id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row_to_sample(row)?, row.get::<_, String>("tag_names")?))
+    })?;
 
-fn is_fts5_syntax_error(err: &rusqlite::Error) -> bool {
-    matches!(
-        err,
-        rusqlite::Error::SqliteFailure(_, Some(message))
-            if message.contains("fts5: syntax error")
-                || message.contains("unterminated string")
-    )
-}
-
-fn escape_fts5_query(query: &str) -> String {
-    query
-        .split_whitespace()
-        .filter_map(|token| {
-            if matches!(token, "AND" | "OR" | "NOT" | "NEAR") {
-                return Some(token.to_string());
-            }
-            let (core, is_prefix) = if token.len() > 1 && token.ends_with('*') {
-                (&token[..token.len() - 1], true)
+    rows.filter_map(|row| match row {
+        Ok((sample, tag_names)) => {
+            if matches_fuzzy_query(query, &[sample.file_name.as_str(), tag_names.as_str()]) {
+                Some(Ok((sample, tag_names)))
             } else {
-                (token, false)
-            };
-            if core.is_empty() {
-                return None;
+                None
             }
-            if core.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-                let mut s = core.to_string();
-                if is_prefix {
-                    s.push('*');
-                }
-                return Some(s);
-            }
-            let mut s = String::with_capacity(core.len() + 2);
-            s.push('"');
-            s.push_str(&core.replace('"', "\"\""));
-            s.push('"');
-            Some(s)
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+        }
+        Err(err) => Some(Err(err)),
+    })
+    .collect()
 }
 
 fn cos_sim(a: &[f32], b: &[f32]) -> f32 {
@@ -610,7 +546,7 @@ mod tests {
     }
 
     #[test]
-    fn test_update_sample_updates_fts() {
+    fn test_update_sample_updates_search_name() {
         let conn = setup_db();
         let input = make_input("/samples/old_name.wav", "old_name.wav");
         insert_sample(&conn, &input).expect("insert failed");
@@ -623,9 +559,9 @@ mod tests {
         )
         .expect("update failed");
         assert!(search_samples(&conn, "old_name")
-            .expect("fts search failed")
+            .expect("search failed")
             .is_empty());
-        let new_results = search_samples(&conn, "new_name").expect("fts search failed");
+        let new_results = search_samples(&conn, "new_name").expect("search failed");
         assert_eq!(new_results.len(), 1);
         assert_eq!(new_results[0].file_name, "new_name.wav");
     }
@@ -655,7 +591,7 @@ mod tests {
     }
 
     #[test]
-    fn test_search_samples_prefix_match() {
+    fn test_search_samples_fuzzy_subsequence_match() {
         let conn = setup_db();
         insert_sample(&conn, &make_input("/samples/kick_808.wav", "kick_808.wav"))
             .expect("insert failed");
@@ -663,10 +599,64 @@ mod tests {
             .expect("insert failed");
         insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav"))
             .expect("insert failed");
-        assert_eq!(
-            search_samples(&conn, "kick*").expect("search failed").len(),
-            2
-        );
+        assert_eq!(search_samples(&conn, "kc").expect("search failed").len(), 2);
+    }
+
+    #[test]
+    fn test_search_samples_normalizes_full_width_ascii_and_spaces() {
+        let conn = setup_db();
+        insert_sample(
+            &conn,
+            &make_input("/samples/kick_loop.wav", "kick_loop.wav"),
+        )
+        .expect("insert failed");
+        let results = search_samples(&conn, "ｋｉｃｋ\u{3000}ｌｏｏｐ").expect("search failed");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].file_name, "kick_loop.wav");
+    }
+
+    #[test]
+    fn test_search_samples_matches_sample_tags() {
+        let conn = setup_db();
+        let sample_id = insert_sample(&conn, &make_input("/samples/mystery.wav", "mystery.wav"))
+            .expect("insert failed");
+        conn.execute("INSERT INTO tags (name) VALUES ('drums')", [])
+            .expect("tag insert failed");
+        conn.execute(
+            "INSERT INTO sample_tags (sample_id, tag_id) VALUES (?1, 1)",
+            params![sample_id],
+        )
+        .expect("sample tag insert failed");
+
+        let results = search_samples(&conn, "drm").expect("search failed");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].file_name, "mystery.wav");
+    }
+
+    #[test]
+    fn test_search_samples_paginated_applies_offset_after_fuzzy_filter() {
+        let conn = setup_db();
+        insert_sample(
+            &conn,
+            &make_input("/samples/alpha_kick.wav", "alpha_kick.wav"),
+        )
+        .expect("insert failed");
+        insert_sample(
+            &conn,
+            &make_input("/samples/beta_kick.wav", "beta_kick.wav"),
+        )
+        .expect("insert failed");
+        insert_sample(
+            &conn,
+            &make_input("/samples/gamma_kick.wav", "gamma_kick.wav"),
+        )
+        .expect("insert failed");
+        insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav"))
+            .expect("insert failed");
+
+        let page = search_samples_paginated(&conn, "kick", 1, 1).expect("search page failed");
+        assert_eq!(page.len(), 1);
+        assert_eq!(page[0].file_name, "beta_kick.wav");
     }
 
     #[test]
@@ -725,7 +715,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_sample_removes_fts_entry() {
+    fn test_delete_sample_removes_search_result() {
         let conn = setup_db();
         insert_sample(&conn, &make_input("/samples/kick.wav", "kick.wav")).expect("insert failed");
         delete_sample(&conn, "/samples/kick.wav").expect("delete failed");
