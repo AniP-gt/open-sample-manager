@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveDroppedPaths } from './importHelpers';
+import { resolveDroppedPaths } from '../importHelpers';
 
 describe('resolveDroppedPaths', () => {
   it('returns directories when stat reports directory', async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { handleImportPaths } from './handleImportPaths';
+import { handleImportPaths } from '../handleImportPaths';
 
 describe('handleImportPaths', () => {
   it('invokes scan_directory for resolved directory and runs search', async () => {
