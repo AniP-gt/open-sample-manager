@@ -258,7 +258,7 @@ describe("useSampleState", () => {
     await act(async () => {
       await result.current.loadMore();
     });
-    expect(invokeMock).toHaveBeenCalledWith("list_samples_paginated", { query: null, limit: 1, offset: 1 });
+    expect(invokeMock).toHaveBeenCalledWith("list_samples_paginated", { query: null, limit: 1, offset: 1, directoryPath: null });
 
     await act(async () => {
       await result.current.loadAround(12);
@@ -269,7 +269,7 @@ describe("useSampleState", () => {
     await act(async () => {
       await result.current.loadPrevious();
     });
-    expect(invokeMock).toHaveBeenCalledWith("list_samples_paginated", { query: null, limit: 1, offset: 11 });
+    expect(invokeMock).toHaveBeenCalledWith("list_samples_paginated", { query: null, limit: 1, offset: 11, directoryPath: null });
   });
 
   it("toggles sample playback through the player ref", async () => {

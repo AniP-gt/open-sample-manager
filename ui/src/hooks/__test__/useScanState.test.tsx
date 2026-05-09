@@ -47,6 +47,7 @@ const renderScanHook = (overrides: Partial<Parameters<typeof useScanState>[0]> =
     setLastFetchCountMidi,
     setSelected,
     ...overrides,
+    getMidiDirectoryPath: overrides.getMidiDirectoryPath ?? (() => ""),
   };
   return { ...renderHook(() => useScanState(props)), props, setMidis, setLastFetchCountMidi };
 };
