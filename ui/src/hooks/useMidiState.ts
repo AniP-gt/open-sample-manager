@@ -89,11 +89,11 @@ export function useMidiState({
   const runMidiSearch = async (query: string) => {
     try {
       if (query.trim()) {
-        const rows = await invoke<Midi[]>("search_midis", { query });
+        const rows = await invoke<Midi[]>("search_midis_paginated", { query, limit: pageLimit, offset: 0 });
         setMidis(rows);
         setLastFetchCountMidi(rows.length);
         setCurrentMidiOffset(0);
-        setCanLoadMoreMidi(false);
+        setCanLoadMoreMidi(rows.length >= pageLimit);
         setCanLoadPreviousMidi(false);
       } else {
         const rows = await invoke<Midi[]>("list_midis_paginated", { limit: pageLimit, offset: 0 });
@@ -183,10 +183,17 @@ export function useMidiState({
     setIsLoadingMoreMidi(true);
     try {
       const nextOffset = currentMidiOffset + midis.length;
-      const rows = await invoke<Midi[]>("list_midis_paginated", {
-        limit: pageLimit,
-        offset: nextOffset,
-      });
+      const searchQuery = debouncedMidiSearch.trim();
+      const rows = searchQuery
+        ? await invoke<Midi[]>("search_midis_paginated", {
+            query: debouncedMidiSearch,
+            limit: pageLimit,
+            offset: nextOffset,
+          })
+        : await invoke<Midi[]>("list_midis_paginated", {
+            limit: pageLimit,
+            offset: nextOffset,
+          });
       setMidis((prev) => {
         const existing = new Set(prev.map((m) => m.id));
         const fresh = rows.filter((r) => !existing.has(r.id));
@@ -208,10 +215,17 @@ export function useMidiState({
     setIsLoadingPreviousMidi(true);
     try {
       const prevOffset = Math.max(0, currentMidiOffset - pageLimit);
-      const rows = await invoke<Midi[]>("list_midis_paginated", {
-        limit: pageLimit,
-        offset: prevOffset,
-      });
+      const searchQuery = debouncedMidiSearch.trim();
+      const rows = searchQuery
+        ? await invoke<Midi[]>("search_midis_paginated", {
+            query: debouncedMidiSearch,
+            limit: pageLimit,
+            offset: prevOffset,
+          })
+        : await invoke<Midi[]>("list_midis_paginated", {
+            limit: pageLimit,
+            offset: prevOffset,
+          });
       setMidis((prev) => {
         const existing = new Set(prev.map((m) => m.id));
         const fresh = rows.filter((r) => !existing.has(r.id));

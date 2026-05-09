@@ -238,9 +238,6 @@ export const MidiList = forwardRef(function MidiList(
   const filteredMidis = useMemo(
     () => {
       let result = midis;
-      if (midiSearch.trim()) {
-        result = result.filter((m) => m.file_name.toLowerCase().includes(midiSearch.toLowerCase()));
-      }
       if (filterKey) {
         result = result.filter((m) => {
           if (!m.key_estimate) return false;
@@ -250,7 +247,7 @@ export const MidiList = forwardRef(function MidiList(
       }
       return result;
     },
-    [midis, midiSearch, filterKey],
+    [midis, filterKey],
   );
 
   // Sorting helpers

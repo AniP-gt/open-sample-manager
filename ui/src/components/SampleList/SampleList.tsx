@@ -295,9 +295,6 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
 
   const filtered = useMemo(() => {
     return samples.filter((s) => {
-      const matchSearch =
-        s.file_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        s.tags.some((t) => t.toLowerCase().includes(filters.search.toLowerCase()));
       const matchType =
         filters.filterType === "all" || s.sample_type === filters.filterType;
       const matchBpmMin =
@@ -310,7 +307,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
       const matchKey =
         filters.filterKey === "" || s.musical_key === filters.filterKey;
-      return matchSearch && matchType && matchBpmMin && matchBpmMax && matchInstrumentType && matchKey;
+      return matchType && matchBpmMin && matchBpmMax && matchInstrumentType && matchKey;
     });
   }, [samples, filters]);
 
@@ -539,7 +536,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         <input
           value={filters.search}
           onChange={(e) => onFilterChange({ search: e.target.value })}
-          placeholder="Search by filename, tag, key... (FTS5)"
+          placeholder="Search by filename, tag, key..."
           style={{
             flex: 1,
             fontSize: "16px",
