@@ -7,6 +7,9 @@ let timidityStatus = { installed: false, install_command: 'brew install timidity
 vi.mock('@tauri-apps/api/core', () => {
   const invoke = vi.fn((cmd: string) => {
     if (cmd === 'check_timidity') return Promise.resolve(timidityStatus)
+    if (cmd === 'get_instrument_types') return Promise.resolve([])
+    if (cmd === 'list_all_sample_paths') return Promise.resolve([])
+    if (cmd === 'list_samples_paginated') return Promise.resolve([])
     if (cmd === 'list_midis_paginated') return Promise.resolve(mockedMidis)
     if (cmd === 'get_all_midi_paths') return Promise.resolve(mockedMidis.map((m) => m.path))
     if (cmd === 'get_midi_tags') return Promise.resolve([])
@@ -14,6 +17,19 @@ vi.mock('@tauri-apps/api/core', () => {
   })
   return { invoke }
 })
+
+vi.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getTotalSize: () => count * estimateSize(),
+    getVirtualItems: () => Array.from({ length: count }, (_, index) => ({
+      index,
+      key: index,
+      size: estimateSize(),
+      start: index * estimateSize(),
+    })),
+    scrollToIndex: vi.fn(),
+  }),
+}))
 
 describe('Header view toggle', () => {
   it('renders buttons and calls onViewModeChange with "midi" when MIDI List clicked', async () => {
