@@ -48,17 +48,23 @@ interface TreeNode {
   isFolder: boolean;
 }
 
+function normalizeTreePath(path: string): string {
+  return path.trim().replace(/\\/g, "/").replace(/\/+/g, "/");
+}
+
 function buildTree(paths: string[]): TreeNode[] {
   const root: TreeNode[] = [];
 
   for (const fullPath of paths) {
-    const parts = fullPath.split("/").filter(Boolean);
+    const normalizedPath = normalizeTreePath(fullPath);
+    const parts = normalizedPath.split("/").filter(Boolean);
+    const rootPrefix = normalizedPath.startsWith("/") ? "/" : "";
     let current = root;
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const isLast = i === parts.length - 1;
-      const currentPath = "/" + parts.slice(0, i + 1).join("/");
+      const currentPath = rootPrefix + parts.slice(0, i + 1).join("/");
 
       let node = current.find((n) => n.name === part);
 
@@ -82,10 +88,12 @@ function buildTree(paths: string[]): TreeNode[] {
 // Get all ancestor paths for a given path
 function getAncestorPaths(path: string): Set<string> {
   const ancestors = new Set<string>();
-  const parts = path.split("/").filter(Boolean);
-  
+  const normalizedPath = normalizeTreePath(path);
+  const parts = normalizedPath.split("/").filter(Boolean);
+  const rootPrefix = normalizedPath.startsWith("/") ? "/" : "";
+   
   for (let i = 0; i < parts.length; i++) {
-    const ancestorPath = "/" + parts.slice(0, i + 1).join("/");
+    const ancestorPath = rootPrefix + parts.slice(0, i + 1).join("/");
     ancestors.add(ancestorPath);
   }
   

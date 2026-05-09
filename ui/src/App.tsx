@@ -39,6 +39,7 @@ const defaultFilters: FilterState = {
   filterInstrumentType: "",
   favoritesOnly: false,
   filterKey: "",
+  directoryPath: "",
 };
 
 export function App() {
@@ -57,6 +58,7 @@ export function App() {
     fetchAllMidiPaths: () => Promise<void>;
     setMidis: React.Dispatch<React.SetStateAction<Midi[]>>;
     setLastFetchCountMidi: React.Dispatch<React.SetStateAction<number | null>>;
+    directoryPath: string;
   } | null>(null);
 
   const autoPlayOnSelect = useSettingsStore((s) => s.autoPlayOnSelect);
@@ -76,6 +78,7 @@ export function App() {
     runSearch: (query) => sampleApiRef.current?.runSearch(query) ?? Promise.resolve([]),
     fetchAllSamplePaths: () => sampleApiRef.current?.fetchAllSamplePaths() ?? Promise.resolve(),
     fetchAllMidiPaths: () => midiApiRef.current?.fetchAllMidiPaths() ?? Promise.resolve(),
+    getMidiDirectoryPath: () => midiApiRef.current?.directoryPath ?? "",
     viewMode: uiState.viewMode,
     pageLimit: uiState.pageLimit,
     setMidis: (value) => {
@@ -145,6 +148,7 @@ export function App() {
     fetchAllMidiPaths: midiState.fetchAllMidiPaths,
     setMidis: midiState.setMidis,
     setLastFetchCountMidi: midiState.setLastFetchCountMidi,
+    directoryPath: midiState.directoryPath,
   };
   scanImportHandlerRef.current = scanState.handleImportPaths;
 
@@ -268,17 +272,47 @@ export function App() {
           filePaths={uiState.viewMode === "midi" ? midiState.allMidiPaths : sampleState.allSamplePaths}
           selectedPath={
             uiState.viewMode === "midi"
-              ? (midiState.selectedMidi ? midiState.selectedMidi.path : null)
-              : (sampleState.selected ? sampleState.samplePaths[sampleState.selected.id] : null)
+              ? (midiState.selectedMidi ? midiState.selectedMidi.path : midiState.directoryPath || null)
+              : (sampleState.selected ? sampleState.samplePaths[sampleState.selected.id] : sampleState.filters.directoryPath || null)
           }
           onFilterChange={sampleState.handleFilterChange}
           onPathSelect={(path) => {
-            if (uiState.viewMode === "midi") {
-              void midiState.loadMidiByPath(path);
+            const normalizedPath = path.replace(/\\/g, "/");
+            const filePaths = uiState.viewMode === "midi" ? midiState.allMidiPaths : sampleState.allSamplePaths;
+            const isFile = filePaths.some((filePath) => filePath.replace(/\\/g, "/") === normalizedPath);
+
+            if (isFile) {
+              if (uiState.viewMode === "midi") {
+                if (midiState.directoryPath) {
+                  midiState.suppressNextMidiSearch();
+                  midiState.setDirectoryPath("");
+                }
+                void midiState.loadMidiByPath(path);
+                return;
+              }
+
+              if (sampleState.filters.directoryPath) {
+                sampleState.suppressNextSearch();
+                sampleState.handleFilterChange({ directoryPath: "" });
+              }
+              void sampleState.loadSampleByPath(path);
               return;
             }
 
-            void sampleState.loadSampleByPath(path);
+            if (uiState.viewMode === "midi") {
+              if (midiState.isMidiPlaying) {
+                void midiState.togglePlaySelectedMidi();
+              }
+              midiState.setSelectedMidi(null);
+              midiState.setDirectoryPath(midiState.directoryPath === normalizedPath ? "" : normalizedPath);
+              return;
+            }
+
+            playerBarRef.current?.stop();
+            sampleState.setSelected(null);
+            sampleState.handleFilterChange({
+              directoryPath: sampleState.filters.directoryPath === normalizedPath ? "" : normalizedPath,
+            });
           }}
           onImportPaths={scanState.handleSidebarImport}
           width={uiState.sidebarWidth}
