@@ -1,43 +1,50 @@
 # TAURI KNOWLEDGE BASE
 
-**Generated:** 2026-03-03T06:50:00+0900
-**Commit:** 68204da
+**Generated:** 2026-05-09T22:22:11+0900
+**Commit:** a14778f
 **Branch:** main
 
 ## OVERVIEW
-Tauri host layer that wraps core Rust APIs as IPC commands and owns app-level runtime concerns (state, plugins, app-data DB path).
+Tauri host layer. Owns app startup, plugins, app-data DB path, IPC commands, drag-out helpers, clipboard/open-folder utilities, and TiMidity++ MIDI process control.
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |---|---|---|
-| IPC command signatures | `src-tauri/src/main.rs` | `#[tauri::command]` functions exported to UI (~28 commands) |
-| Core error mapping | `src-tauri/src/main.rs` | `ManagerError` → `CommandError` mapping |
-| App startup + state | `src-tauri/src/main.rs` | `setup` sets `samples.db` path under app-data dir |
-| Build/link behavior | `src-tauri/Cargo.toml`, `src-tauri/build.rs` | Release profile: strip=true, lto=true, codegen-units=1, panic=abort |
-| Runtime permissions | `src-tauri/capabilities/default.json` | fs allow-read `**`, drag:allow-start-drag, clipboard read/write |
-| Packaging/runtime config | `src-tauri/tauri.conf.json` | devUrl **5174**, beforeDevCommand/beforeBuildCommand hooks, macOS minOS 10.13 |
+| IPC command signatures | `src/main.rs` | 41 `#[tauri::command]` functions |
+| App startup + state | `src/main.rs` | `setup` creates `samples.db` in app data; `AppState` stores manager + TiMidity PID |
+| Progress events | `src/main.rs` | `scan-progress` emitted from scan/re-scan closures |
+| Long work wrappers | `src/main.rs` | `spawn_blocking` around scan, re-scan, trash, drag prep, move, MIDI scan |
+| Error mapping | `src/main.rs` | `ManagerError` -> `CommandError { code, message, details }` |
+| TiMidity++ | `src/main.rs` | detection paths, install hints, play/stop process handling |
+| Runtime permissions | `capabilities/default.json` | fs read `**`, drag start, clipboard read/write |
+| Packaging config | `tauri.conf.json` | devUrl 5174, npm hooks, asset scope, shell open |
+| Build behavior | `Cargo.toml`, `build.rs` | release profile and Tauri build script |
 
-- Keep the Windows subsystem guard in `src-tauri/src/main.rs:1` unchanged.
-- Long-running work (`scan_directory`, `move_sample`) must use `tokio::task::spawn_blocking`.
-- Commands should open manager through `open_manager(...)`, not ad-hoc DB connection wiring.
-- Emit scan progress via `scan-progress` event contract expected by UI listeners.
-- macOS drag support uses `tauri-plugin-drag` 2.1.0 + `tauri-plugin-dragout` 0.1.1; both required for drag-out behavior.
-- Dev port is **5174** (strictPort true in Vite); Tauri devUrl must match exactly.
+## CONVENTIONS
+- Keep the Windows subsystem guard at `src/main.rs:1` unchanged.
+- Commands open core through managed `Arc<Mutex<SampleManager>>`; no ad-hoc DB connections here.
+- Long-running CPU/IO work uses `tokio::task::spawn_blocking` before touching `SampleManager` or filesystem-heavy operations.
+- Scan progress payload shape mirrors UI `ScanProgress` expectations: stage/current/total/currentFile.
+- macOS drag-out needs both `tauri-plugin-dragout` and `tauri-plugin-drag` registered.
+- Port `5174` must match `ui/vite.config.ts` strictPort.
 
 ## ANTI-PATTERNS
-- Do not bypass command wrappers to call core APIs directly from UI; keep IPC contract explicit.
-- Do not widen default capabilities without matching UI/plugin use-case.
-- Do not introduce blocking CPU/IO work directly on async command threads.
-- Do not change devUrl port without updating both `src-tauri/tauri.conf.json` and `ui/vite.config.ts`.
+- Do not widen default capabilities without a concrete UI/plugin use case.
+- Do not block async command threads directly.
+- Do not change devUrl or beforeDev/beforeBuild commands without updating UI scripts/config.
+- Do not bypass IPC wrappers from UI; keep command names and payload mapping explicit.
+- Do not leave multiple TiMidity++ processes running; `play_midi` kills the previous PID first.
 
 ## COMMANDS
 ```bash
 npm run tauri:dev
 npm run tauri:build
 cargo check -p open-sample-manager
+cargo test -p open-sample-manager
 ```
 
 ## NOTES
-- `open-sample-manager-core` is a local path dependency; breaking API changes ripple into IPC and UI typing quickly.
-- CSP is null in tauri.conf.json for dev flexibility — review before any production hardening.
-- Shell plugin has `open: true` (allows opening URLs/paths); scope carefully if extending.
+- `open-sample-manager-core` is a path dependency; breaking manager APIs ripple into command payloads and UI hooks.
+- CSP is `null` in `tauri.conf.json`; review before production hardening.
+- Shell plugin has `open: true`; scope carefully if extending URL/path opening.
+- No CI workflow exists; Tauri build verification is manual.
