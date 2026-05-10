@@ -22,14 +22,18 @@ describe('SampleList row actions', () => {
     expect(onTrashSample).toHaveBeenCalledWith(1);
   });
 
-  test('handles favorite toggle', () => {
+  test('handles favorite toggle and ensures only one favorite toggle per row exists', () => {
     const toggleFavorite = vi.fn();
     setFavoriteStore([1], toggleFavorite);
     renderSampleList();
 
     const favBtns = screen.getAllByTitle('Remove from favorites');
+    expect(favBtns.length).toBe(1);
     fireEvent.click(favBtns[0]);
     expect(toggleFavorite).toHaveBeenCalledWith(1);
+    
+    const unFavBtns = screen.getAllByTitle('Add to favorites');
+    expect(unFavBtns.length).toBe(1);
   });
 
   test('handles open folder click', async () => {

@@ -193,8 +193,6 @@ export function SampleRow({
       </div>
       <SampleRowActions
         samplePath={samplePath}
-        isFavorite={isFavorite}
-        onToggleFavorite={() => onToggleFavorite(s.id)}
         onOpenFolder={async () => {
           let folderPath = samplePath as string;
           const lastSlash = Math.max(folderPath.lastIndexOf("/"), folderPath.lastIndexOf("\\"));

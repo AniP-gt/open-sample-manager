@@ -1,7 +1,5 @@
 interface SampleRowActionsProps {
   samplePath?: string;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
   onOpenFolder: () => void;
   onCopyPath: () => void;
   onTrashSample?: () => void;
@@ -10,8 +8,6 @@ interface SampleRowActionsProps {
 
 export function SampleRowActions({
   samplePath,
-  isFavorite,
-  onToggleFavorite,
   onOpenFolder,
   onCopyPath,
   onTrashSample,
@@ -19,21 +15,6 @@ export function SampleRowActions({
 }: SampleRowActionsProps) {
   return (
     <div onMouseDown={(e) => e.stopPropagation()} style={{ display: "flex", gap: "6px", justifyContent: "center", position: "relative" }}>
-      <div
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          color: isFavorite ? "#f6e05e" : "#4b5563",
-          fontSize: "22px",
-        }}
-        title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-      >
-        {isFavorite ? "★" : "☆"}
-      </div>
       <button
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => {

@@ -5,8 +5,6 @@ import { SampleRowActions } from "../SampleRowActions";
 function renderActions(overrides: Partial<Parameters<typeof SampleRowActions>[0]> = {}) {
   const props: Parameters<typeof SampleRowActions>[0] = {
     samplePath: "/library/kick.wav",
-    isFavorite: false,
-    onToggleFavorite: vi.fn(),
     onOpenFolder: vi.fn(),
     onCopyPath: vi.fn(),
     onTrashSample: vi.fn(),
@@ -21,9 +19,6 @@ function renderActions(overrides: Partial<Parameters<typeof SampleRowActions>[0]
 describe("SampleRowActions", () => {
   test("calls row action handlers", () => {
     const props = renderActions();
-
-    fireEvent.click(screen.getByTitle("Add to favorites"));
-    expect(props.onToggleFavorite).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTitle("Show in Finder"));
     expect(props.onOpenFolder).toHaveBeenCalledTimes(1);
@@ -42,10 +37,9 @@ describe("SampleRowActions", () => {
     expect(props.onOpenFolder).not.toHaveBeenCalled();
   });
 
-  test("renders favorite state and toast", () => {
-    renderActions({ isFavorite: true, toast: { message: "Path copied!", visible: true } });
+  test("renders toast", () => {
+    renderActions({ toast: { message: "Path copied!", visible: true } });
 
-    expect(screen.getByTitle("Remove from favorites")).toHaveTextContent("★");
     expect(screen.getByText("Path copied!")).toBeInTheDocument();
   });
 
