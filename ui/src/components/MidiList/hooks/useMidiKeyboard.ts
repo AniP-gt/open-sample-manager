@@ -6,7 +6,7 @@ export function useMidiKeyboard(
   listRef: React.RefObject<HTMLDivElement | null>,
   sortedMidis: Midi[],
   selectedMidi: Midi | null,
-  onMidiSelect: (midi: Midi) => void,
+  onMidiSelect: (midi: Midi, isShift?: boolean) => void,
   onTogglePlayback?: () => void
 ) {
   const arrowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);

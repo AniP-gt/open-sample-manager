@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { SetStateAction } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Midi, MidiTagRow, TimidityStatus } from "../types/midi";
 import { getErrorMessage } from "../utils/sampleMapper";
@@ -20,7 +21,8 @@ export function useMidiState({
   autoPlayOnSelect,
 }: UseMidiStateParams) {
   const [midis, setMidis] = useState<Midi[]>([]);
-  const [selectedMidi, setSelectedMidi] = useState<Midi | null>(null);
+  const [selectedMidi, setSelectedMidiState] = useState<Midi | null>(null);
+  const [selectedMidiIds, setSelectedMidiIds] = useState<Set<number>>(new Set());
   const [_timidityStatus, setTimidityStatus] = useState<TimidityStatus | null>(null);
   const [isMidiPlaying, setIsMidiPlaying] = useState(false);
   const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
@@ -42,6 +44,14 @@ export function useMidiState({
   const [lastFetchCountMidi, setLastFetchCountMidi] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrashMidiId, setPendingTrashMidiId] = useState<number | null>(null);
+
+  const setSelectedMidi = useCallback((value: SetStateAction<Midi | null>) => {
+    setSelectedMidiState((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      setSelectedMidiIds(next ? new Set([next.id]) : new Set());
+      return next;
+    });
+  }, []);
 
   const fetchAllMidiPaths = async () => {
     try {
@@ -324,16 +334,21 @@ export function useMidiState({
     }
   };
 
-  const handleMidiSelect = async (midi: Midi) => {
-    if (isMidiPlaying) {
+  const handleMidiSelect = async (midi: Midi, isShift?: boolean, rangeIds?: Set<number>) => {
+    if (selectedMidi?.id !== midi.id && isMidiPlaying) {
       await invoke("stop_midi").catch(() => {});
       setIsMidiPlaying(false);
     }
-    setSelectedMidi(midi);
+    setSelectedMidiState(midi);
+    if (isShift && rangeIds) {
+      setSelectedMidiIds(rangeIds);
+    } else {
+      setSelectedMidiIds(new Set([midi.id]));
+    }
     requestAnimationFrame(() => {
       midiListRef.current?.focusSelected?.();
     });
-    if (autoPlayOnSelect && midi.path) {
+    if (autoPlayOnSelect && midi.path && selectedMidi?.id !== midi.id) {
       try {
         await invoke("play_midi", { path: midi.path });
         setIsMidiPlaying(true);
@@ -415,6 +430,8 @@ export function useMidiState({
     setMidis,
     selectedMidi,
     setSelectedMidi,
+    selectedMidiIds,
+    setSelectedMidiIds,
     _timidityStatus,
     isMidiPlaying,
     setIsMidiPlaying,

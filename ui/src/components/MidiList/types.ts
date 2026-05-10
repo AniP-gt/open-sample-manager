@@ -3,7 +3,8 @@ import type { Midi, MidiTagRow } from "../../types/midi";
 export interface MidiListProps {
   midis: Midi[];
   selectedMidi: Midi | null;
-  onMidiSelect: (midi: Midi) => void;
+  selectedMidiIds?: Set<number>;
+  onMidiSelect: (midi: Midi, isShift?: boolean, rangeIds?: Set<number>) => void;
   onTagBadgeClick?: (midi: Midi) => void;
   midiTags?: MidiTagRow[];
   onTagFilterChange?: (tagId: number | null) => void;
