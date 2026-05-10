@@ -7,11 +7,12 @@ interface SampleListListViewProps {
   samples: Sample[];
   samplePaths: Record<number, string>;
   selectedSample: Sample | null;
+  selectedIds?: Set<number>;
   colWidths: string[];
   rowHeight: number;
   sort: SortState;
   onSortChange: (sort: SortState) => void;
-  onSampleSelect: (sample: Sample) => void;
+  onSampleSelect: (sample: Sample, isShift?: boolean) => void;
   onTypeClick?: (sample: Sample) => void;
   onTrashSample?: (id: number) => void;
   onToggleFavorite: (id: number) => void;
@@ -40,6 +41,7 @@ export function SampleListListView({
   samples,
   samplePaths,
   selectedSample,
+  selectedIds,
   colWidths,
   rowHeight,
   sort,
@@ -105,6 +107,7 @@ export function SampleListListView({
         <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const s = samples[virtualRow.index];
+            const isSelected = selectedIds ? selectedIds.has(s.id) : selectedSample?.id === s.id;
             return (
               <SampleRow
                 key={s.id}
@@ -112,7 +115,7 @@ export function SampleListListView({
                 virtualRow={virtualRow}
                 colWidths={colWidths}
                 rowHeight={rowHeight}
-                isSelected={selectedSample?.id === s.id}
+                isSelected={isSelected}
                 samplePath={samplePaths[s.id]}
                 isFavorite={favorites.has(s.id)}
                 instrumentColorCoding={instrumentColorCoding}

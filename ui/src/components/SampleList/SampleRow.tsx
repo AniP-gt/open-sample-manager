@@ -17,7 +17,7 @@ interface SampleRowProps {
   instrumentColorCoding: boolean;
   dragIconPath: string;
   preparedPathsRef: React.MutableRefObject<Record<number, string>>;
-  onSampleSelect: (sample: Sample) => void;
+  onSampleSelect: (sample: Sample, isShift?: boolean) => void;
   onToggleFavorite: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
   onTrashSample?: (id: number) => void;
@@ -98,7 +98,7 @@ export function SampleRow({
           }
         }, 1500);
       }}
-      onClick={() => onSampleSelect(s)}
+      onClick={(e) => onSampleSelect(s, e.shiftKey)}
     >
       <div
         onMouseDown={(e) => e.stopPropagation()}

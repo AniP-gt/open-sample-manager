@@ -4,7 +4,7 @@ import { InstrumentBadge } from "../TypeBadge/TypeBadge";
 interface GridViewProps {
   samples: Sample[];
   selectedId: number | null;
-  onSelect: (sample: Sample) => void;
+  onSelect: (sample: Sample, isShift?: boolean) => void;
 }
 
 export function GridView({ samples, selectedId, onSelect }: GridViewProps) {

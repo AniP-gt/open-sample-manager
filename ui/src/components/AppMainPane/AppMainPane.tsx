@@ -158,6 +158,7 @@ export function AppMainPane({
           filters={sampleState.filters}
           sort={sampleState.sort}
           selectedSample={sampleState.selected}
+          selectedIds={sampleState.selectedIds}
           onSampleSelect={handleSampleSelectWithRecent}
           onFilterChange={sampleState.handleFilterChange}
           onSortChange={sampleState.setSort}

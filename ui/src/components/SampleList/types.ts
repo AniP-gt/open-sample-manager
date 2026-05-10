@@ -6,7 +6,8 @@ export interface SampleListProps {
   filters: FilterState;
   sort: SortState;
   selectedSample: Sample | null;
-  onSampleSelect: (sample: Sample) => void;
+  selectedIds?: Set<number>;
+  onSampleSelect: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => void;
   onFilterChange: (filters: Partial<FilterState>) => void;
   onSortChange: (sort: SortState) => void;
   onDeleteSample: (id: number) => void;

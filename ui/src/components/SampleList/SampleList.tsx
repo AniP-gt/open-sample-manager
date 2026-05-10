@@ -4,6 +4,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useFavoritesStore } from "../../store/useFavoritesStore";
 import { GridView } from "./GridView";
 import type { SampleListProps, SampleListHandle } from "./types";
+import type { Sample } from "../../types/sample";
 import { useColumnResize } from "./useColumnResize";
 import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
@@ -96,10 +97,28 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     overscan: 5,
   });
 
+  const handleSampleSelectInternal = useCallback((sample: Sample, isShift?: boolean) => {
+    if (isShift && selectedSample && sorted.length > 0) {
+      const startIndex = sorted.findIndex(s => s.id === selectedSample.id);
+      const endIndex = sorted.findIndex(s => s.id === sample.id);
+      if (startIndex !== -1 && endIndex !== -1) {
+        const min = Math.min(startIndex, endIndex);
+        const max = Math.max(startIndex, endIndex);
+        const ids = new Set<number>();
+        for (let i = min; i <= max; i++) {
+          ids.add(sorted[i].id);
+        }
+        onSampleSelect(sample, true, ids);
+        return;
+      }
+    }
+    onSampleSelect(sample);
+  }, [sorted, selectedSample, onSampleSelect]);
+
   useKeyboardNavigation({
     sorted,
     selectedSample,
-    onSampleSelect,
+    onSampleSelect: handleSampleSelectInternal,
     onTogglePlayback,
     listRef
   });
@@ -205,7 +224,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       </div>
 
       {viewMode === "grid" ? (
-        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={onSampleSelect} />
+        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} />
       ) : (
         <div
           style={{ flex: 1, overflowY: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}
@@ -218,11 +237,12 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             samples={sorted}
             samplePaths={samplePaths}
             selectedSample={selectedSample}
+            selectedIds={props.selectedIds}
             colWidths={colWidths}
             rowHeight={rowHeight}
             sort={sort}
             onSortChange={onSortChange}
-            onSampleSelect={onSampleSelect}
+            onSampleSelect={handleSampleSelectInternal}
             onTypeClick={onTypeClick}
             onTrashSample={onTrashSample}
             onToggleFavorite={toggleFavorite}
