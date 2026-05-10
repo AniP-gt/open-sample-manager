@@ -40,21 +40,25 @@ export function prependFreshSamples(prev: Sample[], nextSamples: Sample[]): Samp
   return [...fresh, ...prev];
 }
 
-export function collectScannedDirectories(rows: TauriSampleRow[]): string[] {
+export function collectDirectoriesFromPaths(paths: string[]): string[] {
   const uniqueDirs = new Set<string>();
 
-  rows.forEach((row) => {
-    const pathParts = row.path.split("/");
+  paths.forEach((path) => {
+    const normalizedPath = path.trim().replace(/\\/g, "/").replace(/\/+/g, "/");
+    const pathParts = normalizedPath.split("/").filter(Boolean);
+    const rootPrefix = normalizedPath.startsWith("/") ? "/" : "";
     if (pathParts.length > 1) {
-      let currentPath = "";
       for (let index = 0; index < pathParts.length - 1; index += 1) {
-        currentPath += "/" + pathParts[index];
-        uniqueDirs.add(currentPath);
+        uniqueDirs.add(rootPrefix + pathParts.slice(0, index + 1).join("/"));
       }
     }
   });
 
   return Array.from(uniqueDirs).sort();
+}
+
+export function collectScannedDirectories(rows: TauriSampleRow[]): string[] {
+  return collectDirectoriesFromPaths(rows.map((row) => row.path));
 }
 
 export function getAroundOffset(targetId: number, pageLimit: number): number {
