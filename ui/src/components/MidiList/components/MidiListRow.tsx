@@ -13,6 +13,8 @@ function formatDuration(seconds: number): string {
 interface MidiListRowProps {
   midi: Midi;
   isSelected: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
   virtualRow: { size: number; start: number };
   colWidths: string[];
   onMidiSelect: (midi: Midi, isShift?: boolean) => void;
@@ -25,6 +27,8 @@ interface MidiListRowProps {
 export function MidiListRow({
   midi,
   isSelected,
+  isFavorite = false,
+  onToggleFavorite,
   virtualRow,
   colWidths,
   onMidiSelect,
@@ -81,6 +85,21 @@ export function MidiListRow({
         cursor: midi.path ? "grab" : "default",
       }}
     >
+      <div
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(); }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          color: isFavorite ? "#f6e05e" : "#4b5563",
+          fontSize: "22px",
+        }}
+        title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+      >
+        {isFavorite ? "★" : "☆"}
+      </div>
       <div style={{ fontSize: "14px", color: "#374151" }}>{midi.id}</div>
       <div>
         <div style={{ fontSize: "16px", color: "#d1d5db", letterSpacing: "0.02em", marginBottom: 3, wordBreak: "break-word" }}>{midi.file_name}</div>

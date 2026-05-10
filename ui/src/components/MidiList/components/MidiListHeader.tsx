@@ -30,6 +30,7 @@ export function MidiListHeader({
   onResizerKeyDown,
 }: MidiListHeaderProps) {
   const columns = [
+    { key: "favorite", label: "☆", align: "center" as const, color: "#4b5563", noSort: true },
     { key: "id", label: "#", align: "left" as const, color: "#374151" },
     { key: "file_name", label: "FILENAME", align: "left" as const, color: "#9ca3af", letterSpacing: "0.06em" },
     { key: "tag_name", label: "TAG", align: "left" as const, color: "#9ca3af" },

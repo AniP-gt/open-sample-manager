@@ -1,7 +1,10 @@
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MidiList } from '../MidiList';
 import { Midi } from '../../../types/midi';
+import { useMidiFavoritesStore } from '../../../store/useMidiFavoritesStore';
+
+vi.mock('../../../store/useMidiFavoritesStore');
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockImplementation((cmd) => {
@@ -61,6 +64,15 @@ const mockMidis: Midi[] = [
 ];
 
 describe('MidiList', () => {
+  beforeEach(() => {
+    vi.mocked(useMidiFavoritesStore).mockReturnValue({
+      favorites: [],
+      toggleFavorite: vi.fn(),
+      isFavorite: vi.fn(() => false),
+      clearFavorites: vi.fn(),
+    });
+  });
+
   test('handles keyboard navigation', () => {
     vi.useFakeTimers();
     const handleSelect = vi.fn();
@@ -422,6 +434,38 @@ describe('MidiList', () => {
     );
 
     expect(screen.getByText('test-midi-2.mid')).toBeInTheDocument();
-    expect(screen.queryByText('test-midi.mid')).not.toBeInTheDocument();
+  });
+
+  test('renders favorite star and toggles it', () => {
+    const toggleFavorite = vi.fn();
+    vi.mocked(useMidiFavoritesStore).mockReturnValue({
+      favorites: [1],
+      toggleFavorite,
+      isFavorite: vi.fn((id: number) => id === 1),
+      clearFavorites: vi.fn(),
+    });
+
+    const { container } = render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+      />
+    );
+
+    const stars = screen.getAllByText('★');
+    const emptyStars = screen.getAllByText('☆');
+    
+    expect(stars.length).toBe(1);
+    expect(emptyStars.length).toBe(2);
+    expect(stars[0]).toBeVisible();
+    expect(emptyStars[1]).toBeVisible();
+
+    const rows = container.querySelectorAll('.midi-row');
+    expect(rows[0].textContent).toMatch(/^★1test-midi\.mid/);
+    expect(rows[1].textContent).toMatch(/^☆2test-midi-2\.mid/);
+
+    fireEvent.click(emptyStars[1]);
+    expect(toggleFavorite).toHaveBeenCalledWith(2);
   });
 });

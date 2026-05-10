@@ -13,6 +13,7 @@ import { MidiListEmpty } from "./components/MidiListEmpty";
 import { MidiListHeader } from "./components/MidiListHeader";
 import { MidiListRow } from "./components/MidiListRow";
 import { MidiListOverlay } from "./components/MidiListOverlay";
+import { useMidiFavoritesStore } from "../../store/useMidiFavoritesStore";
 
 export type { MidiListProps, MidiListHandle } from "./types";
 
@@ -71,6 +72,9 @@ export const MidiList = forwardRef(function MidiList(
     startColumnResize,
     onResizerKeyDown,
   } = useMidiColumnResize();
+
+  const { favorites, toggleFavorite } = useMidiFavoritesStore();
+  const favoriteSet = new Set(favorites);
 
   const {
     sortBy,
@@ -245,11 +249,14 @@ export const MidiList = forwardRef(function MidiList(
               const midi = sortedMidis[virtualRow.index];
               if (!midi) return null;
               const isSelected = selectedMidiIds ? selectedMidiIds.has(midi.id) : selectedMidi?.id === midi.id;
+              const isFavorite = favoriteSet.has(midi.id);
               return (
                 <MidiListRow
                   key={midi.id}
                   midi={midi}
                   isSelected={isSelected}
+                  isFavorite={isFavorite}
+                  onToggleFavorite={() => toggleFavorite(midi.id)}
                   virtualRow={virtualRow}
                   colWidths={colWidths}
                   onMidiSelect={handleMidiSelectInternal}
