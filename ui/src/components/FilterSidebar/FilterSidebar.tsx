@@ -39,6 +39,8 @@ interface FilterSidebarProps {
   samples?: Sample[];
   /** Called when a recent sample row is clicked. */
   onSampleSelect?: (sample: Sample) => void;
+  activeDirectoryPath?: string | null;
+  onClearDirectoryPath?: () => void;
 }
 
 interface TreeNode {
@@ -256,6 +258,8 @@ export function FilterSidebar({
   filterKey = "",
   samples = [],
   onSampleSelect,
+  activeDirectoryPath,
+  onClearDirectoryPath,
 }: FilterSidebarProps) {
   const { favorites } = useFavoritesStore();
   const { recentIds } = useRecentStore();
@@ -409,8 +413,29 @@ export function FilterSidebar({
 
         {scannedPaths.length > 0 ? (
           <>
-            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>
-              SCANNED FOLDERS
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 12px 8px" }}>
+              <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em" }}>
+                SCANNED FOLDERS
+              </div>
+              {activeDirectoryPath && (
+                <button
+                  type="button"
+                  title="Clear directory filter"
+                  aria-label="Clear directory filter"
+                  onClick={onClearDirectoryPath}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#f97316",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    fontFamily: "'Courier New', monospace",
+                    padding: 0,
+                  }}
+                >
+                  [clear]
+                </button>
+              )}
             </div>
             {tree.map((node) => (
               <FileTreeItem

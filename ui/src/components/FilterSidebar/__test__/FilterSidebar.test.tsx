@@ -110,4 +110,33 @@ describe('FilterSidebar', () => {
     fireEvent.click(screen.getByText('test'));
     expect(onPathSelect).toHaveBeenCalledWith('/Users/test');
   });
+
+  test('renders clear directory button and calls onClearDirectoryPath', () => {
+    const onClearDirectoryPath = vi.fn();
+    render(
+      <FilterSidebar
+        scannedPaths={['/Users/test']}
+        selectedPath={null}
+        onFilterChange={vi.fn()}
+        activeDirectoryPath="/Users/test"
+        onClearDirectoryPath={onClearDirectoryPath}
+      />
+    );
+    const clearBtn = screen.getByTitle('Clear directory filter');
+    expect(clearBtn).toBeInTheDocument();
+    fireEvent.click(clearBtn);
+    expect(onClearDirectoryPath).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not render clear directory button when activeDirectoryPath is null', () => {
+    render(
+      <FilterSidebar
+        scannedPaths={['/Users/test']}
+        selectedPath={null}
+        onFilterChange={vi.fn()}
+        activeDirectoryPath={null}
+      />
+    );
+    expect(screen.queryByTitle('Clear directory filter')).not.toBeInTheDocument();
+  });
 });
