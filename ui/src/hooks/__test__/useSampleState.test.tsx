@@ -121,6 +121,48 @@ describe("useSampleState", () => {
     expect(result.current.scannedPaths.some((path) => path.endsWith("/Users/alice/Samples"))).toBe(true);
   });
 
+  it("keeps scanned folder state stable when directory filtering changes visible rows", async () => {
+    invokeMock.mockImplementation(async (command, payload) => {
+      if (command === "get_instrument_types") return [];
+      if (command === "list_all_sample_paths") {
+        return [
+          "/Users/alice/Samples/drums/kick.wav",
+          "/Users/alice/Samples/loops/beat.wav",
+        ];
+      }
+      if (command === "list_samples_paginated") {
+        const directoryPath =
+          typeof payload === "object" && payload !== null && "directoryPath" in payload
+            ? payload.directoryPath
+            : null;
+
+        return directoryPath
+          ? [sampleRow({ id: 11, path: "/Users/alice/Samples/loops/beat.wav", file_name: "beat.wav" })]
+          : [sampleRow({ id: 10, path: "/Users/alice/Samples/drums/kick.wav", file_name: "kick.wav" })];
+      }
+      return 1;
+    });
+    const { result } = renderSampleHook();
+
+    await waitFor(() =>
+      expect(result.current.scannedPaths).toEqual([
+        "/Users",
+        "/Users/alice",
+        "/Users/alice/Samples",
+        "/Users/alice/Samples/drums",
+        "/Users/alice/Samples/loops",
+      ]),
+    );
+    const initialScannedPaths = result.current.scannedPaths;
+
+    act(() => {
+      result.current.handleFilterChange({ directoryPath: "/Users/alice/Samples/loops" });
+    });
+
+    await waitFor(() => expect(result.current.samples[0].file_name).toBe("beat.wav"));
+    expect(result.current.scannedPaths).toEqual(initialScannedPaths);
+  });
+
   it("deletes and trashes samples by the mapped backend path", async () => {
     const { result } = renderSampleHook();
     await waitFor(() => expect(result.current.samplePaths[10]).toBeTruthy());
@@ -253,7 +295,7 @@ describe("useSampleState", () => {
       return 1;
     });
     const { result } = renderSampleHook(1);
-    await waitFor(() => expect(result.current.canLoadMore).toBe(true));
+    await waitFor(() => expect(result.current.samples).toHaveLength(1));
 
     await act(async () => {
       await result.current.loadMore();

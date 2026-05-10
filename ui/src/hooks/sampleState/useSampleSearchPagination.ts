@@ -4,7 +4,7 @@ import type { FilterState, Sample, SortState } from "../../types/sample";
 import type { TauriSampleRow } from "../../types/tauri";
 import {
   appendFreshSamples,
-  collectScannedDirectories,
+  collectDirectoriesFromPaths,
   getAroundOffset,
   mapSampleRowsToPathMap,
   mapSampleRowsToSamples,
@@ -73,7 +73,6 @@ export function useSampleSearchPagination({
       setLastFetchCount(rows.length);
       setCanLoadMore(rows.length >= pageLimit);
       setCanLoadPrevious(false);
-      setScannedPaths(collectScannedDirectories(rows));
       setSelected((prev) => {
         if (!prev) {
           return null;
@@ -211,6 +210,10 @@ export function useSampleSearchPagination({
   useEffect(() => {
     void fetchAllSamplePaths();
   }, [fetchAllSamplePaths]);
+
+  useEffect(() => {
+    setScannedPaths(collectDirectoriesFromPaths(allSamplePaths));
+  }, [allSamplePaths]);
 
   useEffect(() => {
     if (suppressSearchRef.current) {
