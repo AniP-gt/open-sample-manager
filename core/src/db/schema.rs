@@ -124,7 +124,6 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
     seed_midi_tags(conn)?;
     // Seed default instrument types
 
-
     Ok(())
 }
 
@@ -226,7 +225,7 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
             FOREIGN KEY (midi_id) REFERENCES midis(id) ON DELETE CASCADE,
             FOREIGN KEY (tag_id) REFERENCES midi_tags(id) ON DELETE CASCADE
         );
-        CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);"
+        CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);",
     );
 
     // Migration: add musical_key column to samples
