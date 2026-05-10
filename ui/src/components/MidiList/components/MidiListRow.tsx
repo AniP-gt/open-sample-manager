@@ -15,7 +15,7 @@ interface MidiListRowProps {
   isSelected: boolean;
   virtualRow: { size: number; start: number };
   colWidths: string[];
-  onMidiSelect: (midi: Midi) => void;
+  onMidiSelect: (midi: Midi, isShift?: boolean) => void;
   onTagBadgeClick?: (midi: Midi) => void;
   onTrashMidi?: (id: number) => void;
   preparedPathsRef: React.MutableRefObject<Record<number, string>>;
@@ -39,7 +39,7 @@ export function MidiListRow({
     <div
       className={`midi-row ${isSelected ? "active" : ""}`}
       draggable={!!midi.path}
-      onClick={() => onMidiSelect(midi)}
+      onClick={(e) => onMidiSelect(midi, e.shiftKey)}
       onMouseDown={(e) => {
         if (midi.path && e.button === 0 && !preparedPathsRef.current[midi.id]) {
           void invoke("prepare_drag_file", { path: midi.path }).then((res) => {

@@ -4,6 +4,7 @@ import type React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 import type { MidiListProps, MidiListHandle } from "./types";
+import type { Midi } from "../../types/midi";
 import { useMidiColumnResize } from "./hooks/useMidiColumnResize";
 import { useMidiSort } from "./hooks/useMidiSort";
 import { useMidiKeyboard } from "./hooks/useMidiKeyboard";
@@ -19,6 +20,7 @@ export const MidiList = forwardRef(function MidiList(
   {
     midis,
     selectedMidi,
+    selectedMidiIds,
     onMidiSelect,
     onTagBadgeClick,
     onLoadMore,
@@ -79,7 +81,25 @@ export const MidiList = forwardRef(function MidiList(
     headerKeyDown,
   } = useMidiSort(midis, filterKey);
 
-  useMidiKeyboard(listRef, sortedMidis, selectedMidi, onMidiSelect, onTogglePlayback);
+  const handleMidiSelectInternal = useCallback((midi: Midi, isShift?: boolean) => {
+    if (isShift && selectedMidi && sortedMidis.length > 0) {
+      const startIndex = sortedMidis.findIndex(m => m.id === selectedMidi.id);
+      const endIndex = sortedMidis.findIndex(m => m.id === midi.id);
+      if (startIndex !== -1 && endIndex !== -1) {
+        const min = Math.min(startIndex, endIndex);
+        const max = Math.max(startIndex, endIndex);
+        const ids = new Set<number>();
+        for (let i = min; i <= max; i++) {
+          ids.add(sortedMidis[i].id);
+        }
+        onMidiSelect(midi, true, ids);
+        return;
+      }
+    }
+    onMidiSelect(midi);
+  }, [sortedMidis, selectedMidi, onMidiSelect]);
+
+  useMidiKeyboard(listRef, sortedMidis, selectedMidi, handleMidiSelectInternal, onTogglePlayback);
 
   const midiRowHeight = 48;
   const virtualizer = useVirtualizer({
@@ -224,7 +244,7 @@ export const MidiList = forwardRef(function MidiList(
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const midi = sortedMidis[virtualRow.index];
               if (!midi) return null;
-              const isSelected = selectedMidi?.id === midi.id;
+              const isSelected = selectedMidiIds ? selectedMidiIds.has(midi.id) : selectedMidi?.id === midi.id;
               return (
                 <MidiListRow
                   key={midi.id}
@@ -232,7 +252,7 @@ export const MidiList = forwardRef(function MidiList(
                   isSelected={isSelected}
                   virtualRow={virtualRow}
                   colWidths={colWidths}
-                  onMidiSelect={onMidiSelect}
+                  onMidiSelect={handleMidiSelectInternal}
                   onTagBadgeClick={onTagBadgeClick}
                   onTrashMidi={onTrashMidi}
                   preparedPathsRef={preparedPathsRef}

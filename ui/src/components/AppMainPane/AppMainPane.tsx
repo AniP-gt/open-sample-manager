@@ -187,6 +187,7 @@ export function AppMainPane({
             ref={midiListRef}
             midis={filteredMidis}
             selectedMidi={midiState.selectedMidi}
+            selectedMidiIds={midiState.selectedMidiIds}
             onMidiSelect={midiState.handleMidiSelect}
             onTagBadgeClick={(midi) => {
               midiState.setMidiTagEditTarget(midi);
