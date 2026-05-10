@@ -46,7 +46,8 @@ interface AppModalsProps {
     setMidiTagModalOpen: (v: boolean) => void;
     midiTagEditOpen: boolean;
     midiTagEditTarget: Midi | null;
-    handleMidiTagChange: (midiId: number, tagId: number | null) => Promise<void>;
+    midiTagEditTargetIds: number[];
+    handleMidiTagChange: (midiIds: number | number[], tagId: number | null) => Promise<void>;
     setMidiTagEditOpen: (v: boolean) => void;
   };
 }
@@ -125,8 +126,9 @@ export function AppModals({ sampleState, midiState }: AppModalsProps) {
       <MidiTagEditModal
         isOpen={midiState.midiTagEditOpen}
         midi={midiState.midiTagEditTarget}
+        targetIds={midiState.midiTagEditTargetIds}
         midiTags={midiState.midiTags}
-        onSave={midiState.handleMidiTagChange}
+        onSave={(tagId) => midiState.handleMidiTagChange(midiState.midiTagEditTargetIds, tagId)}
         onClose={() => midiState.setMidiTagEditOpen(false)}
         onManageClick={() => {
           midiState.setMidiTagEditOpen(false);

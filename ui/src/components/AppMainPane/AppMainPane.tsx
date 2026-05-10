@@ -191,6 +191,11 @@ export function AppMainPane({
             onMidiSelect={midiState.handleMidiSelect}
             onTagBadgeClick={(midi) => {
               midiState.setMidiTagEditTarget(midi);
+              if (midiState.selectedMidiIds.has(midi.id)) {
+                midiState.setMidiTagEditTargetIds(Array.from(midiState.selectedMidiIds));
+              } else {
+                midiState.setMidiTagEditTargetIds([midi.id]);
+              }
               midiState.setMidiTagEditOpen(true);
             }}
             midiTags={midiState.midiTags}

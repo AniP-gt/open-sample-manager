@@ -124,7 +124,7 @@ describe("MidiTagEditModal", () => {
     const saveButton = screen.getByText("SAVE", { selector: "button" });
     fireEvent.click(saveButton);
 
-    expect(onSaveMock).toHaveBeenCalledWith(1, 2);
+    expect(onSaveMock).toHaveBeenCalledWith(2);
   });
 
   it("calls onManageClick if provided", () => {

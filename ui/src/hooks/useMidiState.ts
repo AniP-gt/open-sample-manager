@@ -34,6 +34,7 @@ export function useMidiState({
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
   const [midiTagEditTarget, setMidiTagEditTarget] = useState<Midi | null>(null);
+  const [midiTagEditTargetIds, setMidiTagEditTargetIds] = useState<number[]>([]);
   const [midiScannedPaths, setMidiScannedPaths] = useState<string[]>([]);
   const [allMidiPaths, setAllMidiPaths] = useState<string[]>([]);
   const [isLoadingMoreMidi, setIsLoadingMoreMidi] = useState(false);
@@ -188,11 +189,12 @@ export function useMidiState({
     }
   };
 
-  const handleMidiTagChange = async (midiId: number, tagId: number | null) => {
+  const handleMidiTagChange = async (midiIds: number | number[], tagId: number | null) => {
     try {
-      await invoke("set_midi_file_tag", { midiId, tagId });
+      const ids = Array.isArray(midiIds) ? midiIds : [midiIds];
+      await Promise.all(ids.map(id => invoke("set_midi_file_tag", { midiId: id, tagId })));
       const tagName = tagId != null ? (midiTags.find((t) => t.id === tagId)?.name ?? "") : "";
-      setMidis((prev) => prev.map((m) => (m.id === midiId ? { ...m, tag_name: tagName } : m)));
+      setMidis((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, tag_name: tagName } : m)));
       if (midiTagFilterId != null && tagId !== midiTagFilterId) {
         await runMidiSearch(debouncedMidiSearch);
       }
@@ -449,6 +451,8 @@ export function useMidiState({
     setMidiTagEditOpen,
     midiTagEditTarget,
     setMidiTagEditTarget,
+    midiTagEditTargetIds,
+    setMidiTagEditTargetIds,
     midiScannedPaths,
     allMidiPaths,
     isLoadingMoreMidi,

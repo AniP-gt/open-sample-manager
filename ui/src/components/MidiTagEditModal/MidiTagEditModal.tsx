@@ -10,8 +10,9 @@ const DEFAULT_MIDI_TAGS = [
 interface MidiTagEditModalProps {
   isOpen: boolean;
   midi: Midi | null;
+  targetIds?: number[];
   midiTags: MidiTagRow[];
-  onSave: (midiId: number, tagId: number | null) => void;
+  onSave: (tagId: number | null) => void;
   onClose: () => void;
   onManageClick?: () => void;
 }
@@ -19,6 +20,7 @@ interface MidiTagEditModalProps {
 export function MidiTagEditModal({
   isOpen,
   midi,
+  targetIds = [],
   midiTags,
   onSave,
   onClose,
@@ -71,7 +73,7 @@ export function MidiTagEditModal({
   };
 
   const handleSave = () => {
-    onSave(midi.id, selectedTagId);
+    onSave(selectedTagId);
     onClose();
   };
 
@@ -139,7 +141,6 @@ export function MidiTagEditModal({
           </button>
         </div>
 
-        {/* File name */}
         <div
           style={{
             fontSize: "14px",
@@ -151,7 +152,7 @@ export function MidiTagEditModal({
             wordBreak: "break-all",
           }}
         >
-          {midi.file_name}
+          {targetIds.length > 1 ? `Editing tag for ${targetIds.length} items` : midi.file_name}
         </div>
 
         {/* Tag grid */}
