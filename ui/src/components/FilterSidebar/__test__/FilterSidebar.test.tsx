@@ -1,16 +1,41 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FilterSidebar } from '../FilterSidebar';
-import { useFavoritesStore } from '../../../store/useFavoritesStore';
 import { useRecentStore } from '../../../store/useRecentStore';
+import type { Sample } from '../../../types/sample';
 
-vi.mock('../../../store/useFavoritesStore');
 vi.mock('../../../store/useRecentStore');
+
+function mockRecentStore(recentIds: number[]) {
+  vi.mocked(useRecentStore).mockReturnValue({
+    recentIds,
+    addRecent: vi.fn(),
+    clearRecent: vi.fn(),
+  });
+}
+
+function createSample(overrides: Partial<Sample> = {}): Sample {
+  return {
+    id: 1,
+    file_name: 'kick.wav',
+    duration: 1,
+    bpm: null,
+    periodicity: 0,
+    low_ratio: 0,
+    attack_slope: 0,
+    decay_time: null,
+    sample_type: 'one-shot',
+    tags: [],
+    waveform_peaks: null,
+    playback_type: 'oneshot',
+    instrument_type: 'kick',
+    ...overrides,
+  };
+}
 
 describe('FilterSidebar', () => {
   beforeEach(() => {
-    vi.mocked(useFavoritesStore).mockReturnValue({ favorites: [] } as any);
-    vi.mocked(useRecentStore).mockReturnValue({ recentIds: [] } as any);
+    mockRecentStore([]);
   });
 
   test('renders empty state when no scanned folders', () => {
@@ -64,8 +89,8 @@ describe('FilterSidebar', () => {
   });
 
   test('renders recent items', () => {
-    vi.mocked(useRecentStore).mockReturnValue({ recentIds: [1] } as any);
-    const mockSample = { id: 1, file_name: 'kick.wav', path: '/kick.wav' } as any;
+    const mockSample = createSample();
+    mockRecentStore([mockSample.id]);
 
     render(
       <FilterSidebar
@@ -80,8 +105,8 @@ describe('FilterSidebar', () => {
   });
 
   test('calls onSampleSelect when recent item is clicked', () => {
-    vi.mocked(useRecentStore).mockReturnValue({ recentIds: [1] } as any);
-    const mockSample = { id: 1, file_name: 'kick.wav', path: '/kick.wav' } as any;
+    const mockSample = createSample();
+    mockRecentStore([mockSample.id]);
     const onSampleSelect = vi.fn();
 
     render(

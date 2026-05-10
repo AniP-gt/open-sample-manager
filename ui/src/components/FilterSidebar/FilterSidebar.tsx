@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { FilterState, Sample } from "../../types/sample";
-import { useFavoritesStore } from "../../store/useFavoritesStore";
 import { useRecentStore } from "../../store/useRecentStore";
 
 const KEY_OPTIONS = [
@@ -41,6 +40,7 @@ interface FilterSidebarProps {
   onSampleSelect?: (sample: Sample) => void;
   activeDirectoryPath?: string | null;
   onClearDirectoryPath?: () => void;
+  favoritesCount?: number;
 }
 
 interface TreeNode {
@@ -260,8 +260,8 @@ export function FilterSidebar({
   onSampleSelect,
   activeDirectoryPath,
   onClearDirectoryPath,
+  favoritesCount = 0,
 }: FilterSidebarProps) {
-  const { favorites } = useFavoritesStore();
   const { recentIds } = useRecentStore();
   const sampleById = useMemo(() => {
     const map = new Map<number, Sample>();
@@ -378,7 +378,7 @@ export function FilterSidebar({
             }}
           >
             <span>{favoritesOnly ? "★" : "☆"}</span>
-            <span>FAVORITES {favorites.length > 0 ? `(${favorites.length})` : ""}</span>
+            <span>FAVORITES {favoritesCount > 0 ? `(${favoritesCount})` : ""}</span>
           </button>
         </div>
 
