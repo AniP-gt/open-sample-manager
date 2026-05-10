@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { RefObject } from "react";
+import type { RefObject, SetStateAction } from "react";
 import type { PlayerBarHandle } from "../../components";
 import type { SampleListHandle } from "../../components/SampleList/types";
 import type { Sample } from "../../types/sample";
@@ -10,15 +10,30 @@ type UseSampleSelectionStateParams = {
 };
 
 export function useSampleSelectionState({ sampleListRef, playerBarRef }: UseSampleSelectionStateParams) {
-  const [selected, setSelected] = useState<Sample | null>(null);
+  const [selected, setSelectedSample] = useState<Sample | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const setSelected = useCallback((value: SetStateAction<Sample | null>) => {
+    setSelectedSample((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      setSelectedIds(next ? new Set([next.id]) : new Set());
+      return next;
+    });
+  }, []);
 
   const handleSampleSelect = useCallback(
-    async (sample: Sample) => {
+    async (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => {
       if (selected?.id !== sample.id) {
         playerBarRef.current?.stop();
       }
 
-      setSelected(sample);
+      setSelectedSample(sample);
+      if (isShift && rangeIds) {
+        setSelectedIds(rangeIds);
+      } else {
+        setSelectedIds(new Set([sample.id]));
+      }
+
       requestAnimationFrame(() => {
         sampleListRef.current?.focusSelected?.();
       });
@@ -39,6 +54,7 @@ export function useSampleSelectionState({ sampleListRef, playerBarRef }: UseSamp
 
   return {
     selected,
+    selectedIds,
     setSelected,
     handleSampleSelect,
     togglePlayback,

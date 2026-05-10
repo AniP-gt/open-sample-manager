@@ -22,7 +22,7 @@ interface AppMainPaneProps {
   filteredMidis: Midi[];
   instrumentColorCoding: boolean;
   directoryClickFiltering: boolean;
-  handleSampleSelectWithRecent: (sample: Sample) => Promise<void>;
+  handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
 }
 
 export function AppMainPane({

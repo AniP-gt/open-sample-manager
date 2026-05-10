@@ -161,9 +161,9 @@ export function App() {
   };
   scanImportHandlerRef.current = scanState.handleImportPaths;
 
-  const handleSampleSelectWithRecent = async (sample: Sample) => {
+  const handleSampleSelectWithRecent = async (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => {
     addRecent(sample.id);
-    await sampleState.handleSampleSelect(sample);
+    await sampleState.handleSampleSelect(sample, isShift, rangeIds);
   };
 
   return (

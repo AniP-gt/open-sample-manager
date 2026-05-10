@@ -81,6 +81,7 @@ export function useSampleState({
   return {
     samples: searchState.samples,
     selected: selection.selected,
+    selectedIds: selection.selectedIds,
     setSelected: selection.setSelected,
     samplePaths: searchState.samplePaths,
     filters: searchState.filters,
