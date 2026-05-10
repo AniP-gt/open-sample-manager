@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { App } from '../App';
 
 const mockResponse = {
@@ -132,6 +132,22 @@ describe('App Integration', () => {
   test('renders initial App layout', async () => {
     await act(async () => render(<App />));
     expect(screen.getByText(/OPEN SAMPLE MANAGER/i)).toBeInTheDocument();
+  });
+
+  test('loads the first MIDI page with the shared page limit', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+
+    await act(async () => render(<App />));
+    await act(async () => fireEvent.click(screen.getByText('MIDI List')));
+
+    await waitFor(() => {
+      expect(vi.mocked(invoke)).toHaveBeenCalledWith('list_midis_paginated', {
+        limit: 100,
+        offset: 0,
+        directoryPath: null,
+        tagId: null,
+      });
+    });
   });
 
   test('shows error banner on sample trash failure and retries', async () => {

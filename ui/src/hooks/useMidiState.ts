@@ -52,21 +52,50 @@ export function useMidiState({
     }
   };
 
-  const loadMidiByPath = async (path: string) => {
+  const hasActiveMidiFilters = (overrideDirectoryPath?: string) => {
+    const query = debouncedMidiSearch.trim();
+    const directoryFilter = (overrideDirectoryPath ?? directoryPath) || "";
+    return query.length > 0 || midiTagFilterId !== null || directoryFilter.length > 0;
+  };
+
+  const loadFilteredMidiPage = async (query: string, overrideDirectoryPath?: string) => {
+    const payload = {
+      limit: pageLimit,
+      offset: 0,
+      directoryPath: (overrideDirectoryPath ?? directoryPath) || null,
+      tagId: midiTagFilterId,
+    } as const;
+
+    return query.trim()
+      ? invoke<Midi[]>("search_midis_paginated", { query, ...payload })
+      : invoke<Midi[]>("list_midis_paginated", payload);
+  };
+
+  const loadMidiByPath = async (path: string, overrideDirectoryPath?: string) => {
     try {
       const row = await invoke<Midi | null>("get_midi", { path });
       if (!row) return;
-      const aroundRows = await invoke<Midi[]>("list_midis_around_id", {
-        targetId: row.id,
-        limit: pageLimit,
-      });
-      setMidis(aroundRows);
-      const halfWindow = Math.floor(pageLimit / 2);
-      const aroundOffset = Math.max(0, row.id - halfWindow);
-      setCurrentMidiOffset(aroundOffset);
-      setLastFetchCountMidi(aroundRows.length);
-      setCanLoadMoreMidi(aroundRows.length >= pageLimit);
-      setCanLoadPreviousMidi(aroundOffset > 0);
+
+      if (hasActiveMidiFilters(overrideDirectoryPath)) {
+        const rows = await loadFilteredMidiPage(debouncedMidiSearch.trim(), overrideDirectoryPath);
+        setMidis(rows);
+        setCurrentMidiOffset(0);
+        setLastFetchCountMidi(rows.length);
+        setCanLoadMoreMidi(rows.length >= pageLimit);
+        setCanLoadPreviousMidi(false);
+      } else {
+        const aroundRows = await invoke<Midi[]>("list_midis_around_id", {
+          targetId: row.id,
+          limit: pageLimit,
+        });
+        const halfWindow = Math.floor(pageLimit / 2);
+        const aroundOffset = Math.max(0, row.id - halfWindow);
+        setMidis(aroundRows);
+        setCurrentMidiOffset(aroundOffset);
+        setLastFetchCountMidi(aroundRows.length);
+        setCanLoadMoreMidi(aroundRows.length >= pageLimit);
+        setCanLoadPreviousMidi(aroundOffset > 0);
+      }
       setSelectedMidi(row);
       requestAnimationFrame(() => {
         midiListRef.current?.focusSelected?.();
@@ -96,6 +125,7 @@ export function useMidiState({
           limit: pageLimit,
           offset: 0,
           directoryPath: directoryPath || null,
+          tagId: midiTagFilterId,
         });
         setMidis(rows);
         setLastFetchCountMidi(rows.length);
@@ -107,6 +137,7 @@ export function useMidiState({
           limit: pageLimit,
           offset: 0,
           directoryPath: directoryPath || null,
+          tagId: midiTagFilterId,
         });
         setMidis(rows);
         setLastFetchCountMidi(rows.length);
@@ -117,7 +148,7 @@ export function useMidiState({
     } catch (e) {
       console.error("MIDI search failed:", e);
     }
-  }, [directoryPath, pageLimit]);
+  }, [directoryPath, midiTagFilterId, pageLimit]);
 
   const requestTrashMidi = (id: number) => {
     setPendingTrashMidiId(id);
@@ -152,6 +183,9 @@ export function useMidiState({
       await invoke("set_midi_file_tag", { midiId, tagId });
       const tagName = tagId != null ? (midiTags.find((t) => t.id === tagId)?.name ?? "") : "";
       setMidis((prev) => prev.map((m) => (m.id === midiId ? { ...m, tag_name: tagName } : m)));
+      if (midiTagFilterId != null && tagId !== midiTagFilterId) {
+        await runMidiSearch(debouncedMidiSearch);
+      }
     } catch (e) {
       setError(`Failed to set MIDI tag: ${e}`);
     }
@@ -199,18 +233,19 @@ export function useMidiState({
             limit: pageLimit,
             offset: nextOffset,
             directoryPath: directoryPath || null,
+            tagId: midiTagFilterId,
           })
         : await invoke<Midi[]>("list_midis_paginated", {
             limit: pageLimit,
             offset: nextOffset,
             directoryPath: directoryPath || null,
+            tagId: midiTagFilterId,
           });
       setMidis((prev) => {
         const existing = new Set(prev.map((m) => m.id));
         const fresh = rows.filter((r) => !existing.has(r.id));
         return [...prev, ...fresh];
       });
-      setCurrentMidiOffset(nextOffset);
       setLastFetchCountMidi(rows.length);
       setCanLoadMoreMidi(rows.length >= pageLimit);
       setCanLoadPreviousMidi(currentMidiOffset > 0);
@@ -233,11 +268,13 @@ export function useMidiState({
             limit: pageLimit,
             offset: prevOffset,
             directoryPath: directoryPath || null,
+            tagId: midiTagFilterId,
           })
         : await invoke<Midi[]>("list_midis_paginated", {
             limit: pageLimit,
             offset: prevOffset,
             directoryPath: directoryPath || null,
+            tagId: midiTagFilterId,
           });
       setMidis((prev) => {
         const existing = new Set(prev.map((m) => m.id));
@@ -259,17 +296,26 @@ export function useMidiState({
     setIsLoadingMoreMidi(true);
     setIsLoadingPreviousMidi(true);
     try {
-      const rows = await invoke<Midi[]>("list_midis_around_id", {
-        targetId: targetIndex,
-        limit: pageLimit,
-      });
-      const halfWindow = Math.floor(pageLimit / 2);
-      const aroundOffset = Math.max(0, targetIndex - halfWindow);
-      setMidis(rows);
-      setCurrentMidiOffset(aroundOffset);
-      setLastFetchCountMidi(rows.length);
-      setCanLoadMoreMidi(rows.length >= pageLimit);
-      setCanLoadPreviousMidi(aroundOffset > 0);
+      if (hasActiveMidiFilters()) {
+        const rows = await loadFilteredMidiPage(debouncedMidiSearch.trim());
+        setMidis(rows);
+        setCurrentMidiOffset(0);
+        setCanLoadPreviousMidi(false);
+        setLastFetchCountMidi(rows.length);
+        setCanLoadMoreMidi(rows.length >= pageLimit);
+      } else {
+        const rows = await invoke<Midi[]>("list_midis_around_id", {
+          targetId: targetIndex,
+          limit: pageLimit,
+        });
+        const halfWindow = Math.floor(pageLimit / 2);
+        const aroundOffset = Math.max(0, targetIndex - halfWindow);
+        setMidis(rows);
+        setCurrentMidiOffset(aroundOffset);
+        setCanLoadPreviousMidi(aroundOffset > 0);
+        setLastFetchCountMidi(rows.length);
+        setCanLoadMoreMidi(rows.length >= pageLimit);
+      }
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -342,7 +388,7 @@ export function useMidiState({
       }
       void runMidiSearch(debouncedMidiSearch);
     }
-  }, [debouncedMidiSearch, directoryPath, pageLimit, runMidiSearch, viewMode]);
+  }, [debouncedMidiSearch, directoryPath, midiTagFilterId, pageLimit, runMidiSearch, viewMode]);
 
   const suppressNextMidiSearch = () => {
     suppressMidiSearchRef.current = true;

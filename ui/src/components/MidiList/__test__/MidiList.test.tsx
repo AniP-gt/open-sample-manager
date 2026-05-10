@@ -228,6 +228,22 @@ describe('MidiList', () => {
     expect(screen.getByText('No more results')).toBeInTheDocument();
   });
 
+  test('uses a constrained scroll container for pagination sentinels', () => {
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        onLoadMore={vi.fn()}
+      />
+    );
+
+    const root = screen.getByTestId('midi-list-root');
+    expect(root).toHaveStyle({ display: 'flex', flexDirection: 'column', overflow: 'hidden' });
+    const scrollContainer = root.querySelector('div[aria-hidden="true"]')?.parentElement;
+    expect(scrollContainer).toHaveStyle({ flex: '1', overflowY: 'auto', minHeight: '0' });
+  });
+
   test('handles sorting headers and row order', () => {
     const { container } = render(
       <MidiList

@@ -104,7 +104,7 @@ export const MidiList = forwardRef(function MidiList(
           }
         }
       },
-      { root, rootMargin: "0px", threshold: 1.0 }
+      { root, rootMargin: "200px", threshold: 0.1 }
     );
 
     obs.observe(sentinel);
@@ -126,7 +126,7 @@ export const MidiList = forwardRef(function MidiList(
           }
         }
       },
-      { root, rootMargin: "0px", threshold: 1.0 }
+      { root, rootMargin: "200px", threshold: 0.1 }
     );
 
     obs.observe(sentinel);
@@ -163,10 +163,12 @@ export const MidiList = forwardRef(function MidiList(
       data-testid="midi-list-root"
       style={{
         flex: 1,
-        overflowY: "auto",
-        overflowX: "auto",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
         background: "#0a0c12",
         position: "relative",
+        minHeight: 0,
       }}
       onDragEnter={(e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
@@ -211,7 +213,7 @@ export const MidiList = forwardRef(function MidiList(
         onResizerKeyDown={onResizerKeyDown}
       />
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", boxSizing: "border-box" }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "auto", boxSizing: "border-box", minHeight: 0 }}>
         <div ref={topSentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
         {sortedMidis.length === 0 && midiSearch.trim() ? (
           <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>

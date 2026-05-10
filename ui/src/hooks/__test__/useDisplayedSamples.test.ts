@@ -1,8 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
-import { useDisplayedSamples, useFilteredMidis } from "../useDisplayedSamples";
+import { useDisplayedSamples } from "../useDisplayedSamples";
 import type { FilterState, Sample } from "../../types/sample";
-import type { Midi } from "../../types/midi";
 
 const samples: Sample[] = [
   {
@@ -51,43 +50,6 @@ const filters: FilterState = {
   favoritesOnly: false,
 };
 
-const midis: Midi[] = [
-  {
-    id: 1,
-    path: "/midi/drums.mid",
-    file_name: "drums.mid",
-    duration: null,
-    tempo: null,
-    time_signature_numerator: 4,
-    time_signature_denominator: 4,
-    track_count: null,
-    note_count: null,
-    channel_count: null,
-    key_estimate: null,
-    file_size: null,
-    created_at: "",
-    modified_at: "",
-    tag_name: "drums",
-  },
-  {
-    id: 2,
-    path: "/midi/piano.mid",
-    file_name: "piano.mid",
-    duration: null,
-    tempo: null,
-    time_signature_numerator: 4,
-    time_signature_denominator: 4,
-    track_count: null,
-    note_count: null,
-    channel_count: null,
-    key_estimate: null,
-    file_size: null,
-    created_at: "",
-    modified_at: "",
-    tag_name: "piano",
-  },
-];
-
 describe("display hooks", () => {
   test("filters samples by favorites and key", () => {
     const { result } = renderHook(() =>
@@ -103,15 +65,4 @@ describe("display hooks", () => {
     expect(result.current).toEqual(samples);
   });
 
-  test("filters MIDI rows by selected tag", () => {
-    const { result } = renderHook(() => useFilteredMidis(midis, 2, [{ id: 2, name: "piano" }]));
-
-    expect(result.current).toEqual([midis[1]]);
-  });
-
-  test("returns all MIDI rows without a tag filter", () => {
-    const { result } = renderHook(() => useFilteredMidis(midis, null, []));
-
-    expect(result.current).toEqual(midis);
-  });
 });

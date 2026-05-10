@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import type { Sample, FilterState } from "../types/sample";
-import type { Midi } from "../types/midi";
 
 export function useDisplayedSamples(
   samples: Sample[],
@@ -19,16 +18,4 @@ export function useDisplayedSamples(
     }
     return list;
   }, [samples, filters.favoritesOnly, filters.filterKey, favorites]);
-}
-
-export function useFilteredMidis(
-  midis: Midi[],
-  midiTagFilterId: number | null,
-  midiTags: { id: number; name: string }[]
-) {
-  return useMemo(() => {
-    if (!midiTagFilterId) return midis;
-    const tagName = midiTags.find((t) => t.id === midiTagFilterId)?.name ?? "";
-    return midis.filter((m) => m.tag_name === tagName);
-  }, [midis, midiTagFilterId, midiTags]);
 }

@@ -77,14 +77,46 @@ describe("useMidiState", () => {
     await act(async () => {
       await result.current.runMidiSearch("search");
     });
-    expect(invokeMock).toHaveBeenCalledWith("search_midis_paginated", { query: "search", limit: 20, offset: 0, directoryPath: null });
+    expect(invokeMock).toHaveBeenCalledWith("search_midis_paginated", { query: "search", limit: 20, offset: 0, directoryPath: null, tagId: null });
     expect(result.current.midis[0].file_name).toBe("search.mid");
 
     await act(async () => {
       await result.current.runMidiSearch("");
     });
-    expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", { limit: 20, offset: 0, directoryPath: null });
+    expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", { limit: 20, offset: 0, directoryPath: null, tagId: null });
     expect(result.current.lastFetchCountMidi).toBe(1);
+  });
+
+  it("passes the active MIDI tag filter to paginated search payloads", async () => {
+    const { result } = renderMidiHook();
+    await waitFor(() => expect(result.current.midiTags).toHaveLength(1));
+    invokeMock.mockClear();
+
+    act(() => {
+      result.current.setMidiTagFilterId(5);
+    });
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", {
+        limit: 20,
+        offset: 0,
+        directoryPath: null,
+        tagId: 5,
+      });
+    });
+
+    invokeMock.mockClear();
+    await act(async () => {
+      await result.current.runMidiSearch("search");
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("search_midis_paginated", {
+      query: "search",
+      limit: 20,
+      offset: 0,
+      directoryPath: null,
+      tagId: 5,
+    });
   });
 
   it("selects MIDI, auto-plays, and toggles stop", async () => {
@@ -175,21 +207,30 @@ describe("useMidiState", () => {
     const { result } = renderMidiHook({ pageLimit: 1 });
     await waitFor(() => expect(result.current.canLoadMoreMidi).toBe(true));
 
+    invokeMock.mockClear();
+    act(() => {
+      result.current.setMidiTagFilterId(5);
+    });
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", { limit: 1, offset: 0, directoryPath: null, tagId: 5 });
+    });
+    invokeMock.mockClear();
+
     await act(async () => {
       await result.current.loadMoreMidi();
     });
-    expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", { limit: 1, offset: 1, directoryPath: null });
+    expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", { limit: 1, offset: 1, directoryPath: null, tagId: 5 });
 
     await act(async () => {
       await result.current.loadAroundMidi(7);
     });
-    expect(invokeMock).toHaveBeenCalledWith("list_midis_around_id", { targetId: 7, limit: 1 });
-    expect(result.current.canLoadPreviousMidi).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", { limit: 1, offset: 0, directoryPath: null, tagId: 5 });
+    expect(result.current.canLoadPreviousMidi).toBe(false);
 
     await act(async () => {
       await result.current.loadPreviousMidi();
     });
-    expect(invokeMock).toHaveBeenCalledWith("list_midis_paginated", { limit: 1, offset: 6, directoryPath: null });
+    expect(result.current.canLoadPreviousMidi).toBe(false);
   });
 
   it("reports playback errors and leaves playback stopped", async () => {

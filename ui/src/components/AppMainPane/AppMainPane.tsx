@@ -21,6 +21,7 @@ interface AppMainPaneProps {
   displayedSamples: Sample[];
   filteredMidis: Midi[];
   instrumentColorCoding: boolean;
+  directoryClickFiltering: boolean;
   handleSampleSelectWithRecent: (sample: Sample) => Promise<void>;
 }
 
@@ -35,6 +36,7 @@ export function AppMainPane({
   displayedSamples,
   filteredMidis,
   instrumentColorCoding,
+  directoryClickFiltering,
   handleSampleSelectWithRecent,
 }: AppMainPaneProps) {
   return (
@@ -72,7 +74,7 @@ export function AppMainPane({
                 midiState.suppressNextMidiSearch();
                 midiState.setDirectoryPath("");
               }
-              void midiState.loadMidiByPath(path);
+              void midiState.loadMidiByPath(path, "");
               return;
             }
 
@@ -85,6 +87,8 @@ export function AppMainPane({
           }
 
           if (uiState.viewMode === "midi") {
+            if (!directoryClickFiltering) return;
+
             if (midiState.isMidiPlaying) {
               void midiState.togglePlaySelectedMidi();
             }
@@ -92,6 +96,8 @@ export function AppMainPane({
             midiState.setDirectoryPath(midiState.directoryPath === normalizedPath ? "" : normalizedPath);
             return;
           }
+
+          if (!directoryClickFiltering) return;
 
           playerBarRef.current?.stop();
           sampleState.setSelected(null);

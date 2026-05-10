@@ -21,7 +21,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSettingsStore } from "./store/useSettingsStore";
 import { useFavoritesStore } from "./store/useFavoritesStore";
 import { useRecentStore } from "./store/useRecentStore";
-import { useDisplayedSamples, useFilteredMidis } from "./hooks/useDisplayedSamples";
+import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -53,12 +53,15 @@ export function App() {
     setMidis: React.Dispatch<React.SetStateAction<Midi[]>>;
     setLastFetchCountMidi: React.Dispatch<React.SetStateAction<number | null>>;
     directoryPath: string;
+    midiTagFilterId: number | null;
   } | null>(null);
 
   const autoPlayOnSelect = useSettingsStore((s) => s.autoPlayOnSelect);
   const setAutoPlayOnSelect = useSettingsStore((s) => s.setAutoPlayOnSelect);
   const instrumentColorCoding = useSettingsStore((s) => s.instrumentColorCoding);
   const setInstrumentColorCoding = useSettingsStore((s) => s.setInstrumentColorCoding);
+  const directoryClickFiltering = useSettingsStore((s) => s.directoryClickFiltering);
+  const setDirectoryClickFiltering = useSettingsStore((s) => s.setDirectoryClickFiltering);
   const favorites = useFavoritesStore((s) => s.favorites);
   const addRecent = useRecentStore((s) => s.addRecent);
 
@@ -73,6 +76,7 @@ export function App() {
     fetchAllSamplePaths: () => sampleApiRef.current?.fetchAllSamplePaths() ?? Promise.resolve(),
     fetchAllMidiPaths: () => midiApiRef.current?.fetchAllMidiPaths() ?? Promise.resolve(),
     getMidiDirectoryPath: () => midiApiRef.current?.directoryPath ?? "",
+    getMidiTagFilterId: () => midiApiRef.current?.midiTagFilterId ?? null,
     viewMode: uiState.viewMode,
     pageLimit: uiState.pageLimit,
     setMidis: (value) => {
@@ -111,6 +115,23 @@ export function App() {
     }
   }, [favorites, sampleState.filters.favoritesOnly]);
 
+  useEffect(() => {
+    if (!directoryClickFiltering) {
+      if (sampleState.filters.directoryPath) {
+        sampleState.handleFilterChange({ directoryPath: "" });
+      }
+      if (midiState.directoryPath) {
+        midiState.setDirectoryPath("");
+      }
+    }
+  }, [
+    directoryClickFiltering,
+    sampleState.filters.directoryPath,
+    midiState.directoryPath,
+    sampleState.handleFilterChange,
+    midiState.setDirectoryPath,
+  ]);
+
   const displayedSamples = useDisplayedSamples(
     sampleState.samples,
     sampleState.filters,
@@ -136,6 +157,7 @@ export function App() {
     setMidis: midiState.setMidis,
     setLastFetchCountMidi: midiState.setLastFetchCountMidi,
     directoryPath: midiState.directoryPath,
+    midiTagFilterId: midiState.midiTagFilterId,
   };
   scanImportHandlerRef.current = scanState.handleImportPaths;
 
@@ -143,12 +165,6 @@ export function App() {
     addRecent(sample.id);
     await sampleState.handleSampleSelect(sample);
   };
-
-  const filteredMidis = useFilteredMidis(
-    midiState.midis,
-    midiState.midiTagFilterId,
-    midiState.midiTags
-  );
 
   return (
     <div
@@ -223,8 +239,9 @@ export function App() {
         sampleListRef={sampleListRef}
         midiListRef={midiListRef}
         displayedSamples={displayedSamples}
-        filteredMidis={filteredMidis}
+        filteredMidis={midiState.midis}
         instrumentColorCoding={instrumentColorCoding}
+        directoryClickFiltering={directoryClickFiltering}
         handleSampleSelectWithRecent={handleSampleSelectWithRecent}
       />
 
@@ -249,6 +266,8 @@ export function App() {
         onAutoPlayChange={setAutoPlayOnSelect}
         instrumentColorCoding={instrumentColorCoding}
         onInstrumentColorCodingChange={setInstrumentColorCoding}
+        directoryClickFiltering={directoryClickFiltering}
+        onDirectoryClickFilteringChange={setDirectoryClickFiltering}
       />
 
       <AppModals sampleState={sampleState} midiState={midiState} />

@@ -114,6 +114,7 @@ function renderPane(overrides: {
   sampleDirectoryPath?: string;
   midiDirectoryPath?: string;
   isMidiPlaying?: boolean;
+  directoryClickFiltering?: boolean;
 } = {}) {
   const uiState = {
     viewMode: overrides.viewMode ?? "sample",
@@ -200,6 +201,7 @@ function renderPane(overrides: {
       displayedSamples={[sample]}
       filteredMidis={[midi]}
       instrumentColorCoding={true}
+      directoryClickFiltering={overrides.directoryClickFiltering ?? true}
       handleSampleSelectWithRecent={handleSampleSelectWithRecent}
     />
   );
@@ -236,6 +238,14 @@ describe("AppMainPane", () => {
     expect(resizeHandle.style.background).toBe("rgb(31, 41, 55)");
   });
 
+  test("does not route sample sidebar directory selections when directoryClickFiltering is false", () => {
+    const { sampleState, playerBarRef } = renderPane({ directoryClickFiltering: false });
+    fireEvent.click(screen.getByText("filter dir"));
+    expect(playerBarRef.current?.stop).not.toHaveBeenCalled();
+    expect(sampleState.setSelected).not.toHaveBeenCalled();
+    expect(sampleState.handleFilterChange).not.toHaveBeenCalled();
+  });
+
   test("wires sample list and detail actions", () => {
     const { sampleState, scanState, handleSampleSelectWithRecent } = renderPane({ selectedSample: sample });
 
@@ -269,7 +279,7 @@ describe("AppMainPane", () => {
     fireEvent.click(screen.getByText("filter file"));
     expect(midiState.suppressNextMidiSearch).toHaveBeenCalledTimes(1);
     expect(midiState.setDirectoryPath).toHaveBeenCalledWith("");
-    expect(midiState.loadMidiByPath).toHaveBeenCalledWith("/library/kick.wav");
+    expect(midiState.loadMidiByPath).toHaveBeenCalledWith("/library/kick.wav", "");
 
     fireEvent.click(screen.getByText("filter dir"));
     expect(midiState.togglePlaySelectedMidi).toHaveBeenCalledTimes(1);
@@ -282,6 +292,14 @@ describe("AppMainPane", () => {
     expect(midiState.setMidiTagModalOpen).toHaveBeenCalledWith(true);
     fireEvent.click(screen.getByText("midi detail play"));
     expect(midiState.togglePlaySelectedMidi).toHaveBeenCalledTimes(2);
+  });
+
+  test("does not route midi sidebar directory selections when directoryClickFiltering is false", () => {
+    const { midiState } = renderPane({ viewMode: "midi", isMidiPlaying: true, directoryClickFiltering: false });
+    fireEvent.click(screen.getByText("filter dir"));
+    expect(midiState.togglePlaySelectedMidi).not.toHaveBeenCalled();
+    expect(midiState.setSelectedMidi).not.toHaveBeenCalled();
+    expect(midiState.setDirectoryPath).not.toHaveBeenCalled();
   });
 
   test("wires midi list actions", () => {

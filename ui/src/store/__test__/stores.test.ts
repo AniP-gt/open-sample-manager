@@ -8,7 +8,11 @@ describe("persisted UI stores", () => {
     localStorage.clear();
     useFavoritesStore.setState({ favorites: [] });
     useRecentStore.setState({ recentIds: [] });
-    useSettingsStore.setState({ autoPlayOnSelect: false, instrumentColorCoding: false });
+    useSettingsStore.setState({
+      autoPlayOnSelect: false,
+      instrumentColorCoding: false,
+      directoryClickFiltering: true,
+    });
   });
 
   it("toggles favorites and clears them", () => {
@@ -41,8 +45,10 @@ describe("persisted UI stores", () => {
   it("updates playback and color coding settings", () => {
     useSettingsStore.getState().setAutoPlayOnSelect(true);
     useSettingsStore.getState().setInstrumentColorCoding(true);
+    useSettingsStore.getState().setDirectoryClickFiltering(false);
 
     expect(useSettingsStore.getState().autoPlayOnSelect).toBe(true);
     expect(useSettingsStore.getState().instrumentColorCoding).toBe(true);
+    expect(useSettingsStore.getState().directoryClickFiltering).toBe(false);
   });
 });

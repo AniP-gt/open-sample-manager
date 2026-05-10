@@ -13,6 +13,8 @@ describe("SettingsModal", () => {
         onAutoPlayChange={vi.fn()}
         instrumentColorCoding={false}
         onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
       />
     );
     expect(container.firstChild).toBeNull();
@@ -28,6 +30,8 @@ describe("SettingsModal", () => {
         onAutoPlayChange={vi.fn()}
         instrumentColorCoding={false}
         onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
       />
     );
 
@@ -46,6 +50,8 @@ describe("SettingsModal", () => {
         onAutoPlayChange={onChangeMock}
         instrumentColorCoding={false}
         onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
       />
     );
 
@@ -65,10 +71,33 @@ describe("SettingsModal", () => {
         onAutoPlayChange={vi.fn()}
         instrumentColorCoding={true}
         onInstrumentColorCodingChange={onChangeMock}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
       />
     );
 
     const toggle = screen.getByRole("switch", { name: "Instrument color coding" });
+    fireEvent.click(toggle);
+    expect(onChangeMock).toHaveBeenCalledWith(false);
+  });
+
+  it("toggles directoryClickFiltering", () => {
+    const onChangeMock = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        sampleCount={0}
+        autoPlayOnSelect={false}
+        onAutoPlayChange={vi.fn()}
+        instrumentColorCoding={false}
+        onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={onChangeMock}
+      />
+    );
+
+    const toggle = screen.getByRole("switch", { name: "Directory click filtering" });
     fireEvent.click(toggle);
     expect(onChangeMock).toHaveBeenCalledWith(false);
   });
@@ -84,6 +113,8 @@ describe("SettingsModal", () => {
         onAutoPlayChange={vi.fn()}
         instrumentColorCoding={false}
         onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
       />
     );
 
@@ -103,6 +134,8 @@ describe("SettingsModal", () => {
         onAutoPlayChange={vi.fn()}
         instrumentColorCoding={false}
         onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
       />
     );
 

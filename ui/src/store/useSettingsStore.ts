@@ -6,6 +6,8 @@ interface SettingsState {
   setAutoPlayOnSelect: (value: boolean) => void;
   instrumentColorCoding: boolean;
   setInstrumentColorCoding: (value: boolean) => void;
+  directoryClickFiltering: boolean;
+  setDirectoryClickFiltering: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -15,6 +17,8 @@ export const useSettingsStore = create<SettingsState>()(
       setAutoPlayOnSelect: (value) => set({ autoPlayOnSelect: value }),
       instrumentColorCoding: false,
       setInstrumentColorCoding: (value) => set({ instrumentColorCoding: value }),
+      directoryClickFiltering: true,
+      setDirectoryClickFiltering: (value) => set({ directoryClickFiltering: value }),
     }),
     {
       name: "osm_settings",

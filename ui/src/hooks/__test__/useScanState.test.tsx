@@ -46,6 +46,7 @@ const renderScanHook = (overrides: Partial<Parameters<typeof useScanState>[0]> =
     setMidis,
     setLastFetchCountMidi,
     setSelected,
+    getMidiTagFilterId: () => 42,
     ...overrides,
     getMidiDirectoryPath: overrides.getMidiDirectoryPath ?? (() => ""),
   };
@@ -77,6 +78,9 @@ describe("useScanState", () => {
     expect(props.runSearch).toHaveBeenCalledWith("kick");
     expect(props.fetchAllSamplePaths).toHaveBeenCalled();
     expect(props.fetchAllMidiPaths).toHaveBeenCalled();
+    const listMidiCalls = invokeMock.mock.calls.filter(([cmd]) => cmd === "list_midis_paginated");
+    expect(listMidiCalls.length).toBeGreaterThan(0);
+    expect(listMidiCalls[0]?.[1]).toMatchObject({ tagId: 42 });
     expect(setMidis).toHaveBeenCalledWith([{ id: 1, path: "/m/a.mid" }]);
     expect(setLastFetchCountMidi).toHaveBeenCalledWith(1);
     expect(result.current.scanning).toBe(false);
@@ -106,6 +110,9 @@ describe("useScanState", () => {
     expect(invokeMock).toHaveBeenCalledWith("import_file", { path: "/Users/alice/midis/groove.mid" });
     expect(invokeMock).toHaveBeenCalledWith("scan_midi_directory", { path: "/Users/alice/midis" });
     expect(props.runSearch).toHaveBeenCalledWith("kick");
+    const listMidiCalls = invokeMock.mock.calls.filter(([cmd]) => cmd === "list_midis_paginated");
+    expect(listMidiCalls.length).toBeGreaterThan(0);
+    expect(listMidiCalls[0]?.[1]).toMatchObject({ tagId: 42 });
     await waitFor(() => expect(result.current.scanning).toBe(false));
   });
 
@@ -154,6 +161,8 @@ describe("useScanState", () => {
     expect(setMidis).toHaveBeenCalledWith([{ id: 1, path: "/m/a.mid" }]);
     expect(setLastFetchCountMidi).toHaveBeenCalledWith(1);
     expect(props.fetchAllMidiPaths).toHaveBeenCalled();
+    const listMidiCalls = invokeMock.mock.calls.filter(([cmd]) => cmd === "list_midis_paginated");
+    expect(listMidiCalls[0]?.[1]).toMatchObject({ tagId: 42 });
   });
 
   it("stores invoke errors and retries the saved action", async () => {
