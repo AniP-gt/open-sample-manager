@@ -103,8 +103,12 @@ fn test_move_sample_path_updates_row_and_search_index() {
         .expect("insert failed");
 
     assert_eq!(
-        move_sample_path(&conn, "/samples/old_kick.wav", "/samples/moved/new_kick.wav")
-            .expect("move failed"),
+        move_sample_path(
+            &conn,
+            "/samples/old_kick.wav",
+            "/samples/moved/new_kick.wav"
+        )
+        .expect("move failed"),
         1
     );
 
@@ -127,10 +131,16 @@ fn test_move_sample_path_updates_row_and_search_index() {
 #[test]
 fn test_clear_all_samples_removes_rows_tags_and_search_entries() {
     let conn = setup_db();
-    let first_id = insert_sample(&conn, &make_input("/samples/clear-kick.wav", "clear-kick.wav"))
-        .expect("first insert failed");
-    insert_sample(&conn, &make_input("/samples/clear-snare.wav", "clear-snare.wav"))
-        .expect("second insert failed");
+    let first_id = insert_sample(
+        &conn,
+        &make_input("/samples/clear-kick.wav", "clear-kick.wav"),
+    )
+    .expect("first insert failed");
+    insert_sample(
+        &conn,
+        &make_input("/samples/clear-snare.wav", "clear-snare.wav"),
+    )
+    .expect("second insert failed");
     conn.execute("INSERT INTO tags (name) VALUES ('phase2-clear')", [])
         .expect("tag insert failed");
     conn.execute(

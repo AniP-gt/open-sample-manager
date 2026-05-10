@@ -67,7 +67,10 @@ fn fuzzy_sample_rows(
     let mut stmt = conn.prepare_cached(sql)?;
     let rows = if let Some(directory_path) = directory_path {
         let like_pattern = directory_like_pattern(&directory_path);
-        stmt.query_map(rusqlite::params![directory_path, like_pattern], row_with_tags)?
+        stmt.query_map(
+            rusqlite::params![directory_path, like_pattern],
+            row_with_tags,
+        )?
     } else {
         stmt.query_map([], row_with_tags)?
     };

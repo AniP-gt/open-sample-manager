@@ -14,21 +14,66 @@ use super::ManagerError;
 /// Returns one of the seeded instrument_types: kick, snare, hihat, bass, synth, fx, vocal, percussion, other.
 fn infer_instrument_type_from_filename(file_name: &str) -> &'static str {
     let lower = file_name.to_lowercase();
-    let stem = lower
-        .rfind('.')
-        .map(|i| &lower[..i])
-        .unwrap_or(&lower);
+    let stem = lower.rfind('.').map(|i| &lower[..i]).unwrap_or(&lower);
 
     // Check each instrument type against known keywords.
     // Order matters: more specific matches should come before generic ones.
     let kick_keywords = ["kick", "bd", "bassdrum", "bass_drum"];
     let snare_keywords = ["snare", "snr", "sd", "rimshot", "rim"];
-    let hihat_keywords = ["hihat", "hi_hat", "hi-hat", "hhat", "hh", "cymbal", "crash", "ride", "open_hat", "closed_hat", "openhat", "closedhat"];
+    let hihat_keywords = [
+        "hihat",
+        "hi_hat",
+        "hi-hat",
+        "hhat",
+        "hh",
+        "cymbal",
+        "crash",
+        "ride",
+        "open_hat",
+        "closed_hat",
+        "openhat",
+        "closedhat",
+    ];
     let bass_keywords = ["bass", "sub", "808"];
-    let synth_keywords = ["synth", "lead", "pad", "arp", "keys", "piano", "organ", "pluck"];
-    let fx_keywords = ["fx", "sfx", "effect", "riser", "downlifter", "uplifter", "sweep", "transition", "impact", "noise", "atmo", "atmosphere", "ambience", "ambient", "texture", "foley"];
+    let synth_keywords = [
+        "synth", "lead", "pad", "arp", "keys", "piano", "organ", "pluck",
+    ];
+    let fx_keywords = [
+        "fx",
+        "sfx",
+        "effect",
+        "riser",
+        "downlifter",
+        "uplifter",
+        "sweep",
+        "transition",
+        "impact",
+        "noise",
+        "atmo",
+        "atmosphere",
+        "ambience",
+        "ambient",
+        "texture",
+        "foley",
+    ];
     let vocal_keywords = ["vocal", "vox", "voice", "choir", "chant", "sing"];
-    let percussion_keywords = ["perc", "percussion", "conga", "bongo", "tom", "clap", "shaker", "tamb", "cowbell", "woodblock", "claves", "maracas", "cabasa", "guiro", "triangle"];
+    let percussion_keywords = [
+        "perc",
+        "percussion",
+        "conga",
+        "bongo",
+        "tom",
+        "clap",
+        "shaker",
+        "tamb",
+        "cowbell",
+        "woodblock",
+        "claves",
+        "maracas",
+        "cabasa",
+        "guiro",
+        "triangle",
+    ];
 
     if kick_keywords.iter().any(|kw| contains_word(stem, kw)) {
         return "kick";
@@ -75,8 +120,7 @@ fn contains_word(stem: &str, keyword: &str) -> bool {
             let before_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
             // Digits following a keyword are treated as a boundary so that
             // common sample-pack patterns like "HH01" or "SD02" are matched.
-            let after_ok = i + klen == bytes.len()
-                || !bytes[i + klen].is_ascii_alphabetic();
+            let after_ok = i + klen == bytes.len() || !bytes[i + klen].is_ascii_alphabetic();
             if before_ok && after_ok {
                 return true;
             }
@@ -173,21 +217,36 @@ mod tests {
     fn test_infer_kick() {
         assert_eq!(infer_instrument_type_from_filename("kick_808.wav"), "kick");
         assert_eq!(infer_instrument_type_from_filename("BD_hard.wav"), "kick");
-        assert_eq!(infer_instrument_type_from_filename("bassdrum_01.wav"), "kick");
+        assert_eq!(
+            infer_instrument_type_from_filename("bassdrum_01.wav"),
+            "kick"
+        );
     }
 
     #[test]
     fn test_infer_snare() {
-        assert_eq!(infer_instrument_type_from_filename("snare_tight.wav"), "snare");
+        assert_eq!(
+            infer_instrument_type_from_filename("snare_tight.wav"),
+            "snare"
+        );
         assert_eq!(infer_instrument_type_from_filename("SNR_01.wav"), "snare");
         assert_eq!(infer_instrument_type_from_filename("rimshot.wav"), "snare");
     }
 
     #[test]
     fn test_infer_hihat() {
-        assert_eq!(infer_instrument_type_from_filename("hihat_open.wav"), "hihat");
-        assert_eq!(infer_instrument_type_from_filename("HH_closed.wav"), "hihat");
-        assert_eq!(infer_instrument_type_from_filename("crash_cymbal.wav"), "hihat");
+        assert_eq!(
+            infer_instrument_type_from_filename("hihat_open.wav"),
+            "hihat"
+        );
+        assert_eq!(
+            infer_instrument_type_from_filename("HH_closed.wav"),
+            "hihat"
+        );
+        assert_eq!(
+            infer_instrument_type_from_filename("crash_cymbal.wav"),
+            "hihat"
+        );
     }
 
     #[test]
@@ -199,45 +258,81 @@ mod tests {
 
     #[test]
     fn test_infer_synth() {
-        assert_eq!(infer_instrument_type_from_filename("synth_lead.wav"), "synth");
+        assert_eq!(
+            infer_instrument_type_from_filename("synth_lead.wav"),
+            "synth"
+        );
         assert_eq!(infer_instrument_type_from_filename("pad_warm.wav"), "synth");
-        assert_eq!(infer_instrument_type_from_filename("piano_chord.wav"), "synth");
+        assert_eq!(
+            infer_instrument_type_from_filename("piano_chord.wav"),
+            "synth"
+        );
     }
 
     #[test]
     fn test_infer_fx() {
         assert_eq!(infer_instrument_type_from_filename("fx_riser.wav"), "fx");
         assert_eq!(infer_instrument_type_from_filename("sfx_impact.wav"), "fx");
-        assert_eq!(infer_instrument_type_from_filename("transition_sweep.wav"), "fx");
+        assert_eq!(
+            infer_instrument_type_from_filename("transition_sweep.wav"),
+            "fx"
+        );
     }
 
     #[test]
     fn test_infer_vocal() {
-        assert_eq!(infer_instrument_type_from_filename("vocal_chop.wav"), "vocal");
+        assert_eq!(
+            infer_instrument_type_from_filename("vocal_chop.wav"),
+            "vocal"
+        );
         assert_eq!(infer_instrument_type_from_filename("vox_dry.wav"), "vocal");
-        assert_eq!(infer_instrument_type_from_filename("choir_hit.wav"), "vocal");
+        assert_eq!(
+            infer_instrument_type_from_filename("choir_hit.wav"),
+            "vocal"
+        );
     }
 
     #[test]
     fn test_infer_percussion() {
-        assert_eq!(infer_instrument_type_from_filename("perc_shaker.wav"), "percussion");
-        assert_eq!(infer_instrument_type_from_filename("conga_hit.wav"), "percussion");
-        assert_eq!(infer_instrument_type_from_filename("clap_dry.wav"), "percussion");
+        assert_eq!(
+            infer_instrument_type_from_filename("perc_shaker.wav"),
+            "percussion"
+        );
+        assert_eq!(
+            infer_instrument_type_from_filename("conga_hit.wav"),
+            "percussion"
+        );
+        assert_eq!(
+            infer_instrument_type_from_filename("clap_dry.wav"),
+            "percussion"
+        );
     }
 
     #[test]
     fn test_infer_other() {
-        assert_eq!(infer_instrument_type_from_filename("unknown_sample.wav"), "other");
-        assert_eq!(infer_instrument_type_from_filename("sample_01.wav"), "other");
+        assert_eq!(
+            infer_instrument_type_from_filename("unknown_sample.wav"),
+            "other"
+        );
+        assert_eq!(
+            infer_instrument_type_from_filename("sample_01.wav"),
+            "other"
+        );
     }
 
     #[test]
     fn test_no_partial_word_match() {
         // "hh" should not match "rhythm" or "shh"
-        assert_ne!(infer_instrument_type_from_filename("rhythm_guitar.wav"), "hihat");
+        assert_ne!(
+            infer_instrument_type_from_filename("rhythm_guitar.wav"),
+            "hihat"
+        );
         // "bass" in "contrabass" — contrabass contains "bass" at word boundary after 'contra'
         // 'a' before 'bass' is alphanumeric so it won't match as a word
-        assert_eq!(infer_instrument_type_from_filename("contrabass.wav"), "other");
+        assert_eq!(
+            infer_instrument_type_from_filename("contrabass.wav"),
+            "other"
+        );
     }
 
     #[test]
@@ -246,7 +341,10 @@ mod tests {
         assert_eq!(infer_instrument_type_from_filename("HH01.wav"), "hihat");
         assert_eq!(infer_instrument_type_from_filename("BD01.wav"), "kick");
         assert_eq!(infer_instrument_type_from_filename("SD02.wav"), "snare");
-        assert_eq!(infer_instrument_type_from_filename("perc01.wav"), "percussion");
+        assert_eq!(
+            infer_instrument_type_from_filename("perc01.wav"),
+            "percussion"
+        );
     }
 
     #[test]

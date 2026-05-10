@@ -8,8 +8,11 @@ use super::{make_input, setup_db};
 #[test]
 fn get_sample_by_id_and_path_return_inserted_row() {
     let conn = setup_db();
-    let id = insert_sample(&conn, &make_input("/samples/query-kick.wav", "query-kick.wav"))
-        .expect("insert failed");
+    let id = insert_sample(
+        &conn,
+        &make_input("/samples/query-kick.wav", "query-kick.wav"),
+    )
+    .expect("insert failed");
 
     let by_id = get_sample_by_id(&conn, id)
         .expect("id lookup failed")
@@ -79,5 +82,8 @@ fn get_all_sample_paths_returns_inserted_paths_and_excludes_deleted_rows() {
     delete_sample(&conn, "/samples/remove.wav").expect("delete failed");
     let paths = get_all_sample_paths(&conn).expect("paths lookup failed");
 
-    assert_eq!(paths, vec!["/samples/keep-one.wav", "/samples/keep-two.wav"]);
+    assert_eq!(
+        paths,
+        vec!["/samples/keep-one.wav", "/samples/keep-two.wav"]
+    );
 }

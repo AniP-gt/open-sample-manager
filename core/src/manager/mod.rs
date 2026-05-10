@@ -242,7 +242,10 @@ impl SampleManager {
         Ok(crate::db::operations::clear_all_samples(&self.conn)?)
     }
 
-    pub fn re_scan_all_samples(&self, mut progress: impl FnMut(ScanProgress)) -> Result<usize, ManagerError> {
+    pub fn re_scan_all_samples(
+        &self,
+        mut progress: impl FnMut(ScanProgress),
+    ) -> Result<usize, ManagerError> {
         let paths: Vec<String> = crate::db::operations::get_all_sample_paths(&self.conn)?;
         let total = paths.len();
 
