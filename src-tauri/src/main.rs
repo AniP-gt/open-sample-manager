@@ -922,11 +922,12 @@ fn list_midis_paginated(
     limit: usize,
     offset: usize,
     directory_path: Option<String>,
+    tag_id: Option<i64>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
     let manager = get_manager(&state);
     manager
-        .list_midis_paginated(limit, offset, directory_path.as_deref())
+        .list_midis_paginated(limit, offset, directory_path.as_deref(), tag_id)
         .map_err(CommandError::from)
 }
 
@@ -995,10 +996,11 @@ fn search_midis_paginated(
     limit: usize,
     offset: usize,
     directory_path: Option<String>,
+    tag_id: Option<i64>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
     let manager = get_manager(&state);
     manager
-        .search_midis_paginated(&query, limit, offset, directory_path.as_deref())
+        .search_midis_paginated(&query, limit, offset, directory_path.as_deref(), tag_id)
         .map_err(CommandError::from)
 }

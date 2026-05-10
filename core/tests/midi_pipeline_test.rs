@@ -82,11 +82,11 @@ fn midi_db_roundtrip_insert_get_list_paginated() {
     assert_eq!(fetched.time_signature_numerator, 3);
     assert_eq!(fetched.time_signature_denominator, 4);
 
-    let page_one = list_midis_paginated(&conn, 1, 0, None).expect("list page one");
+    let page_one = list_midis_paginated(&conn, 1, 0, None, None).expect("list page one");
     assert_eq!(page_one.len(), 1);
     assert_eq!(page_one[0].path, "/tmp/first.mid");
 
-    let page_two = list_midis_paginated(&conn, 1, 1, None).expect("list page two");
+    let page_two = list_midis_paginated(&conn, 1, 1, None, None).expect("list page two");
     assert_eq!(page_two.len(), 1);
     assert_eq!(page_two[0].path, "/tmp/second.midi");
     assert_eq!(page_two[0].time_signature_numerator, 4);
@@ -122,7 +122,7 @@ fn midi_paginated_filters_directory_with_path_boundary() {
         .expect("insert midi");
     }
 
-    let rows = list_midis_paginated(&conn, 10, 0, Some("/packs/KICK/"))
+    let rows = list_midis_paginated(&conn, 10, 0, Some("/packs/KICK/"), None)
         .expect("list filtered midis");
 
     assert_eq!(rows.len(), 1);
@@ -157,7 +157,7 @@ fn midi_paginated_escapes_directory_like_wildcards() {
         .expect("insert midi");
     }
 
-    let rows = list_midis_paginated(&conn, 10, 0, Some("/packs/KI_CK"))
+    let rows = list_midis_paginated(&conn, 10, 0, Some("/packs/KI_CK"), None)
         .expect("list wildcard-safe midis");
 
     assert_eq!(rows.len(), 1);
@@ -193,7 +193,7 @@ fn midi_search_filters_directory_before_fuzzy_pagination() {
         .expect("insert midi");
     }
 
-    let page = search_midis_paginated(&conn, "kick", 1, 1, Some("/packs/KICK"))
+    let page = search_midis_paginated(&conn, "kick", 1, 1, Some("/packs/KICK"), None)
         .expect("search filtered midis");
 
     assert_eq!(page.len(), 1);
@@ -227,7 +227,7 @@ fn midi_search_paginated_applies_offset_after_fuzzy_filter() {
         insert_midi(&conn, &input).expect("insert midi");
     }
 
-    let page = search_midis_paginated(&conn, "kick", 1, 1, None).expect("search midi page");
+    let page = search_midis_paginated(&conn, "kick", 1, 1, None, None).expect("search midi page");
     assert_eq!(page.len(), 1);
     assert_eq!(page[0].file_name, "beta_kick.mid");
 }
@@ -254,11 +254,13 @@ fn midi_search_normalizes_full_width_ascii_and_matches_tags() {
     let tag_id = insert_midi_tag(&conn, "melody-custom").expect("insert tag");
     assign_midi_tag(&conn, midi_id, tag_id).expect("assign tag");
 
-    let by_tag = search_midis_paginated(&conn, "ｍｌｃ", 10, 0, None).expect("search midi by tag");
+    let by_tag =
+        search_midis_paginated(&conn, "ｍｌｃ", 10, 0, None, None).expect("search midi by tag");
     assert_eq!(by_tag.len(), 1);
     assert_eq!(by_tag[0].file_name, "mystery.mid");
 
-    let by_name = search_midis_paginated(&conn, "ｍｙｓ", 10, 0, None).expect("search midi by name");
+    let by_name =
+        search_midis_paginated(&conn, "ｍｙｓ", 10, 0, None, None).expect("search midi by name");
     assert_eq!(by_name.len(), 1);
     assert_eq!(by_name[0].file_name, "mystery.mid");
 }
@@ -339,7 +341,7 @@ fn manager_scan_midi_directory_happy_path_and_duplicate_error_path() {
     assert_eq!(second_count, 2);
 
     let rows = manager
-        .list_midis_paginated(10, 0, None)
+        .list_midis_paginated(10, 0, None, None)
         .expect("list manager midi rows");
     assert_eq!(rows.len(), 2);
 

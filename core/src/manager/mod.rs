@@ -381,8 +381,9 @@ impl SampleManager {
         limit: usize,
         offset: usize,
         directory_path: Option<&str>,
+        tag_id: Option<i64>,
     ) -> Result<Vec<MidiRow>, ManagerError> {
-        midi::list_midis_paginated(&self.conn, limit, offset, directory_path)
+        midi::list_midis_paginated(&self.conn, limit, offset, directory_path, tag_id)
     }
 
     pub fn list_midis_around_id(
@@ -419,8 +420,9 @@ impl SampleManager {
         limit: usize,
         offset: usize,
         directory_path: Option<&str>,
+        tag_id: Option<i64>,
     ) -> Result<Vec<MidiRow>, ManagerError> {
-        midi::search_midis_paginated(&self.conn, query, limit, offset, directory_path)
+        midi::search_midis_paginated(&self.conn, query, limit, offset, directory_path, tag_id)
     }
 }
 

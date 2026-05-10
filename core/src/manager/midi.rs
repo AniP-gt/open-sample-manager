@@ -47,12 +47,14 @@ pub(super) fn list_midis_paginated(
     limit: usize,
     offset: usize,
     directory_path: Option<&str>,
+    tag_id: Option<i64>,
 ) -> Result<Vec<MidiRow>, ManagerError> {
     Ok(crate::db::operations::list_midis_paginated(
         conn,
         limit,
         offset,
         directory_path,
+        tag_id,
     )?)
 }
 
@@ -88,6 +90,7 @@ pub(super) fn search_midis_paginated(
     limit: usize,
     offset: usize,
     directory_path: Option<&str>,
+    tag_id: Option<i64>,
 ) -> Result<Vec<MidiRow>, ManagerError> {
     Ok(crate::db::operations::search_midis_paginated(
         conn,
@@ -95,6 +98,7 @@ pub(super) fn search_midis_paginated(
         limit,
         offset,
         directory_path,
+        tag_id,
     )?)
 }
 
