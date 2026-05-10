@@ -37,11 +37,14 @@ fn health_check(state: tauri::State<'_, AppState>) -> HealthCheckResponse {
     // If we can lock the manager, the DB is OK
     let (db_ok, db_error) = match state.manager.lock() {
         Ok(_) => (true, None),
-        Err(e) => (false, Some(CommandError {
-            code: "db_error".to_string(),
-            message: format!("mutex poisoned: {}", e),
-            details: None,
-        })),
+        Err(e) => (
+            false,
+            Some(CommandError {
+                code: "db_error".to_string(),
+                message: format!("mutex poisoned: {}", e),
+                details: None,
+            }),
+        ),
     };
 
     HealthCheckResponse {
@@ -54,7 +57,11 @@ fn health_check(state: tauri::State<'_, AppState>) -> HealthCheckResponse {
 }
 
 #[tauri::command]
-async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
+async fn scan_directory(
+    path: String,
+    app_handle: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
     let mgr = Arc::clone(&state.manager);
 
     // Run heavy scanning work in a blocking task to avoid freezing the UI
@@ -64,10 +71,12 @@ async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State
 
         // Clone app_handle for use in the closure
         let handle = app_handle.clone();
-        manager.scan_directory_with_progress(path, move |progress| {
-            let event = ScanProgressEvent::from(&progress);
-            let _ = handle.emit("scan-progress", &event);
-        }).map_err(CommandError::from)
+        manager
+            .scan_directory_with_progress(path, move |progress| {
+                let event = ScanProgressEvent::from(&progress);
+                let _ = handle.emit("scan-progress", &event);
+            })
+            .map_err(CommandError::from)
     })
     .await
     .map_err(|e| CommandError {
@@ -75,10 +84,9 @@ async fn scan_directory(path: String, app_handle: AppHandle, state: tauri::State
         message: e.to_string(),
         details: None,
     })?;
-    
+
     result
 }
-
 
 #[tauri::command]
 fn search_samples(
@@ -116,7 +124,9 @@ fn list_samples_around_id(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::SampleRow>, CommandError> {
     let manager = get_manager(&state);
-    manager.list_samples_around_id(target_id, limit).map_err(CommandError::from)
+    manager
+        .list_samples_around_id(target_id, limit)
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -129,19 +139,13 @@ fn get_sample(
 }
 
 #[tauri::command]
-fn list_all_sample_paths(
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<String>, CommandError> {
+fn list_all_sample_paths(state: tauri::State<'_, AppState>) -> Result<Vec<String>, CommandError> {
     let manager = get_manager(&state);
     manager.get_all_sample_paths().map_err(CommandError::from)
 }
 
-
 #[tauri::command]
-fn delete_sample(
-    path: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<usize, CommandError> {
+fn delete_sample(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
     manager.delete_sample(&path).map_err(CommandError::from)
 }
@@ -153,16 +157,21 @@ fn clear_all_samples(state: tauri::State<'_, AppState>) -> Result<usize, Command
 }
 
 #[tauri::command]
-async fn re_scan_all_samples(app_handle: AppHandle, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
+async fn re_scan_all_samples(
+    app_handle: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
     let mgr = Arc::clone(&state.manager);
     let handle = app_handle.clone();
 
     let result = tokio::task::spawn_blocking(move || {
         let manager = mgr.lock().expect("AppState mutex poisoned");
-        manager.re_scan_all_samples(move |prog| {
-            let event = ScanProgressEvent::from(&prog);
-            let _ = handle.emit("scan-progress", &event);
-        }).map_err(CommandError::from)
+        manager
+            .re_scan_all_samples(move |prog| {
+                let event = ScanProgressEvent::from(&prog);
+                let _ = handle.emit("scan-progress", &event);
+            })
+            .map_err(CommandError::from)
     })
     .await
     .map_err(|e| CommandError {
@@ -175,7 +184,10 @@ async fn re_scan_all_samples(app_handle: AppHandle, state: tauri::State<'_, AppS
 }
 
 #[tauri::command]
-async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Result<String, CommandError> {
+async fn send_to_trash(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, CommandError> {
     // Run the potentially blocking filesystem operation in a blocking task
     // so the async runtime isn't blocked. Also remove DB row after successful
     // trashing.
@@ -188,7 +200,9 @@ async fn send_to_trash(path: String, state: tauri::State<'_, AppState>) -> Resul
         match trash::delete(&path_clone) {
             Ok(_) => {
                 // Remove DB entry for the sample path
-                let _ = manager.delete_sample(&path_clone).map_err(CommandError::from)?;
+                let _ = manager
+                    .delete_sample(&path_clone)
+                    .map_err(CommandError::from)?;
                 Ok(path_clone)
             }
             Err(e) => Err(CommandError {
@@ -305,11 +319,16 @@ fn debug_start_drag(raw: serde_json::Value) -> Result<(), CommandError> {
 // Helper structs matching typical shapes we might receive from the renderer.
 #[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
-struct CandidateFiles { files: Vec<String> }
+struct CandidateFiles {
+    files: Vec<String>,
+}
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
-struct CandidateFilesCapital { #[serde(rename = "Files")] files: Vec<String> }
+struct CandidateFilesCapital {
+    #[serde(rename = "Files")]
+    files: Vec<String>,
+}
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
@@ -317,11 +336,16 @@ struct CandidateItemArray(Vec<String>);
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
-struct CandidateImageFile { #[serde(rename = "File")] file: String }
+struct CandidateImageFile {
+    #[serde(rename = "File")]
+    file: String,
+}
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
-struct CandidateImagePath { path: String }
+struct CandidateImagePath {
+    path: String,
+}
 
 #[tauri::command]
 fn debug_try_deserialize(raw: serde_json::Value) -> Result<String, CommandError> {
@@ -362,7 +386,11 @@ fn debug_try_deserialize(raw: serde_json::Value) -> Result<String, CommandError>
     eprintln!("[debug_try_deserialize] successes: {:?}", successes);
     eprintln!("[debug_try_deserialize] failures: {:?}", failures);
 
-    Ok(format!("successes: {}, failures: {}", successes.len(), failures.len()))
+    Ok(format!(
+        "successes: {}, failures: {}",
+        successes.len(),
+        failures.len()
+    ))
 }
 
 // (start_native_drag wrapper removed) Renderer should call `native_drag_out`
@@ -378,7 +406,9 @@ async fn move_sample(
 
     let result = tokio::task::spawn_blocking(move || {
         let manager = mgr.lock().expect("AppState mutex poisoned");
-        manager.move_sample(&old_path, &new_path).map_err(CommandError::from)
+        manager
+            .move_sample(&old_path, &new_path)
+            .map_err(CommandError::from)
     })
     .await
     .map_err(|e| CommandError {
@@ -386,7 +416,7 @@ async fn move_sample(
         message: e.to_string(),
         details: None,
     })?;
-    
+
     result
 }
 
@@ -398,13 +428,27 @@ fn update_sample_classification(
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
     eprintln!("[update_sample_classification] INPUT: path='{}'", path);
-    eprintln!("[update_sample_classification] INPUT: playback_type={:?}", playback_type);
-    eprintln!("[update_sample_classification] INPUT: instrument_type={:?}", instrument_type);
+    eprintln!(
+        "[update_sample_classification] INPUT: playback_type={:?}",
+        playback_type
+    );
+    eprintln!(
+        "[update_sample_classification] INPUT: instrument_type={:?}",
+        instrument_type
+    );
     let manager = get_manager(&state);
     let rows = manager
-        .update_sample_classification(None, Some(path.as_str()), Some(playback_type), Some(instrument_type))
+        .update_sample_classification(
+            None,
+            Some(path.as_str()),
+            Some(playback_type),
+            Some(instrument_type),
+        )
         .map_err(CommandError::from)?;
-    eprintln!("[update_sample_classification] RESULT: {} rows affected", rows);
+    eprintln!(
+        "[update_sample_classification] RESULT: {} rows affected",
+        rows
+    );
     if rows == 0 {
         return Err(CommandError {
             code: "not_found".to_string(),
@@ -471,21 +515,40 @@ fn search_by_embedding(
     let sample = manager
         .get_sample(&path)
         .map_err(CommandError::from)?
-        .ok_or(CommandError { code: "not_found".to_string(), message: "sample not found".to_string(), details: None })?;
+        .ok_or(CommandError {
+            code: "not_found".to_string(),
+            message: "sample not found".to_string(),
+            details: None,
+        })?;
 
-    let emb_blob = sample.embedding.ok_or(CommandError { code: "no_embedding".to_string(), message: "sample has no embedding".to_string(), details: None })?;
+    let emb_blob = sample.embedding.ok_or(CommandError {
+        code: "no_embedding".to_string(),
+        message: "sample has no embedding".to_string(),
+        details: None,
+    })?;
     if emb_blob.len() % 4 != 0 {
-        return Err(CommandError { code: "invalid_embedding".to_string(), message: "embedding blob invalid".to_string(), details: None });
+        return Err(CommandError {
+            code: "invalid_embedding".to_string(),
+            message: "embedding blob invalid".to_string(),
+            details: None,
+        });
     }
     let dim = emb_blob.len() / 4;
     let mut vec: Vec<f32> = Vec::with_capacity(dim);
     for i in 0..dim {
         let off = i * 4;
-        let bytes: [u8; 4] = [emb_blob[off], emb_blob[off + 1], emb_blob[off + 2], emb_blob[off + 3]];
+        let bytes: [u8; 4] = [
+            emb_blob[off],
+            emb_blob[off + 1],
+            emb_blob[off + 2],
+            emb_blob[off + 3],
+        ];
         vec.push(f32::from_le_bytes(bytes));
     }
 
-    let results = manager.search_by_embedding(&vec, k).map_err(CommandError::from)?;
+    let results = manager
+        .search_by_embedding(&vec, k)
+        .map_err(CommandError::from)?;
     Ok(results)
 }
 
@@ -499,9 +562,7 @@ fn open_folder(path: String) -> Result<(), String> {
 #[tauri::command]
 fn copy_to_clipboard(text: String, app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_clipboard_manager::ClipboardExt;
-    app.clipboard()
-        .write_text(text)
-        .map_err(|e| e.to_string())
+    app.clipboard().write_text(text).map_err(|e| e.to_string())
 }
 
 // start_native_file_drag removed.
@@ -538,10 +599,12 @@ fn main() {
         };
 
         let db_path_str = db_path.as_ref().map(|p| p.to_string_lossy().to_string());
-        let manager = SampleManager::new(db_path_str.as_deref())
-            .expect("failed to open database");
+        let manager = SampleManager::new(db_path_str.as_deref()).expect("failed to open database");
 
-        app.manage(AppState { manager: Arc::new(Mutex::new(manager)), timidity_pid: Arc::new(Mutex::new(None)) });
+        app.manage(AppState {
+            manager: Arc::new(Mutex::new(manager)),
+            timidity_pid: Arc::new(Mutex::new(None)),
+        });
         Ok(())
     });
 
@@ -604,7 +667,9 @@ fn get_instrument_types(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::InstrumentTypeRow>, CommandError> {
     let manager = get_manager(&state);
-    manager.get_all_instrument_types().map_err(CommandError::from)
+    manager
+        .get_all_instrument_types()
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -613,7 +678,9 @@ fn add_instrument_type(
     state: tauri::State<'_, AppState>,
 ) -> Result<i64, CommandError> {
     let manager = get_manager(&state);
-    manager.add_instrument_type(&name).map_err(CommandError::from)
+    manager
+        .add_instrument_type(&name)
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -622,7 +689,9 @@ fn delete_instrument_type(
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
-    manager.delete_instrument_type(id).map_err(CommandError::from)
+    manager
+        .delete_instrument_type(id)
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -632,9 +701,10 @@ fn update_instrument_type(
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
-    manager.update_instrument_type(id, &name).map_err(CommandError::from)
+    manager
+        .update_instrument_type(id, &name)
+        .map_err(CommandError::from)
 }
-
 
 // === MIDI Tag Commands ===
 
@@ -647,19 +717,13 @@ fn get_midi_tags(
 }
 
 #[tauri::command]
-fn add_midi_tag(
-    name: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<i64, CommandError> {
+fn add_midi_tag(name: String, state: tauri::State<'_, AppState>) -> Result<i64, CommandError> {
     let manager = get_manager(&state);
     manager.add_midi_tag(&name).map_err(CommandError::from)
 }
 
 #[tauri::command]
-fn delete_midi_tag(
-    id: i64,
-    state: tauri::State<'_, AppState>,
-) -> Result<usize, CommandError> {
+fn delete_midi_tag(id: i64, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
     manager.delete_midi_tag(id).map_err(CommandError::from)
 }
@@ -671,7 +735,9 @@ fn update_midi_tag(
     state: tauri::State<'_, AppState>,
 ) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
-    manager.update_midi_tag(id, &name).map_err(CommandError::from)
+    manager
+        .update_midi_tag(id, &name)
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -681,7 +747,9 @@ fn set_midi_file_tag(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), CommandError> {
     let manager = get_manager(&state);
-    manager.set_midi_file_tag(midi_id, tag_id).map_err(CommandError::from)
+    manager
+        .set_midi_file_tag(midi_id, tag_id)
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -690,9 +758,10 @@ fn get_midi_file_tags(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiTagRow>, CommandError> {
     let manager = get_manager(&state);
-    manager.get_midi_file_tags(midi_id).map_err(CommandError::from)
+    manager
+        .get_midi_file_tags(midi_id)
+        .map_err(CommandError::from)
 }
-
 
 // === MIDI Commands ===
 
@@ -706,7 +775,9 @@ pub struct TimidityStatus {
 fn timidity_install_command(os: &str) -> &'static str {
     match os {
         "macos" => "brew install timidity",
-        "linux" => "sudo apt-get install -y timidity (Debian/Ubuntu) or sudo dnf install timidity (Fedora)",
+        "linux" => {
+            "sudo apt-get install -y timidity (Debian/Ubuntu) or sudo dnf install timidity (Fedora)"
+        }
         "windows" => "choco install timidity (or enable WSL and run a Linux installer)",
         _ => "Install TiMidity++ via your distribution's package manager",
     }
@@ -792,12 +863,12 @@ fn find_timidity_executable() -> Result<std::path::PathBuf, CommandError> {
 fn check_timidity() -> TimidityStatus {
     // Try to find TiMidity using comprehensive path search
     let timidity_result = find_timidity_executable();
-    
+
     let installed = timidity_result.is_ok();
-    
+
     // Get OS-specific install command
     let install_command = timidity_install_command(std::env::consts::OS).to_string();
-    
+
     TimidityStatus {
         installed,
         install_command,
@@ -818,7 +889,6 @@ async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<()
                 .output();
         }
     }
-
 
     // Locate timidity executable using comprehensive path search
     let timidity = find_timidity_executable()?;
@@ -850,7 +920,6 @@ async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<()
     *state.timidity_pid.lock().unwrap() = Some(pid);
     Ok(())
 }
-
 
 /// Stop the currently playing MIDI file (kills timidity process).
 #[tauri::command]
@@ -904,7 +973,9 @@ async fn scan_midi_directory(
 
     let result = tokio::task::spawn_blocking(move || {
         let manager = mgr.lock().expect("AppState mutex poisoned");
-        manager.scan_midi_directory(path).map_err(CommandError::from)
+        manager
+            .scan_midi_directory(path)
+            .map_err(CommandError::from)
     })
     .await
     .map_err(|e| CommandError {
@@ -912,7 +983,7 @@ async fn scan_midi_directory(
         message: e.to_string(),
         details: None,
     })?;
-    
+
     result
 }
 
@@ -939,14 +1010,14 @@ fn list_midis_around_id(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<open_sample_manager_core::db::operations::MidiRow>, CommandError> {
     let manager = get_manager(&state);
-    manager.list_midis_around_id(target_id, limit).map_err(CommandError::from)
+    manager
+        .list_midis_around_id(target_id, limit)
+        .map_err(CommandError::from)
 }
 
 /// Get all MIDI file paths.
 #[tauri::command]
-fn get_all_midi_paths(
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<String>, CommandError> {
+fn get_all_midi_paths(state: tauri::State<'_, AppState>) -> Result<Vec<String>, CommandError> {
     let manager = get_manager(&state);
     manager.get_all_midi_paths().map_err(CommandError::from)
 }
@@ -963,19 +1034,14 @@ fn get_midi(
 
 /// Delete a MIDI file by path.
 #[tauri::command]
-fn delete_midi(
-    path: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<usize, CommandError> {
+fn delete_midi(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
     manager.delete_midi(&path).map_err(CommandError::from)
 }
 
 /// Clear all MIDI files from the database.
 #[tauri::command]
-fn clear_all_midis(
-    state: tauri::State<'_, AppState>,
-) -> Result<usize, CommandError> {
+fn clear_all_midis(state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
     manager.clear_all_midis().map_err(CommandError::from)
 }
