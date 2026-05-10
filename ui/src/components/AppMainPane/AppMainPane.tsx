@@ -119,6 +119,18 @@ export function AppMainPane({
         onSampleSelect={(s) => {
           void handleSampleSelectWithRecent(s);
         }}
+        activeDirectoryPath={
+          uiState.viewMode === "midi"
+            ? midiState.directoryPath || null
+            : sampleState.filters.directoryPath || null
+        }
+        onClearDirectoryPath={() => {
+          if (uiState.viewMode === "midi") {
+            midiState.setDirectoryPath("");
+          } else {
+            sampleState.handleFilterChange({ directoryPath: "" });
+          }
+        }}
       />
 
       <div

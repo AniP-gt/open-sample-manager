@@ -26,6 +26,7 @@ vi.mock("../..", async () => {
         React.createElement("button", { key: "dir", onClick: () => getCallback(props, "onPathSelect")("/library/drums") }, "filter dir"),
         React.createElement("button", { key: "sample", onClick: () => getCallback(props, "onSampleSelect")({ id: 1 }) }, "sidebar sample"),
         React.createElement("button", { key: "import", onClick: () => getCallback(props, "onImportPaths")(["/drop.wav"]) }, "sidebar import"),
+        React.createElement("button", { key: "clear", onClick: () => getCallback(props, "onClearDirectoryPath")() }, "sidebar clear"),
       ]),
     SampleList: React.forwardRef((_props: Record<string, unknown>, _ref) => {
       const props = _props;
@@ -229,6 +230,9 @@ describe("AppMainPane", () => {
     fireEvent.click(screen.getByText("sidebar sample"));
     expect(handleSampleSelectWithRecent).toHaveBeenCalledWith({ id: 1 });
 
+    fireEvent.click(screen.getByText("sidebar clear"));
+    expect(sampleState.handleFilterChange).toHaveBeenCalledWith({ directoryPath: "" });
+
     const resizeHandle = screen.getByTestId("filter-sidebar").nextElementSibling as HTMLElement;
     fireEvent.mouseDown(resizeHandle);
     expect(uiState.handleMouseDown).toHaveBeenCalledTimes(1);
@@ -285,6 +289,9 @@ describe("AppMainPane", () => {
     expect(midiState.togglePlaySelectedMidi).toHaveBeenCalledTimes(1);
     expect(midiState.setSelectedMidi).toHaveBeenCalledWith(null);
     expect(midiState.setDirectoryPath).toHaveBeenCalledWith("/library/drums");
+
+    fireEvent.click(screen.getByText("sidebar clear"));
+    expect(midiState.setDirectoryPath).toHaveBeenCalledWith("");
 
     fireEvent.click(screen.getByText("midi detail filter"));
     expect(midiState.setMidiTagFilterId).toHaveBeenCalledWith(4);
