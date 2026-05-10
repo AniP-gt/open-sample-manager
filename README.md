@@ -4,6 +4,8 @@
 
 A fast, local-first desktop application for managing audio samples and MIDI files. Built with Rust, Tauri, and React.
 
+> **Status:** Developer preview. This project is currently distributed as source code only. Official signed installers are not available yet.
+
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)
 ![License](https://img.shields.io/github/license/AniP-gt/open-sample-manager)
 
@@ -85,6 +87,26 @@ npm run tauri:dev
 ```bash
 npm run tauri:build
 ```
+
+This creates a local build for your machine. It is not an official signed release build.
+
+---
+
+## Distribution Status
+
+Open Sample Manager is source-only for now. If you want to try it, clone the repository and build it locally with the commands above.
+
+Signed macOS, Linux, and Windows installers may come later, after the release pipeline is ready. Before publishing official binaries, the project needs release signing, macOS notarization, CI-backed builds, and a review of Tauri permissions and CSP settings.
+
+Please don't redistribute local builds as official releases.
+
+---
+
+## Security Notes
+
+Open Sample Manager is local-first. It stores metadata in a local SQLite database and doesn't require a cloud account.
+
+During the developer preview, review the source and build locally if you want to test the app. The Tauri permission model, asset access, and installer signing are still being hardened before public binary releases.
 
 ---
 
@@ -197,6 +219,19 @@ npm run typecheck --prefix ui
 npm run test --prefix ui
 npm run build --prefix ui
 ```
+
+### Before opening a PR
+
+Run the checks that match your change. For a general change, use:
+
+```bash
+cargo test --workspace
+npm run typecheck --prefix ui
+npm run test --prefix ui
+npm run build --prefix ui
+```
+
+The JUCE plugin scaffold doesn't need to be built unless your change touches `plugin/`.
 
 ### JUCE plugin scaffold
 
