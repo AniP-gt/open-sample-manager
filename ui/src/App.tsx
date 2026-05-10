@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import "./styles/global.css";
 import {
   Header,
@@ -20,6 +20,7 @@ import { useUIState } from "./hooks/useUIState";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useSettingsStore } from "./store/useSettingsStore";
 import { useFavoritesStore } from "./store/useFavoritesStore";
+import { useMidiFavoritesStore } from "./store/useMidiFavoritesStore";
 import { useRecentStore } from "./store/useRecentStore";
 import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
 import type { FilterState, Sample } from "./types/sample";
@@ -63,6 +64,7 @@ export function App() {
   const directoryClickFiltering = useSettingsStore((s) => s.directoryClickFiltering);
   const setDirectoryClickFiltering = useSettingsStore((s) => s.setDirectoryClickFiltering);
   const favorites = useFavoritesStore((s) => s.favorites);
+  const midiFavorites = useMidiFavoritesStore((s) => s.favorites);
   const addRecent = useRecentStore((s) => s.addRecent);
 
   const uiState = useUIState({
@@ -116,6 +118,12 @@ export function App() {
   }, [favorites, sampleState.filters.favoritesOnly]);
 
   useEffect(() => {
+    if (midiState.favoritesOnly && midiFavorites.length === 0) {
+      midiState.setFavoritesOnly(false);
+    }
+  }, [midiFavorites, midiState.favoritesOnly]);
+
+  useEffect(() => {
     if (!directoryClickFiltering) {
       if (sampleState.filters.directoryPath) {
         sampleState.handleFilterChange({ directoryPath: "" });
@@ -137,6 +145,12 @@ export function App() {
     sampleState.filters,
     favorites
   );
+
+  const filteredMidis = useMemo(() => {
+    if (!midiState.favoritesOnly) return midiState.midis;
+    const favSet = new Set(midiFavorites);
+    return midiState.midis.filter(m => favSet.has(m.id));
+  }, [midiState.midis, midiState.favoritesOnly, midiFavorites]);
 
   useKeyboardShortcuts({
     viewMode: uiState.viewMode,
@@ -239,7 +253,7 @@ export function App() {
         sampleListRef={sampleListRef}
         midiListRef={midiListRef}
         displayedSamples={displayedSamples}
-        filteredMidis={midiState.midis}
+        filteredMidis={filteredMidis}
         instrumentColorCoding={instrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
         handleSampleSelectWithRecent={handleSampleSelectWithRecent}

@@ -30,6 +30,7 @@ export function useMidiState({
   const [midiSearch, setMidiSearch] = useState("");
   const [debouncedMidiSearch, setDebouncedMidiSearch] = useState("");
   const [directoryPath, setDirectoryPath] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const suppressMidiSearchRef = useRef(false);
   const [midiTagModalOpen, setMidiTagModalOpen] = useState(false);
   const [midiTagEditOpen, setMidiTagEditOpen] = useState(false);
@@ -445,6 +446,8 @@ export function useMidiState({
     debouncedMidiSearch,
     directoryPath,
     setDirectoryPath,
+    favoritesOnly,
+    setFavoritesOnly,
     midiTagModalOpen,
     setMidiTagModalOpen,
     midiTagEditOpen,

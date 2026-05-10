@@ -9,6 +9,8 @@ import type { useUIState } from "../../hooks/useUIState";
 import type { useScanState } from "../../hooks/useScanState";
 import type { useSampleState } from "../../hooks/useSampleState";
 import type { useMidiState } from "../../hooks/useMidiState";
+import { useFavoritesStore } from "../../store/useFavoritesStore";
+import { useMidiFavoritesStore } from "../../store/useMidiFavoritesStore";
 
 interface AppMainPaneProps {
   uiState: ReturnType<typeof useUIState>;
@@ -39,6 +41,9 @@ export function AppMainPane({
   directoryClickFiltering,
   handleSampleSelectWithRecent,
 }: AppMainPaneProps) {
+  const { favorites: sampleFavorites } = useFavoritesStore();
+  const { favorites: midiFavorites } = useMidiFavoritesStore();
+  
   return (
     <div
       style={{
@@ -62,7 +67,6 @@ export function AppMainPane({
               ? sampleState.samplePaths[sampleState.selected.id]
               : sampleState.filters.directoryPath || null
         }
-        onFilterChange={sampleState.handleFilterChange}
         onPathSelect={(path) => {
           const normalizedPath = path.replace(/\\/g, "/");
           const filePaths = uiState.viewMode === "midi" ? midiState.allMidiPaths : sampleState.allSamplePaths;
@@ -113,9 +117,22 @@ export function AppMainPane({
             ? 160
             : 0
         }
-        favoritesOnly={sampleState.filters.favoritesOnly}
+        favoritesOnly={uiState.viewMode === "midi" ? midiState.favoritesOnly : sampleState.filters.favoritesOnly}
+        favoritesCount={uiState.viewMode === "midi" ? midiFavorites.length : sampleFavorites.length}
         filterKey={sampleState.filters.filterKey}
         samples={sampleState.samples}
+        onFilterChange={(filters) => {
+          if (uiState.viewMode === "midi") {
+            if (filters.favoritesOnly !== undefined) {
+              midiState.setFavoritesOnly(filters.favoritesOnly);
+            }
+            if (filters.filterKey !== undefined) {
+              sampleState.handleFilterChange({ filterKey: filters.filterKey });
+            }
+          } else {
+            sampleState.handleFilterChange(filters);
+          }
+        }}
         onSampleSelect={(s) => {
           void handleSampleSelectWithRecent(s);
         }}
