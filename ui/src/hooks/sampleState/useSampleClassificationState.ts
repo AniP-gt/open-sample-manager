@@ -15,6 +15,7 @@ type UseSampleClassificationStateParams = {
   runSearch: RunSampleSearch;
   fetchAllSamplePaths: FetchAllSamplePaths;
   setSelected: NullableSampleSetter;
+  selectedIds: Set<number>;
   setError: (message: string | null) => void;
 };
 
@@ -25,10 +26,12 @@ export function useSampleClassificationState({
   runSearch,
   fetchAllSamplePaths,
   setSelected,
+  selectedIds,
   setError,
 }: UseSampleClassificationStateParams) {
   const [classificationModalOpen, setClassificationModalOpen] = useState(false);
   const [classificationSample, setClassificationSample] = useState<Sample | null>(null);
+  const [classificationTargetIds, setClassificationTargetIds] = useState<number[]>([]);
   const [editInstrumentType, setEditInstrumentType] = useState<string>("");
   const [editSampleType, setEditSampleType] = useState<SampleType>("one-shot");
 
@@ -36,8 +39,13 @@ export function useSampleClassificationState({
     setClassificationSample(sample);
     setEditSampleType(sample.sample_type);
     setEditInstrumentType(sample.instrument_type);
+    if (selectedIds.has(sample.id)) {
+      setClassificationTargetIds(Array.from(selectedIds));
+    } else {
+      setClassificationTargetIds([sample.id]);
+    }
     setClassificationModalOpen(true);
-  }, []);
+  }, [selectedIds]);
 
   const handleSampleTypeSelect = useCallback((type: SampleType) => {
     setEditSampleType(type);
@@ -46,28 +54,34 @@ export function useSampleClassificationState({
 
   const handleClassificationSave = useCallback(async () => {
     if (!classificationSample) return;
-    const path = samplePaths[classificationSample.id];
+    
+    let successCount = 0;
+    
+    for (const targetId of classificationTargetIds) {
+      const path = samplePaths[targetId];
+      if (!path) continue;
 
-    if (!path) {
-      setError("Sample path not available for update");
+      try {
+        const payloadPlayback = editSampleType === "loop" ? "loop" : "oneshot";
+        const isKnownInstrument = instrumentTypes.some((type) => type.name === editInstrumentType);
+        
+        const updateResult = await invoke<number>("update_sample_classification", {
+          path,
+          playbackType: payloadPlayback,
+          instrumentType: isKnownInstrument ? editInstrumentType : classificationSample.instrument_type,
+        });
+        if (updateResult !== 0) successCount++;
+      } catch (e) {
+        console.error(`Failed to update sample ${targetId}:`, e);
+      }
+    }
+
+    if (successCount === 0) {
+      setError("No samples were updated successfully. They may have been moved or deleted.");
       return;
     }
 
     try {
-      const payloadPlayback = editSampleType === "loop" ? "loop" : "oneshot";
-      const payloadInstrument = instrumentTypes.some((type) => type.name === editInstrumentType)
-        ? editInstrumentType
-        : classificationSample.instrument_type;
-      const updateResult = await invoke<number>("update_sample_classification", {
-        path,
-        playbackType: payloadPlayback,
-        instrumentType: payloadInstrument,
-      });
-
-      if (updateResult === 0) {
-        setError("Sample not found in database. The file may have been moved or deleted.");
-        return;
-      }
       const refreshedList = await runSearch(searchQuery);
       await fetchAllSamplePaths();
       const refreshedSample = refreshedList.find((sample) => sample.id === classificationSample.id) ?? null;
@@ -75,10 +89,11 @@ export function useSampleClassificationState({
       setClassificationModalOpen(false);
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
-      setError(`Failed to save: ${errorMsg}`);
+      setError(`Failed to refresh list after save: ${errorMsg}`);
     }
   }, [
     classificationSample,
+    classificationTargetIds,
     editInstrumentType,
     editSampleType,
     fetchAllSamplePaths,
@@ -94,6 +109,7 @@ export function useSampleClassificationState({
     classificationModalOpen,
     setClassificationModalOpen,
     classificationSample,
+    classificationTargetIds,
     editInstrumentType,
     setEditInstrumentType,
     editSampleType,

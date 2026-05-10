@@ -4,6 +4,7 @@ import { TypeBadge } from "../TypeBadge/TypeBadge";
 interface ClassificationEditModalProps {
   isOpen: boolean;
   sample: Sample | null;
+  targetIds?: number[];
   editInstrumentType: string;
   editSampleType: SampleType;
   instrumentTypes: string[];
@@ -31,6 +32,7 @@ const DEFAULT_INSTRUMENT_TYPES: InstrumentType[] = [
 export function ClassificationEditModal({
   isOpen,
   sample,
+  targetIds = [],
   editInstrumentType,
   editSampleType,
   instrumentTypes,
@@ -43,6 +45,8 @@ export function ClassificationEditModal({
   const options = instrumentTypes.length > 0 ? instrumentTypes : DEFAULT_INSTRUMENT_TYPES;
 
   if (!isOpen || !sample) return null;
+
+  const isBulk = targetIds.length > 1;
 
   return (
     <div
@@ -90,7 +94,7 @@ export function ClassificationEditModal({
               margin: 0,
             }}
           >
-            EDIT CLASSIFICATION
+            {isBulk ? `EDIT MULTIPLE (${targetIds.length})` : "EDIT CLASSIFICATION"}
           </h2>
           <button
             onClick={onClose}
@@ -118,7 +122,7 @@ export function ClassificationEditModal({
             wordBreak: "break-all",
           }}
         >
-          {sample.file_name}
+          {isBulk ? `${targetIds.length} samples selected` : sample.file_name}
         </div>
 
         <div style={{ marginBottom: "24px" }}>

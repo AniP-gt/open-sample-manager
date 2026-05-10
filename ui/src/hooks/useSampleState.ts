@@ -75,6 +75,7 @@ export function useSampleState({
     runSearch: searchState.runSearch,
     fetchAllSamplePaths: searchState.fetchAllSamplePaths,
     setSelected: selection.setSelected,
+    selectedIds: selection.selectedIds,
     setError,
   });
 
@@ -99,6 +100,7 @@ export function useSampleState({
     classificationModalOpen: classificationState.classificationModalOpen,
     setClassificationModalOpen: classificationState.setClassificationModalOpen,
     classificationSample: classificationState.classificationSample,
+    classificationTargetIds: classificationState.classificationTargetIds,
     editInstrumentType: classificationState.editInstrumentType,
     setEditInstrumentType: classificationState.setEditInstrumentType,
     editSampleType: classificationState.editSampleType,

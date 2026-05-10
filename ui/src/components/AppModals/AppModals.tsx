@@ -17,6 +17,7 @@ interface AppModalsProps {
     cancelTrash: () => void;
     classificationModalOpen: boolean;
     classificationSample: Sample | null;
+    classificationTargetIds: number[];
     editInstrumentType: string;
     editSampleType: SampleType;
     instrumentTypes: InstrumentTypeRow[];
@@ -92,6 +93,7 @@ export function AppModals({ sampleState, midiState }: AppModalsProps) {
       <ClassificationEditModal
         isOpen={sampleState.classificationModalOpen}
         sample={sampleState.classificationSample}
+        targetIds={sampleState.classificationTargetIds}
         editInstrumentType={sampleState.editInstrumentType}
         editSampleType={sampleState.editSampleType}
         instrumentTypes={sampleState.instrumentTypes.map((t) => t.name)}
