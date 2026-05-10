@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useFavoritesStore } from "../useFavoritesStore";
+import { useMidiFavoritesStore } from "../useMidiFavoritesStore";
 import { useRecentStore } from "../useRecentStore";
 import { useSettingsStore } from "../useSettingsStore";
 
@@ -7,6 +8,7 @@ describe("persisted UI stores", () => {
   beforeEach(() => {
     localStorage.clear();
     useFavoritesStore.setState({ favorites: [] });
+    useMidiFavoritesStore.setState({ favorites: [] });
     useRecentStore.setState({ recentIds: [] });
     useSettingsStore.setState({
       autoPlayOnSelect: false,
@@ -28,6 +30,21 @@ describe("persisted UI stores", () => {
     useFavoritesStore.getState().toggleFavorite(8);
     useFavoritesStore.getState().clearFavorites();
     expect(useFavoritesStore.getState().favorites).toEqual([]);
+  });
+
+  it("toggles MIDI favorites and clears them", () => {
+    const store = useMidiFavoritesStore.getState();
+
+    store.toggleFavorite(99);
+    expect(useMidiFavoritesStore.getState().favorites).toEqual([99]);
+    expect(useMidiFavoritesStore.getState().isFavorite(99)).toBe(true);
+
+    useMidiFavoritesStore.getState().toggleFavorite(99);
+    expect(useMidiFavoritesStore.getState().favorites).toEqual([]);
+
+    useMidiFavoritesStore.getState().toggleFavorite(100);
+    useMidiFavoritesStore.getState().clearFavorites();
+    expect(useMidiFavoritesStore.getState().favorites).toEqual([]);
   });
 
   it("keeps recent IDs unique and capped at ten", () => {
