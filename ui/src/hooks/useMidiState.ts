@@ -109,6 +109,7 @@ export function useMidiState({
         setCanLoadPreviousMidi(aroundOffset > 0);
       }
       setSelectedMidi(row);
+      setSelectedMidiIds(new Set([row.id]));
       requestAnimationFrame(() => {
         midiListRef.current?.focusSelected?.();
       });
@@ -181,7 +182,10 @@ export function useMidiState({
       await invoke<string>("send_to_trash", { path });
       await runMidiSearch(debouncedMidiSearch);
       await fetchAllMidiPaths();
-      if (selectedMidi?.id === pendingTrashMidiId) setSelectedMidi(null);
+      if (selectedMidi?.id === pendingTrashMidiId) {
+        setSelectedMidi(null);
+        setSelectedMidiIds(new Set());
+      }
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
