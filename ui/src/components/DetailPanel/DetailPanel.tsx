@@ -29,9 +29,10 @@ interface DetailPanelProps {
   allInstrumentTypeNames?: InstrumentType[];
   // space to leave at the bottom so content isn't hidden by overlapping UI
   bottomInset?: number;
+  onClose?: () => void;
 }
 
-export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, allInstrumentTypeNames, onSelect: propsOnSelect, onError: propsOnError, bottomInset = 0 }: DetailPanelProps) {
+export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, allInstrumentTypeNames, onSelect: propsOnSelect, onError: propsOnError, bottomInset = 0, onClose }: DetailPanelProps) {
   // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
@@ -141,16 +142,42 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           width: "min(260px, 40vw)",
           borderLeft: "1px solid #0f1117",
           background: "#0a0c12",
-          padding: "20px 16px",
+          padding: "0",
           display: "flex",
           flexDirection: "column",
-          gap: "20px",
+          gap: "0",
 
           zIndex: 2,
         }}
       >
       {/* Scrollable content area: everything except the sticky PATH footer */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: `${12 + bottomInset}px`, boxSizing: "border-box" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: `20px 16px ${12 + bottomInset}px 16px`, boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "20px" }}>
+        
+        {onClose && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#6b7280",
+                fontSize: "18px",
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.2s"
+              }}
+              aria-label="Close detail panel"
+              onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "#6b7280"}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
           <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2, width: "100%" }}>
             <button
@@ -213,7 +240,20 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
 
       {/* Moved filter controls from left sidebar into the right detail panel */}
       <div>
-        <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.12em", marginBottom: "8px" }}>FILTERS</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+          <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.12em" }}>FILTERS</div>
+          {onFilterChange && (
+            <button
+              onClick={() => onFilterChange({ filterType: 'all', filterBpmMin: '', filterBpmMax: '', filterInstrumentType: '' })}
+              style={{ background: "transparent", border: "none", color: "#9ca3af", fontSize: "11px", fontFamily: "'Courier New', monospace", cursor: "pointer" }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "#9ca3af"}
+              aria-label="Reset sample filters"
+            >
+              [reset]
+            </button>
+          )}
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "8px" }}>
           <div>
             <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>SAMPLE TYPE</div>

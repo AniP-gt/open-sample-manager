@@ -131,4 +131,20 @@ describe('MidiDetailPanel', () => {
     
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('brew install timidity');
   });
+
+  test('calls onClose when close button is clicked', () => {
+    const onClose = vi.fn();
+    render(
+      <MidiDetailPanel
+        midi={mockMidi}
+        midiTags={mockTags}
+        tagFilterId={null}
+        onTagFilterChange={vi.fn()}
+        onClose={onClose}
+      />
+    );
+    const closeBtn = screen.getByLabelText('Close detail panel');
+    fireEvent.click(closeBtn);
+    expect(onClose).toHaveBeenCalled();
+  });
 });

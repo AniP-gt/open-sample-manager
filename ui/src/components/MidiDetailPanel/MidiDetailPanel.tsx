@@ -11,9 +11,10 @@ interface MidiDetailPanelProps {
   isPlaying?: boolean;
   onTogglePlay?: () => Promise<void> | void;
   timidityStatus?: TimidityStatus | null;
+  onClose?: () => void;
 }
 
-export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0, isPlaying = false, onTogglePlay, timidityStatus }: MidiDetailPanelProps) {
+export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0, isPlaying = false, onTogglePlay, timidityStatus, onClose }: MidiDetailPanelProps) {
   const currentTagName = tagFilterId ? midiTags.find((t) => t.id === tagFilterId)?.name ?? "" : "";
 
   return (
@@ -26,14 +27,39 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
         width: "min(260px, 40vw)",
         borderLeft: "1px solid #0f1117",
         background: "#0a0c12",
-        padding: "20px 16px",
+        padding: "0",
         display: "flex",
         flexDirection: "column",
-        gap: "20px",
+        gap: "0",
         zIndex: 2,
       }}
     >
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: `${12 + bottomInset}px`, boxSizing: "border-box" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: `20px 16px ${12 + bottomInset}px 16px`, boxSizing: "border-box", display: "flex", flexDirection: "column", gap: "20px" }}>
+        {onClose && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#6b7280",
+                fontSize: "18px",
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.2s"
+              }}
+              aria-label="Close detail panel"
+              onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "#6b7280"}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
           <div style={{ fontSize: 16, color: "#d1d5db", fontWeight: 700 }}>{midi.file_name}</div>
 

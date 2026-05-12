@@ -108,4 +108,20 @@ describe('DetailPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'kick' }));
     expect(onFilterChange).toHaveBeenCalledWith({ filterInstrumentType: 'kick' });
   });
+
+  test('calls onClose when close button is clicked', () => {
+    const onClose = vi.fn();
+    render(<DetailPanel sample={mockSample} path="/kick.wav" onClose={onClose} />);
+    const closeBtn = screen.getByLabelText('Close detail panel');
+    fireEvent.click(closeBtn);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('calls onFilterChange with reset payload when reset button is clicked', () => {
+    const onFilterChange = vi.fn();
+    render(<DetailPanel sample={mockSample} path="/kick.wav" onFilterChange={onFilterChange} />);
+    const resetBtn = screen.getByLabelText('Reset sample filters');
+    fireEvent.click(resetBtn);
+    expect(onFilterChange).toHaveBeenCalledWith({ filterType: 'all', filterBpmMin: '', filterBpmMax: '', filterInstrumentType: '' });
+  });
 });

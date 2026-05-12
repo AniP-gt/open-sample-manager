@@ -57,18 +57,28 @@ vi.mock("../..", async () => {
         React.createElement("button", { key: "play", onClick: () => getCallback(props, "onTogglePlayback")() }, "midi play"),
       ]);
     }),
-    DetailPanel: (props: Record<string, unknown>) =>
-      React.createElement("div", { "data-testid": "detail-panel" }, [
+    DetailPanel: (props: Record<string, unknown>) => {
+      const children: React.ReactNode[] = [
         React.createElement("button", { key: "select", onClick: () => getCallback(props, "onSelect")({ id: 1 }) }, "detail select"),
         React.createElement("button", { key: "filter", onClick: () => getCallback(props, "onFilterChange")({ filterKey: "C" }) }, "detail filter"),
         React.createElement("button", { key: "error", onClick: () => getCallback(props, "onError")("detail failed") }, "detail error"),
-      ]),
-    MidiDetailPanel: (props: Record<string, unknown>) =>
-      React.createElement("div", { "data-testid": "midi-detail-panel" }, [
+      ];
+      if (typeof props.onClose === "function") {
+        children.push(React.createElement("button", { key: "close", onClick: () => getCallback(props, "onClose")() }, "detail close"));
+      }
+      return React.createElement("div", { "data-testid": "detail-panel" }, children);
+    },
+    MidiDetailPanel: (props: Record<string, unknown>) => {
+      const children: React.ReactNode[] = [
         React.createElement("button", { key: "filter", onClick: () => getCallback(props, "onTagFilterChange")(4) }, "midi detail filter"),
         React.createElement("button", { key: "manage", onClick: () => getCallback(props, "onManageTags")() }, "midi detail manage"),
         React.createElement("button", { key: "play", onClick: () => getCallback(props, "onTogglePlay")() }, "midi detail play"),
-      ]),
+      ];
+      if (typeof props.onClose === "function") {
+        children.push(React.createElement("button", { key: "close", onClick: () => getCallback(props, "onClose")() }, "midi detail close"));
+      }
+      return React.createElement("div", { "data-testid": "midi-detail-panel" }, children);
+    },
   };
 });
 
@@ -332,6 +342,27 @@ describe("AppMainPane", () => {
     fireEvent.click(screen.getByText("midi search"));
     expect(midiState.setMidiSearch).toHaveBeenCalledWith("piano");
     fireEvent.click(screen.getByText("midi play"));
+    expect(midiState.togglePlaySelectedMidi).toHaveBeenCalledTimes(1);
+  });
+
+  test("calls sample close logic correctly", () => {
+    const { sampleState, playerBarRef } = renderPane({ selectedSample: sample });
+    fireEvent.click(screen.getByText("detail close"));
+    expect(sampleState.setSelected).toHaveBeenCalledWith(null);
+    expect(playerBarRef.current?.stop).toHaveBeenCalled();
+  });
+
+  test("calls midi close logic correctly when not playing", () => {
+    const { midiState } = renderPane({ viewMode: "midi", selectedMidi: midi, isMidiPlaying: false });
+    fireEvent.click(screen.getByText("midi detail close"));
+    expect(midiState.setSelectedMidi).toHaveBeenCalledWith(null);
+    expect(midiState.togglePlaySelectedMidi).not.toHaveBeenCalled();
+  });
+
+  test("calls midi close logic correctly when playing", () => {
+    const { midiState } = renderPane({ viewMode: "midi", selectedMidi: midi, isMidiPlaying: true });
+    fireEvent.click(screen.getByText("midi detail close"));
+    expect(midiState.setSelectedMidi).toHaveBeenCalledWith(null);
     expect(midiState.togglePlaySelectedMidi).toHaveBeenCalledTimes(1);
   });
 });

@@ -253,6 +253,12 @@ export function AppMainPane({
                   void midiState.togglePlaySelectedMidi();
                 }}
                 timidityStatus={midiState._timidityStatus}
+                onClose={() => {
+                  midiState.setSelectedMidi(null);
+                  if (midiState.isMidiPlaying) {
+                    void midiState.togglePlaySelectedMidi();
+                  }
+                }}
               />
             </div>
           )}
@@ -276,6 +282,10 @@ export function AppMainPane({
             scanState.setError(message);
           }}
           bottomInset={sampleState.selected ? 160 : 0}
+          onClose={() => {
+            sampleState.setSelected(null);
+            playerBarRef.current?.stop();
+          }}
         />
       )}
     </div>
