@@ -62,11 +62,17 @@ export function SampleListHeader({
       style={{
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
-        padding: "6px 16px",
+        padding: "6px 12px",
+        borderLeft: "2px solid transparent",
+        boxSizing: "border-box",
         borderBottom: "1px solid #0f1117",
         fontSize: "13px",
         letterSpacing: "0.14em",
         color: "#374151",
+        background: "#020617",
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563", fontSize: "16px" }}>☆</div>

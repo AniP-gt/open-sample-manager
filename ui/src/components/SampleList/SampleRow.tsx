@@ -61,6 +61,7 @@ export function SampleRow({
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
         padding: "6px 12px",
+        boxSizing: "border-box",
         borderBottom: "1px solid #0d0f16",
         borderLeft: isSelected ? "2px solid #f97316" : "2px solid transparent",
         background: isSelected

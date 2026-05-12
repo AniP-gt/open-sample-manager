@@ -81,8 +81,7 @@ export function SampleListListView({
         activeResize={activeResize}
         headerRefs={headerRefs}
       />
-      <div style={{ flex: 1, overflowY: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}>
-        {(externalIsDragOver || isDragOver) && (
+      {(externalIsDragOver || isDragOver) && (
           <div
             role="status"
             aria-live="polite"
@@ -158,7 +157,6 @@ export function SampleListListView({
             </button>
           ) : null}
         </div>
-      </div>
     </>
   );
 }
