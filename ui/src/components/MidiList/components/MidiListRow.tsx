@@ -76,7 +76,7 @@ export function MidiListRow({
         transform: `translateY(${virtualRow.start}px)`,
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
-        padding: "8px 12px",
+        padding: "6px 12px",
         borderBottom: "1px solid #0d0f16",
         borderLeft: isSelected ? "2px solid #f97316" : "2px solid transparent",
         background: isSelected ? "#111827" : "transparent",

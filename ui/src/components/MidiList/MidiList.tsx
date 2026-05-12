@@ -222,22 +222,22 @@ export const MidiList = forwardRef(function MidiList(
         filteredCount={filteredMidis.length}
         totalCount={midis.length}
       />
-      <MidiListHeader
-        colWidths={colWidths}
-        headerRefs={headerRefs}
-        startColumnResize={startColumnResize}
-        hoveredCol={hoveredCol}
-        setHoveredCol={setHoveredCol}
-        activeResize={activeResize}
-        draggedColumnRef={draggedColumnRef}
-        sortBy={sortBy}
-        sortDir={sortDir}
-        headerClick={headerClick}
-        headerKeyDown={headerKeyDown}
-        onResizerKeyDown={onResizerKeyDown}
-      />
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "auto", boxSizing: "border-box", minHeight: 0 }}>
+        <MidiListHeader
+          colWidths={colWidths}
+          headerRefs={headerRefs}
+          startColumnResize={startColumnResize}
+          hoveredCol={hoveredCol}
+          setHoveredCol={setHoveredCol}
+          activeResize={activeResize}
+          draggedColumnRef={draggedColumnRef}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          headerClick={headerClick}
+          headerKeyDown={headerKeyDown}
+          onResizerKeyDown={onResizerKeyDown}
+        />
         <div ref={topSentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
         {sortedMidis.length === 0 && midiSearch.trim() ? (
           <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>

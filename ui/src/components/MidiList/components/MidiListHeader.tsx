@@ -49,11 +49,17 @@ export function MidiListHeader({
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
         padding: "6px 12px",
+        borderLeft: "2px solid transparent",
+        boxSizing: "border-box",
         borderBottom: "1px solid #0f1117",
         fontSize: "13px",
         letterSpacing: "0.14em",
         color: "#374151",
         alignItems: "center",
+        background: "#0a0c12",
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
       }}
     >
       {columns.map((col, idx) => (
