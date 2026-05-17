@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "npm run dev --prefix ui",
     "build": "npm run build --prefix ui",
+    "build:app": "tauri build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

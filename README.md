@@ -66,7 +66,59 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 
 ---
 
-## Getting Started
+## One-Step Install
+
+These scripts install/check the build tools, install project dependencies, run basic checks, and build a local desktop package.
+
+### macOS
+
+```bash
+./install.sh --yes
+```
+
+Without `--yes`, the script tells you what is missing and asks you to install system tools yourself. It can install Homebrew packages for Rust, Node.js, CMake, and TiMidity++ when Homebrew is available.
+
+If Homebrew is missing, `--yes` also runs the official Homebrew installer from `https://brew.sh/`.
+
+### Windows
+
+Open PowerShell from the repository folder and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Yes
+```
+
+The Windows script uses `winget` for Rust, Node.js, CMake, and Visual Studio Build Tools when possible. TiMidity++ installation depends on Chocolatey or a manual Windows install.
+
+With `-Yes`, the script can install Chocolatey through `winget` and then use Chocolatey to install TiMidity++.
+
+### Linux
+
+```bash
+./install.sh --check-only
+```
+
+Linux package names differ by distribution, so the script checks tools and prints missing system packages. Install the Tauri Linux prerequisites manually, then run `./install.sh --skip-build` or `./install.sh`.
+
+### Check Only
+
+To see what would be needed without installing dependencies or building:
+
+```bash
+./install.sh --check-only
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -CheckOnly
+```
+
+Use `--skip-build` on macOS/Linux or `-SkipBuild` on Windows if you only want to install dependencies and run checks first.
+
+These scripts run package managers plus `npm install`, `cargo check`, and the Tauri build command. Review the source before running them if you are installing from an untrusted checkout.
+
+---
+
+## Getting Started For Developers
 
 Run the bootstrap script from the repository root:
 
@@ -85,7 +137,7 @@ npm run tauri:dev
 ### Build for production
 
 ```bash
-npm run tauri:build
+npm run build:app
 ```
 
 This creates a local build for your machine. It is not an official signed release build.
