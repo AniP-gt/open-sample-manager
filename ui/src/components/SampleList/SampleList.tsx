@@ -9,6 +9,7 @@ import { useColumnResize } from "./useColumnResize";
 import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { SampleListListView } from "./SampleListListView";
+import { matchesFilenameSubstring } from "../../utils/search";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 export type { SampleListHandle, SampleListProps } from "./types";
@@ -66,7 +67,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       const matchBpmMax = filters.filterBpmMax === "" || (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
       const matchInstrumentType = filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
       const matchKey = filters.filterKey === "" || s.musical_key === filters.filterKey;
-      return matchType && matchBpmMin && matchBpmMax && matchInstrumentType && matchKey;
+      const matchSearch = matchesFilenameSubstring(filters.search, s.file_name);
+      return matchType && matchBpmMin && matchBpmMax && matchInstrumentType && matchKey && matchSearch;
     });
   }, [samples, filters]);
 

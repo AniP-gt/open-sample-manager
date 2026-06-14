@@ -1,7 +1,7 @@
 import './mockSampleListDependencies';
 import { describe, expect, test, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
-import { defaultFilters, renderSampleList } from './sampleListTestHelpers';
+import { defaultFilters, mockSamples, renderSampleList } from './sampleListTestHelpers';
 
 describe('SampleList rendering, search, and sort', () => {
   test('renders list headers and virtual items', () => {
@@ -63,6 +63,30 @@ describe('SampleList rendering, search, and sort', () => {
 
     expect(screen.queryByText('kick.wav')).toBeInTheDocument();
     expect(screen.queryByText('loop.wav')).not.toBeInTheDocument();
+  });
+
+  test('filters search text by case-insensitive filename substring', () => {
+    renderSampleList({
+      samples: [
+        { ...mockSamples[0], id: 10, file_name: 'DrumFill.wav' },
+        { ...mockSamples[1], id: 11, file_name: 'flute.wav' },
+      ],
+      filters: { ...defaultFilters, search: 'FILL' },
+    });
+
+    expect(screen.queryByText('DrumFill.wav')).toBeInTheDocument();
+    expect(screen.queryByText('flute.wav')).not.toBeInTheDocument();
+  });
+
+  test('does not fuzzy-match non-contiguous filename letters', () => {
+    renderSampleList({
+      samples: [
+        { ...mockSamples[0], id: 10, file_name: 'DrumFill.wav' },
+      ],
+      filters: { ...defaultFilters, search: 'fll' },
+    });
+
+    expect(screen.queryByText('DrumFill.wav')).not.toBeInTheDocument();
   });
 
   test('applies descending sort correctly', () => {
