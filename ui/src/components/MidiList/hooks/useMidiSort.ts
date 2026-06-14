@@ -1,12 +1,16 @@
 import { useState, useMemo } from "react";
 import type { Midi } from "../../../types/midi";
+import { matchesFilenameSubstring } from "../../../utils/search";
 
-export function useMidiSort(midis: Midi[], filterKey: string) {
+export function useMidiSort(midis: Midi[], filterKey: string, searchText: string) {
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const filteredMidis = useMemo(() => {
     let result = midis;
+    if (searchText.trim()) {
+      result = result.filter((m) => matchesFilenameSubstring(searchText, m.file_name));
+    }
     if (filterKey) {
       result = result.filter((m) => {
         if (!m.key_estimate) return false;
@@ -15,7 +19,7 @@ export function useMidiSort(midis: Midi[], filterKey: string) {
       });
     }
     return result;
-  }, [midis, filterKey]);
+  }, [midis, filterKey, searchText]);
 
   const headerClick = (key: string) => {
     if (sortBy === key) {

@@ -180,6 +180,36 @@ describe('MidiList', () => {
     expect(screen.getByText('4/4')).toBeInTheDocument();
   });
 
+  test('filters search text by case-insensitive filename substring', () => {
+    render(
+      <MidiList
+        midis={[
+          { ...mockMidis[0], id: 10, file_name: 'DrumFill.mid' },
+          { ...mockMidis[1], id: 11, file_name: 'flute.mid' },
+        ]}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        midiSearch="FILL"
+      />
+    );
+
+    expect(screen.queryByText('DrumFill.mid')).toBeInTheDocument();
+    expect(screen.queryByText('flute.mid')).not.toBeInTheDocument();
+  });
+
+  test('does not fuzzy-match non-contiguous MIDI filename letters', () => {
+    render(
+      <MidiList
+        midis={[{ ...mockMidis[0], id: 10, file_name: 'DrumFill.mid' }]}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        midiSearch="fll"
+      />
+    );
+
+    expect(screen.queryByText('DrumFill.mid')).not.toBeInTheDocument();
+  });
+
   test('calls onMidiSearchChange when search input changes', () => {
     const onMidiSearchChange = vi.fn();
     render(

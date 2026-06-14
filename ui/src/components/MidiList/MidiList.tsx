@@ -81,7 +81,7 @@ export const MidiList = forwardRef(function MidiList(
     sortedMidis,
     headerClick,
     headerKeyDown,
-  } = useMidiSort(midis, filterKey);
+  } = useMidiSort(midis, filterKey, midiSearch);
 
   const handleMidiSelectInternal = useCallback((midi: Midi, isShift?: boolean) => {
     if (isShift && selectedMidi && sortedMidis.length > 0) {
