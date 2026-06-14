@@ -2,7 +2,7 @@ import { useState } from "react";
 import type React from "react";
 import type { Midi } from "../../../types/midi";
 import { invoke } from "@tauri-apps/api/core";
-import { startDrag } from "@crabnebula/tauri-plugin-drag";
+import { prepareDragFile, startFileDrag } from "../../fileDragOut";
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -20,7 +20,7 @@ interface MidiListRowProps {
   onMidiSelect: (midi: Midi, isShift?: boolean) => void;
   onTagBadgeClick?: (midi: Midi) => void;
   onTrashMidi?: (id: number) => void;
-  preparedPathsRef: React.MutableRefObject<Record<number, string>>;
+  preparedPathsRef: React.MutableRefObject<Record<string, string>>;
   dragIconPathRef: React.MutableRefObject<string>;
 }
 
@@ -45,27 +45,12 @@ export function MidiListRow({
       draggable={!!midi.path}
       onClick={(e) => onMidiSelect(midi, e.shiftKey)}
       onMouseDown={(e) => {
-        if (midi.path && e.button === 0 && !preparedPathsRef.current[midi.id]) {
-          void invoke("prepare_drag_file", { path: midi.path }).then((res) => {
-            if (typeof res === "string" && res) preparedPathsRef.current[midi.id] = res;
-          }).catch(() => {});
+        if (e.button === 0) {
+          prepareDragFile(midi.path, midi.id, preparedPathsRef);
         }
       }}
       onDragStart={(e) => {
-        const originalPath = midi.path;
-        if (!originalPath) { e.preventDefault(); return; }
-        e.preventDefault();
-        const path = preparedPathsRef.current[midi.id] || originalPath;
-        void startDrag({ item: [path], icon: dragIconPathRef.current || "/tmp/osm_drag_icon.png" }).catch((err) => {
-          console.warn("[midi-dragout] startDrag failed:", err);
-        });
-        setTimeout(() => {
-          const prepared = preparedPathsRef.current[midi.id];
-          if (prepared) {
-            void invoke("delete_file", { path: prepared }).catch(() => {});
-            delete preparedPathsRef.current[midi.id];
-          }
-        }, 1500);
+        startFileDrag(e, midi.path, midi.id, preparedPathsRef, dragIconPathRef.current, "[midi-dragout]");
       }}
       style={{
         position: "absolute",

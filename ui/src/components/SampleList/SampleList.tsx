@@ -40,7 +40,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
-  const preparedPathsRef = useRef<Record<number, string>>({});
+  const preparedPathsRef = useRef<Record<string, string>>({});
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { favorites, toggleFavorite } = useFavoritesStore();

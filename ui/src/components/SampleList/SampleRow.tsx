@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { startDrag } from "@crabnebula/tauri-plugin-drag";
+import { prepareDragFile, startFileDrag } from "../fileDragOut";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import type { Sample } from "../../types/sample";
 import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
@@ -16,7 +16,7 @@ interface SampleRowProps {
   isFavorite: boolean;
   instrumentColorCoding: boolean;
   dragIconPath: string;
-  preparedPathsRef: React.MutableRefObject<Record<number, string>>;
+  preparedPathsRef: React.MutableRefObject<Record<string, string>>;
   onSampleSelect: (sample: Sample, isShift?: boolean) => void;
   onToggleFavorite: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
@@ -78,26 +78,12 @@ export function SampleRow({
       className={`sample-row ${isSelected ? "active" : ""}`}
       draggable={!!samplePath}
       onMouseDown={(e) => {
-        if (samplePath && e.button === 0 && !preparedPathsRef.current[s.id]) {
-          void invoke("prepare_drag_file", { path: samplePath }).then((res) => {
-            if (typeof res === "string" && res) preparedPathsRef.current[s.id] = res;
-          }).catch(() => {});
+        if (e.button === 0) {
+          prepareDragFile(samplePath, s.id, preparedPathsRef);
         }
       }}
       onDragStart={(e) => {
-        if (!samplePath) { e.preventDefault(); return; }
-        e.preventDefault();
-        const path = preparedPathsRef.current[s.id] || samplePath;
-        void startDrag({ item: [path], icon: dragIconPath || "/tmp/osm_drag_icon.png" }).catch((err) => {
-          console.warn("[dragout-debug] startDrag failed:", err);
-        });
-        setTimeout(() => {
-          const prepared = preparedPathsRef.current[s.id];
-          if (prepared) {
-            void invoke("delete_file", { path: prepared }).catch(() => {});
-            delete preparedPathsRef.current[s.id];
-          }
-        }, 1500);
+        startFileDrag(e, samplePath, s.id, preparedPathsRef, dragIconPath, "[dragout-debug]");
       }}
       onClick={(e) => onSampleSelect(s, e.shiftKey)}
     >

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
+import { loadDragIconPath } from "../fileDragOut";
 import type { MidiListProps, MidiListHandle } from "./types";
 import type { Midi } from "../../types/midi";
 import { useMidiColumnResize } from "./hooks/useMidiColumnResize";
@@ -49,13 +49,11 @@ export const MidiList = forwardRef(function MidiList(
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
-  const preparedPathsRef = useRef<Record<number, string>>({});
+  const preparedPathsRef = useRef<Record<string, string>>({});
   const dragIconPathRef = useRef<string>("");
 
   useEffect(() => {
-    void invoke<string>("get_drag_icon_path").then((p) => {
-      dragIconPathRef.current = p;
-    }).catch(() => {});
+    loadDragIconPath(dragIconPathRef);
   }, []);
 
   void midiTags;
