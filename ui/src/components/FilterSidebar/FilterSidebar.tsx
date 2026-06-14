@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { FilterState, Sample } from "../../types/sample";
 import { useRecentStore } from "../../store/useRecentStore";
+import { loadDragIconPath, prepareDragFile, startFileDrag } from "../fileDragOut";
 
 const KEY_OPTIONS = [
   "All",
@@ -111,6 +112,9 @@ interface FileTreeItemProps {
   onMoveSample: (oldPath: string, newPath: string) => void;
   onPathSelect?: (path: string) => void;
   onImportPaths?: (paths: string[]) => void;
+  draggableFilePaths: Set<string>;
+  preparedPathsRef: React.MutableRefObject<Record<string, string>>;
+  dragIconPathRef: React.MutableRefObject<string>;
 }
 
 function FileTreeItem({
@@ -122,11 +126,15 @@ function FileTreeItem({
   onMoveSample,
   onPathSelect,
   onImportPaths,
+  draggableFilePaths,
+  preparedPathsRef,
+  dragIconPathRef,
 }: FileTreeItemProps) {
   const isExpanded = expandedPaths.has(node.path);
   const hasChildren = node.children.length > 0;
   const isSelected = selectedPath === node.path;
   const isAncestorOfSelected = selectedPath ? selectedPath.startsWith(node.path + "/") : false;
+  const isDraggableFile = draggableFilePaths.has(normalizeTreePath(node.path));
 
   const handleDragOver = (e: React.DragEvent) => {
     if (node.isFolder || hasChildren) {
@@ -199,7 +207,7 @@ function FileTreeItem({
               alignItems: "center",
               padding: "4px 8px",
               paddingLeft: `${depth * 12 + 8}px`,
-          cursor: "pointer",
+          cursor: isDraggableFile ? "grab" : "pointer",
               color: isSelected ? "#f97316" : isAncestorOfSelected ? "#9ca3af" : "#6b7280",
               fontSize: "13px",
               fontFamily: "'Courier New', monospace",
@@ -214,6 +222,17 @@ function FileTreeItem({
           }
           onPathSelect?.(node.path);
             }}
+        draggable={isDraggableFile}
+        onMouseDown={(e) => {
+          if (e.button === 0 && isDraggableFile) {
+            prepareDragFile(node.path, node.path, preparedPathsRef);
+          }
+        }}
+        onDragStart={(e) => {
+          if (!isDraggableFile) return;
+          e.stopPropagation();
+          startFileDrag(e, node.path, node.path, preparedPathsRef, dragIconPathRef.current, "[sidebar-dragout]");
+        }}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
@@ -239,6 +258,10 @@ function FileTreeItem({
             onToggleExpand={onToggleExpand}
             onMoveSample={onMoveSample}
             onPathSelect={onPathSelect}
+            onImportPaths={onImportPaths}
+            draggableFilePaths={draggableFilePaths}
+            preparedPathsRef={preparedPathsRef}
+            dragIconPathRef={dragIconPathRef}
           />
         ))}
     </div>
@@ -263,6 +286,8 @@ export function FilterSidebar({
   favoritesCount = 0,
 }: FilterSidebarProps) {
   const { recentIds } = useRecentStore();
+  const preparedPathsRef = useRef<Record<string, string>>({});
+  const dragIconPathRef = useRef<string>("");
   const sampleById = useMemo(() => {
     const map = new Map<number, Sample>();
     for (const s of samples) map.set(s.id, s);
@@ -273,7 +298,12 @@ export function FilterSidebar({
   // No filter controls here anymore; counts and tags are rendered in the DetailPanel
 
   const tree = useMemo(() => buildTree([...(scannedPaths || []), ...(filePaths || [])]), [scannedPaths, filePaths]);
+  const draggableFilePaths = useMemo(() => new Set((filePaths || []).map(normalizeTreePath)), [filePaths]);
   
+  useEffect(() => {
+    loadDragIconPath(dragIconPathRef);
+  }, []);
+
   // Track expanded paths
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -447,6 +477,9 @@ export function FilterSidebar({
                 onMoveSample={handleMoveSample}
                 onPathSelect={onPathSelect}
                 onImportPaths={onImportPaths}
+                draggableFilePaths={draggableFilePaths}
+                preparedPathsRef={preparedPathsRef}
+                dragIconPathRef={dragIconPathRef}
               />
             ))}
           </>

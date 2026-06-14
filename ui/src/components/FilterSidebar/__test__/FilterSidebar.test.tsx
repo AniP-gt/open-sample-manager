@@ -1,10 +1,25 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FilterSidebar } from '../FilterSidebar';
+import { invoke } from '@tauri-apps/api/core';
+import { startDrag } from '@crabnebula/tauri-plugin-drag';
 import { useRecentStore } from '../../../store/useRecentStore';
 import type { Sample } from '../../../types/sample';
 
 vi.mock('../../../store/useRecentStore');
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockImplementation((cmd) => {
+    if (cmd === 'get_drag_icon_path') return Promise.resolve('/tmp/icon.png');
+    if (cmd === 'prepare_drag_file') return Promise.resolve('/tmp/prepared.wav');
+    if (cmd === 'delete_file') return Promise.resolve();
+    return Promise.resolve();
+  }),
+}));
+
+vi.mock('@crabnebula/tauri-plugin-drag', () => ({
+  startDrag: vi.fn().mockResolvedValue(undefined),
+}));
 
 function mockRecentStore(recentIds: number[]) {
   vi.mocked(useRecentStore).mockReturnValue({
@@ -35,6 +50,7 @@ function createSample(overrides: Partial<Sample> = {}): Sample {
 
 describe('FilterSidebar', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mockRecentStore([]);
   });
 
@@ -86,6 +102,27 @@ describe('FilterSidebar', () => {
     );
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.getByText('test')).toBeInTheDocument();
+  });
+
+  test('allows file paths in the tree to start the same drag-out flow as lists', async () => {
+    render(
+      <FilterSidebar
+        scannedPaths={['/Users/test/samples']}
+        filePaths={['/Users/test/samples/kick.wav']}
+        selectedPath={null}
+        onFilterChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('samples'));
+    const fileNode = screen.getByText('kick.wav').closest('[draggable="true"]');
+    expect(fileNode).toBeInTheDocument();
+
+    fireEvent.mouseDown(fileNode as Element, { button: 0 });
+    expect(invoke).toHaveBeenCalledWith('prepare_drag_file', { path: '/Users/test/samples/kick.wav' });
+
+    fireEvent.dragStart(fileNode as Element);
+    expect(startDrag).toHaveBeenCalledWith({ item: ['/Users/test/samples/kick.wav'], icon: '/tmp/osm_drag_icon.png' });
   });
 
   test('renders recent items', () => {
