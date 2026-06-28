@@ -38,6 +38,7 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency
+- **Library migration** — export the local metadata database from Settings and import it on another PC
 
 ---
 
@@ -157,6 +158,8 @@ Please don't redistribute local builds as official releases.
 ## Security Notes
 
 Open Sample Manager is local-first. It stores metadata in a local SQLite database and doesn't require a cloud account.
+
+Settings can export that metadata database as `samples.db` for PC migration. The export does not copy audio or MIDI files, so the files must exist at the same paths on the target computer before imported metadata can resolve them.
 
 During the developer preview, review the source and build locally if you want to test the app. The Tauri permission model, asset access, and installer signing are still being hardened before public binary releases.
 
