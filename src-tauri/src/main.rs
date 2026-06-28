@@ -1,7 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use open_sample_manager_core::{healthcheck, SampleManager, ScanProgress, ScanStage};
+use open_sample_manager_core::{
+    healthcheck, LibraryExportSummary, LibraryImportSummary, SampleManager, ScanProgress, ScanStage,
+};
 use serde::Serialize;
 use std::error::Error as _;
 use std::sync::{Arc, Mutex};
@@ -77,6 +79,71 @@ async fn scan_directory(
                 let _ = handle.emit("scan-progress", &event);
             })
             .map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+
+    result
+}
+
+#[tauri::command]
+async fn export_library_database(
+    folder_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<LibraryExportSummary, CommandError> {
+    let mgr = Arc::clone(&state.manager);
+
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = mgr.lock().expect("AppState mutex poisoned");
+        manager
+            .export_library_database(folder_path)
+            .map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+
+    result
+}
+
+#[tauri::command]
+async fn import_library_database(
+    folder_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<LibraryImportSummary, CommandError> {
+    stop_timidity_process(&state.timidity_pid);
+    let mgr = Arc::clone(&state.manager);
+
+    let result = tokio::task::spawn_blocking(move || {
+        let mut manager = mgr.lock().expect("AppState mutex poisoned");
+        manager
+            .import_library_database(folder_path)
+            .map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?;
+
+    result
+}
+
+#[tauri::command]
+async fn import_file(path: String, state: tauri::State<'_, AppState>) -> Result<i64, CommandError> {
+    let mgr = Arc::clone(&state.manager);
+
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = mgr.lock().expect("AppState mutex poisoned");
+        manager.import_file(path).map_err(CommandError::from)
     })
     .await
     .map_err(|e| CommandError {
@@ -504,6 +571,18 @@ fn get_manager(state: &AppState) -> std::sync::MutexGuard<'_, SampleManager> {
     state.manager.lock().expect("AppState mutex poisoned")
 }
 
+fn stop_timidity_process(pid_state: &Arc<Mutex<Option<u32>>>) {
+    let Ok(mut pid_lock) = pid_state.lock() else {
+        return;
+    };
+    if let Some(pid) = pid_lock.take() {
+        let _ = std::process::Command::new("kill")
+            .arg("-TERM")
+            .arg(pid.to_string())
+            .output();
+    }
+}
+
 #[tauri::command]
 fn search_by_embedding(
     path: String,
@@ -611,6 +690,9 @@ fn main() {
     builder = builder.invoke_handler(tauri::generate_handler![
         health_check,
         scan_directory,
+        export_library_database,
+        import_library_database,
+        import_file,
         search_samples,
         // Paginated listing/search exposed to renderer. list_samples_paginated
         // currently ignores the `query` parameter and returns a LIMIT/OFFSET
@@ -879,16 +961,7 @@ fn check_timidity() -> TimidityStatus {
 #[tauri::command]
 async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<(), CommandError> {
     // Kill any previously running timidity process
-    {
-        let mut pid_lock = state.timidity_pid.lock().unwrap();
-        if let Some(pid) = pid_lock.take() {
-            // Best-effort kill; ignore errors (process may have already exited)
-            let _ = std::process::Command::new("kill")
-                .arg("-TERM")
-                .arg(pid.to_string())
-                .output();
-        }
-    }
+    stop_timidity_process(&state.timidity_pid);
 
     // Locate timidity executable using comprehensive path search
     let timidity = find_timidity_executable()?;
@@ -924,13 +997,7 @@ async fn play_midi(path: String, state: tauri::State<'_, AppState>) -> Result<()
 /// Stop the currently playing MIDI file (kills timidity process).
 #[tauri::command]
 fn stop_midi(state: tauri::State<'_, AppState>) -> Result<(), CommandError> {
-    let mut pid_lock = state.timidity_pid.lock().unwrap();
-    if let Some(pid) = pid_lock.take() {
-        let _ = std::process::Command::new("kill")
-            .arg("-TERM")
-            .arg(pid.to_string())
-            .output();
-    }
+    stop_timidity_process(&state.timidity_pid);
     Ok(())
 }
 
