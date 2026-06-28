@@ -10,7 +10,7 @@ Tauri host layer. Owns app startup, plugins, app-data DB path, IPC commands, dra
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |---|---|---|
-| IPC command signatures | `src/main.rs` | 41 `#[tauri::command]` functions |
+| IPC command signatures | `src/main.rs` | 45 `#[tauri::command]` functions |
 | App startup + state | `src/main.rs` | `setup` creates `samples.db` in app data; `AppState` stores manager + TiMidity PID |
 | Progress events | `src/main.rs` | `scan-progress` emitted from scan/re-scan closures |
 | Long work wrappers | `src/main.rs` | `spawn_blocking` around scan, re-scan, trash, drag prep, move, MIDI scan |

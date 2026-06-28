@@ -26,7 +26,7 @@ open-sample-manager/
 | DB query/update semantics | `core/src/db/operations/` | Samples, MIDI, tags, FTS escaping, embedding search |
 | DSP + MIDI analysis | `core/src/analysis/` | Decode, BPM, onset, kick, loop, key, MIDI parse |
 | FFI contracts | `core/src/ffi/` | Opaque handle lifecycle + C JSON/string ownership |
-| Tauri command boundary | `src-tauri/src/main.rs` | 41 commands, app state, plugins, TiMidity++ process control |
+| Tauri command boundary | `src-tauri/src/main.rs` | 45 commands, app state, plugins, TiMidity++ process control |
 | UI app composition | `ui/src/App.tsx` | Hook wiring + layout; keep business logic in hooks |
 | UI domain state | `ui/src/hooks/` | Sample, MIDI, scan/import, and UI state hooks |
 | UI list hotspots | `ui/src/components/SampleList/`, `ui/src/components/MidiList/` | Virtualized tables, drag-out, sorting, keyboard navigation |
