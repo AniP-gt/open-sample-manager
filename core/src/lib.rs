@@ -89,7 +89,10 @@ pub use analysis::kick::KickResult;
 pub use analysis::loop_classifier::LoopType;
 pub use db::schema::init_database;
 pub use ffi::handle::SMHandle;
-pub use manager::{ManagerError, SampleManager, ScanProgress, ScanStage};
+pub use manager::{
+    LibraryExportSummary, LibraryImportSummary, ManagerError, SampleManager, ScanProgress,
+    ScanStage,
+};
 pub use scanner::Scanner;
 pub use threading::AnalysisPool;
 

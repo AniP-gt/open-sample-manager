@@ -25,13 +25,19 @@ mod instrument_types;
 mod midi;
 mod midi_queries;
 mod midi_tags;
+mod migration;
+mod migration_io;
 mod samples;
 mod scan;
+
+use std::path::PathBuf;
 
 use rusqlite::Connection;
 
 use crate::analysis::decoder::DecodeError;
 use crate::db::schema::init_database;
+
+pub use migration::{LibraryExportSummary, LibraryImportSummary};
 
 /// Progress information emitted during scanning.
 #[derive(Debug, Clone)]
@@ -131,6 +137,7 @@ impl From<std::io::Error> for ManagerError {
 /// ```
 pub struct SampleManager {
     conn: Connection,
+    db_path: Option<PathBuf>,
 }
 
 // ── Core lifecycle ────────────────────────────────────────────────────────────
@@ -145,7 +152,10 @@ impl SampleManager {
             None => Connection::open_in_memory()?,
         };
         init_database(&conn)?;
-        Ok(SampleManager { conn })
+        Ok(SampleManager {
+            conn,
+            db_path: db_path.map(PathBuf::from),
+        })
     }
 }
 
