@@ -15,3 +15,16 @@ export type TauriSampleRow = {
   instrument_type: string;
   musical_key: string | null;
 };
+
+export type LibraryExportSummary = {
+  readonly folder_path: string;
+  readonly database_path: string;
+  readonly sample_count: number;
+  readonly midi_count: number;
+};
+
+export type LibraryImportSummary = {
+  readonly folder_path: string;
+  readonly sample_count: number;
+  readonly midi_count: number;
+};

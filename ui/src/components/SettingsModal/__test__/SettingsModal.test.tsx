@@ -15,6 +15,10 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
       />
     );
     expect(container.firstChild).toBeNull();
@@ -32,11 +36,17 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
       />
     );
 
     expect(screen.getByText("SETTINGS")).toBeInTheDocument();
     expect(screen.getByText("1234 samples indexed")).toBeInTheDocument();
+    expect(screen.getByText("EXPORT DB")).toBeInTheDocument();
+    expect(screen.getByText("IMPORT DB")).toBeInTheDocument();
   });
 
   it("toggles autoPlayOnSelect", () => {
@@ -52,6 +62,10 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
       />
     );
 
@@ -73,6 +87,10 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={onChangeMock}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
       />
     );
 
@@ -94,6 +112,10 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={onChangeMock}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
       />
     );
 
@@ -115,6 +137,10 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
       />
     );
 
@@ -136,6 +162,10 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
       />
     );
 
@@ -147,5 +177,34 @@ describe("SettingsModal", () => {
     expect(eventArg.type).toBe("confirm-clear-all");
     
     dispatchSpy.mockRestore();
+  });
+
+  it("calls database migration handlers", () => {
+    const onDatabaseExport = vi.fn();
+    const onDatabaseImport = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        sampleCount={0}
+        autoPlayOnSelect={false}
+        onAutoPlayChange={vi.fn()}
+        instrumentColorCoding={false}
+        onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
+        onDatabaseExport={onDatabaseExport}
+        onDatabaseImport={onDatabaseImport}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={"Exported 1 samples and 0 MIDI files."}
+      />
+    );
+
+    fireEvent.click(screen.getByText("EXPORT DB"));
+    fireEvent.click(screen.getByText("IMPORT DB"));
+
+    expect(onDatabaseExport).toHaveBeenCalledTimes(1);
+    expect(onDatabaseImport).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Exported 1 samples and 0 MIDI files.")).toBeInTheDocument();
   });
 });

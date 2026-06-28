@@ -18,6 +18,7 @@ import { useMidiState } from "./hooks/useMidiState";
 import { useScanState } from "./hooks/useScanState";
 import { useUIState } from "./hooks/useUIState";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useLibraryMigration } from "./hooks/useLibraryMigration";
 import { useSettingsStore } from "./store/useSettingsStore";
 import { useFavoritesStore } from "./store/useFavoritesStore";
 import { useMidiFavoritesStore } from "./store/useMidiFavoritesStore";
@@ -109,6 +110,18 @@ export function App() {
     setMidis: midiState.setMidis,
     setSelectedMidi: midiState.setSelectedMidi,
     fetchAllMidiPaths: midiState.fetchAllMidiPaths,
+  });
+
+  const libraryMigration = useLibraryMigration({
+    setError: scanState.setError,
+    refreshAfterImport: async () => {
+      sampleState.setSelected(null);
+      midiState.setSelectedMidi(null);
+      await sampleState.handleSearch(sampleState.filters.search);
+      await sampleState.fetchAllSamplePaths();
+      await midiState.runMidiSearch(midiState.midiSearch);
+      await midiState.fetchAllMidiPaths();
+    },
   });
 
   useEffect(() => {
@@ -282,6 +295,14 @@ export function App() {
         onInstrumentColorCodingChange={setInstrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
         onDirectoryClickFilteringChange={setDirectoryClickFiltering}
+        onDatabaseExport={() => {
+          void libraryMigration.handleExportDatabase();
+        }}
+        onDatabaseImport={() => {
+          void libraryMigration.handleImportDatabase();
+        }}
+        databaseMigrationBusy={libraryMigration.migrationBusy}
+        databaseMigrationStatus={libraryMigration.migrationStatus}
       />
 
       <AppModals sampleState={sampleState} midiState={midiState} />
