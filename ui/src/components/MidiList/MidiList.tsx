@@ -40,6 +40,11 @@ export const MidiList = forwardRef(function MidiList(
     onMidiSearchChange = () => {},
     onTogglePlayback,
     filterKey = "",
+    tempoMin = "",
+    onTempoMinChange = () => {},
+    tempoMax = "",
+    onTempoMaxChange = () => {},
+    onFilterKeyChange,
   }: MidiListProps,
   ref: React.Ref<MidiListHandle>,
 ) {
@@ -56,10 +61,6 @@ export const MidiList = forwardRef(function MidiList(
     loadDragIconPath(dragIconPathRef);
   }, []);
 
-  void midiTags;
-  void onTagFilterChange;
-  void tagFilterId;
-
   const {
     colWidths,
     headerRefs,
@@ -73,6 +74,7 @@ export const MidiList = forwardRef(function MidiList(
 
   const { favorites, toggleFavorite } = useMidiFavoritesStore();
   const favoriteSet = new Set(favorites);
+  const tagFilterName = midiTags.find((tag) => tag.id === tagFilterId)?.name ?? "";
 
   const {
     sortBy,
@@ -81,7 +83,7 @@ export const MidiList = forwardRef(function MidiList(
     sortedMidis,
     headerClick,
     headerKeyDown,
-  } = useMidiSort(midis, filterKey, midiSearch);
+  } = useMidiSort(midis, filterKey, midiSearch, tempoMin, tempoMax, tagFilterName);
 
   const handleMidiSelectInternal = useCallback((midi: Midi, isShift?: boolean) => {
     if (isShift && selectedMidi && sortedMidis.length > 0) {
@@ -217,6 +219,15 @@ export const MidiList = forwardRef(function MidiList(
       <MidiListSearch
         midiSearch={midiSearch}
         onMidiSearchChange={onMidiSearchChange}
+        tempoMin={tempoMin}
+        onTempoMinChange={onTempoMinChange}
+        tempoMax={tempoMax}
+        onTempoMaxChange={onTempoMaxChange}
+        filterKey={filterKey}
+        onFilterKeyChange={onFilterKeyChange}
+        midiTags={midiTags}
+        tagFilterId={tagFilterId ?? null}
+        onTagFilterChange={onTagFilterChange}
         filteredCount={filteredMidis.length}
         totalCount={midis.length}
       />
