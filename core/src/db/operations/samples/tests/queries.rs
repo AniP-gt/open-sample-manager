@@ -1,3 +1,5 @@
+use rusqlite::params;
+
 use crate::db::operations::{
     delete_sample, get_all_sample_paths, get_sample_by_id, get_sample_by_path, insert_sample,
     list_samples_around_id, list_samples_paginated,
@@ -24,6 +26,31 @@ fn get_sample_by_id_and_path_return_inserted_row() {
     assert_eq!(by_id.path, "/samples/query-kick.wav");
     assert_eq!(by_path.id, id);
     assert_eq!(by_path.file_name, "query-kick.wav");
+    assert!(by_id.tags.is_empty());
+}
+
+#[test]
+fn sample_read_paths_hydrate_tag_names() {
+    let conn = setup_db();
+    let id = insert_sample(&conn, &make_input("/samples/tagged.wav", "tagged.wav"))
+        .expect("insert failed");
+    conn.execute("INSERT INTO tags (name) VALUES ('drums'), ('one shot')", [])
+        .expect("tag insert failed");
+    conn.execute(
+        "INSERT INTO sample_tags (sample_id, tag_id) VALUES (?1, 1), (?1, 2)",
+        params![id],
+    )
+    .expect("sample tag insert failed");
+
+    let by_id = get_sample_by_id(&conn, id)
+        .expect("id lookup failed")
+        .expect("sample not found by id");
+    let page = list_samples_paginated(&conn, 10, 0, None).expect("list failed");
+    let around = list_samples_around_id(&conn, id, 1).expect("around id lookup failed");
+
+    assert_eq!(by_id.tags, vec!["drums", "one shot"]);
+    assert_eq!(page[0].tags, vec!["drums", "one shot"]);
+    assert_eq!(around[0].tags, vec!["drums", "one shot"]);
 }
 
 #[test]

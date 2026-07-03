@@ -1,5 +1,6 @@
 mod embedding;
 mod queries;
+mod row_mapping;
 mod search;
 
 #[cfg(test)]
@@ -7,13 +8,14 @@ mod tests;
 
 use rusqlite::{params, Connection};
 
-use super::types::{SampleInput, SampleRow};
+use super::types::SampleInput;
 
 pub use embedding::search_by_embedding;
 pub use queries::{
     get_all_sample_paths, get_sample_by_id, get_sample_by_path, list_samples_around_id,
     list_samples_paginated,
 };
+pub(in crate::db::operations::samples) use row_mapping::row_to_sample;
 pub use search::{search_samples, search_samples_paginated};
 
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
@@ -151,32 +153,6 @@ pub fn move_sample_path(
         )?;
     }
     Ok(updated)
-}
-
-pub(in crate::db::operations::samples) fn row_to_sample(
-    row: &rusqlite::Row<'_>,
-) -> Result<SampleRow, rusqlite::Error> {
-    Ok(SampleRow {
-        id: row.get::<_, i64>("id")?,
-        path: row.get::<_, String>("path")?,
-        file_name: row.get::<_, String>("file_name")?,
-        duration: row.get::<_, Option<f64>>("duration")?,
-        bpm: row.get::<_, Option<f64>>("bpm")?,
-        periodicity: row.get::<_, Option<f64>>("periodicity")?,
-        sample_rate: row.get::<_, Option<i64>>("sample_rate")?,
-        file_size: row.get::<_, Option<i64>>("file_size")?,
-        artist: row.get::<_, Option<String>>("artist")?,
-        low_ratio: row.get::<_, Option<f64>>("low_ratio")?,
-        attack_slope: row.get::<_, Option<f64>>("attack_slope")?,
-        decay_time: row.get::<_, Option<f64>>("decay_time")?,
-        sample_type: row.get::<_, Option<String>>("sample_type")?,
-        waveform_peaks: row.get::<_, Option<String>>("waveform_peaks")?,
-        embedding: row.get::<_, Option<Vec<u8>>>("embedding")?,
-        is_online: row.get::<_, i32>("is_online")? != 0,
-        playback_type: row.get::<_, String>("playback_type")?,
-        instrument_type: row.get::<_, String>("instrument_type")?,
-        musical_key: row.get::<_, Option<String>>("musical_key")?,
-    })
 }
 
 pub(in crate::db::operations::samples) trait OptionalExt<T> {

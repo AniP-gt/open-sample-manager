@@ -4,24 +4,22 @@ use crate::db::operations::types::SampleRow;
 
 use super::{row_to_sample, OptionalExt};
 
+const SAMPLE_COLUMNS: &str = "id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key, COALESCE((SELECT GROUP_CONCAT(name, char(31)) FROM (SELECT t.name AS name FROM sample_tags st JOIN tags t ON t.id = st.tag_id WHERE st.sample_id = samples.id ORDER BY t.name)), '') AS tag_names";
+
 pub fn get_sample_by_path(
     conn: &Connection,
     path: &str,
 ) -> Result<Option<SampleRow>, rusqlite::Error> {
-    let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
-         FROM samples WHERE path = ?1",
-    )?;
+    let mut stmt = conn.prepare_cached(&format!(
+        "SELECT {SAMPLE_COLUMNS} FROM samples WHERE path = ?1"
+    ))?;
     stmt.query_row(params![path], row_to_sample).optional()
 }
 
 pub fn get_sample_by_id(conn: &Connection, id: i64) -> Result<Option<SampleRow>, rusqlite::Error> {
-    let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
-         FROM samples WHERE id = ?1",
-    )?;
+    let mut stmt = conn.prepare_cached(&format!(
+        "SELECT {SAMPLE_COLUMNS} FROM samples WHERE id = ?1"
+    ))?;
     stmt.query_row(params![id], row_to_sample).optional()
 }
 
@@ -33,11 +31,11 @@ pub fn list_samples_paginated(
 ) -> Result<Vec<SampleRow>, rusqlite::Error> {
     if let Some(directory_path) = normalize_directory_path(directory_path) {
         let like_pattern = directory_like_pattern(&directory_path);
-        let mut stmt = conn.prepare_cached(
-            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples
+        let mut stmt = conn.prepare_cached(&format!(
+            "SELECT {SAMPLE_COLUMNS} FROM samples
              WHERE REPLACE(path, '\\', '/') = ?1 OR REPLACE(path, '\\', '/') LIKE ?2 ESCAPE '\\'
-             ORDER BY id LIMIT ?3 OFFSET ?4",
-        )?;
+             ORDER BY id LIMIT ?3 OFFSET ?4"
+        ))?;
         let rows = stmt.query_map(
             params![directory_path, like_pattern, limit as i64, offset as i64],
             row_to_sample,
@@ -45,9 +43,9 @@ pub fn list_samples_paginated(
         return rows.collect();
     }
 
-    let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples ORDER BY id LIMIT ?1 OFFSET ?2",
-    )?;
+    let mut stmt = conn.prepare_cached(&format!(
+        "SELECT {SAMPLE_COLUMNS} FROM samples ORDER BY id LIMIT ?1 OFFSET ?2"
+    ))?;
     let rows = stmt.query_map(params![limit as i64, offset as i64], row_to_sample)?;
     rows.collect()
 }
@@ -68,9 +66,9 @@ pub fn list_samples_around_id(
     };
     let mut before_rows: Vec<SampleRow> = {
         let start_id = (target_id - before).max(1);
-        let mut stmt = conn.prepare_cached(
-            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id DESC",
-        )?;
+        let mut stmt = conn.prepare_cached(&format!(
+            "SELECT {SAMPLE_COLUMNS} FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id DESC"
+        ))?;
         let rows = stmt
             .query_map(params![start_id, target_id], row_to_sample)?
             .collect::<Result<Vec<_>, _>>()?;
@@ -81,9 +79,9 @@ pub fn list_samples_around_id(
     let after_limit = limit - before_rows.len();
     let after_end = (target_id + after_limit as i64).min(max_id + 1);
     let after_rows: Vec<SampleRow> = if after_limit > 0 {
-        let mut stmt = conn.prepare_cached(
-            "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id",
-        )?;
+        let mut stmt = conn.prepare_cached(&format!(
+            "SELECT {SAMPLE_COLUMNS} FROM samples WHERE id >= ?1 AND id < ?2 ORDER BY id"
+        ))?;
         let rows = stmt
             .query_map(params![target_id, after_end], row_to_sample)?
             .collect::<Result<Vec<_>, _>>()?;
@@ -140,11 +138,8 @@ fn escape_like_pattern(value: &str) -> String {
 pub(in crate::db::operations::samples) fn list_all_samples(
     conn: &Connection,
 ) -> Result<Vec<SampleRow>, rusqlite::Error> {
-    let mut stmt = conn.prepare_cached(
-        "SELECT id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope,
-                decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key
-         FROM samples ORDER BY id",
-    )?;
+    let mut stmt =
+        conn.prepare_cached(&format!("SELECT {SAMPLE_COLUMNS} FROM samples ORDER BY id"))?;
     let rows = stmt.query_map([], row_to_sample)?.collect();
     rows
 }
