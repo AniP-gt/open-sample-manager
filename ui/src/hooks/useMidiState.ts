@@ -28,6 +28,9 @@ export function useMidiState({
   const [midiTags, setMidiTags] = useState<MidiTagRow[]>([]);
   const [midiTagFilterId, setMidiTagFilterId] = useState<number | null>(null);
   const [midiSearch, setMidiSearch] = useState("");
+  const [midiTempoMin, setMidiTempoMin] = useState("");
+  const [midiTempoMax, setMidiTempoMax] = useState("");
+  const [midiFilterKey, setMidiFilterKey] = useState("");
   const [debouncedMidiSearch, setDebouncedMidiSearch] = useState("");
   const [directoryPath, setDirectoryPath] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -447,6 +450,12 @@ export function useMidiState({
     setMidiTagFilterId,
     midiSearch,
     setMidiSearch,
+    midiTempoMin,
+    setMidiTempoMin,
+    midiTempoMax,
+    setMidiTempoMax,
+    midiFilterKey,
+    setMidiFilterKey,
     debouncedMidiSearch,
     directoryPath,
     setDirectoryPath,
