@@ -1,25 +1,21 @@
 import { useState, useMemo } from "react";
 import type { Midi } from "../../../types/midi";
-import { matchesFilenameSubstring } from "../../../utils/search";
+import { matchesMidiFilters } from "../utils/midiFilters";
 
-export function useMidiSort(midis: Midi[], filterKey: string, searchText: string) {
+export function useMidiSort(
+  midis: Midi[],
+  filterKey: string,
+  searchText: string,
+  tempoMin: string,
+  tempoMax: string,
+  tagName: string,
+) {
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const filteredMidis = useMemo(() => {
-    let result = midis;
-    if (searchText.trim()) {
-      result = result.filter((m) => matchesFilenameSubstring(searchText, m.file_name));
-    }
-    if (filterKey) {
-      result = result.filter((m) => {
-        if (!m.key_estimate) return false;
-        const notePart = m.key_estimate.split(" ")[0];
-        return notePart === filterKey;
-      });
-    }
-    return result;
-  }, [midis, filterKey, searchText]);
+    return midis.filter((midi) => matchesMidiFilters(midi, { searchText, filterKey, tempoMin, tempoMax, tagName }));
+  }, [midis, filterKey, searchText, tempoMin, tempoMax, tagName]);
 
   const headerClick = (key: string) => {
     if (sortBy === key) {
