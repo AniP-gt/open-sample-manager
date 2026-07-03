@@ -15,6 +15,8 @@ interface PlayerBarProps {
   path?: string;
   onClose?: () => void;
   autoPlay?: boolean;
+  playbackRate?: number;
+  syncPitchShift?: number;
 }
 
 export interface PlayerBarHandle {
@@ -32,7 +34,7 @@ const sharedAudio = (() => {
   return a;
 })();
 
-export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose, autoPlay }: PlayerBarProps, ref) {
+export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose, autoPlay, playbackRate = 1, syncPitchShift = 0 }: PlayerBarProps, ref) {
   const audioRef = useRef<HTMLAudioElement>(sharedAudio);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -47,6 +49,11 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   useEffect(() => {
     audioRef.current.volume = volume;
   }, [volume]);
+
+  useEffect(() => {
+    audioRef.current.playbackRate = playbackRate;
+    wavesurferInstance?.setPlaybackRate(playbackRate);
+  }, [playbackRate, wavesurferInstance]);
   const handleClose = () => {
     const audio = audioRef.current;
     audio.pause();
@@ -119,6 +126,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
     setCurrentTime(0);
 
     audio.src = assetUrl;
+    audio.playbackRate = playbackRate;
 
     audio.onloadedmetadata = () => {
       if (loadIdRef.current !== myLoadId) return;
@@ -149,7 +157,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       audio.ontimeupdate = null;
       audio.pause();
     };
-  }, [stablePath]);
+  }, [stablePath, playbackRate]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -292,6 +300,16 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
                 {Math.floor(sample.bpm)} BPM
               </span>
             )}
+            {sample.musical_key && (
+              <span style={{ fontSize: "12px", color: "#a78bfa", letterSpacing: "0.1em" }}>
+                {sample.musical_key}
+              </span>
+            )}
+            {playbackRate !== 1 && (
+              <span style={{ fontSize: "11px", color: "#f97316", letterSpacing: "0.1em" }}>
+                x{playbackRate.toFixed(2)}
+              </span>
+            )}
             <span style={{ fontSize: "12px", color: "#6b7280" }}>
               {sample.duration.toFixed(2)}s
             </span>
@@ -380,7 +398,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
           </button>
         </div>
 
-        {!autoPlayRef.current && stablePath ? (
+        {(!autoPlayRef.current || syncPitchShift !== 0) && stablePath ? (
           <Suspense fallback={
             <WaveformDisplay
               sample={sample}
@@ -398,6 +416,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
               currentTime={currentTime}
               duration={duration || sample.duration}
               height={100}
+              playbackEnabled={syncPitchShift === 0}
               onSeek={(time) => {
                 const audio = audioRef.current;
                 audio.currentTime = time;
@@ -424,7 +443,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       </div>
 
       {/* Advanced Controls */}
-      {showAdvanced && (
+      {(showAdvanced || syncPitchShift !== 0) && (
         <div
           style={{
             display: "flex",
@@ -440,7 +459,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
             onToggle={() => setShowSpectrogram((v) => !v)}
           />
           <LoopMarker wavesurfer={wavesurferInstance} />
-          <PitchShiftControl audioElement={audioRef.current} wavesurfer={wavesurferInstance} isPlaying={playing} />
+          <PitchShiftControl audioElement={audioRef.current} wavesurfer={wavesurferInstance} isPlaying={playing} syncSemitones={syncPitchShift} />
         </div>
       )}
 

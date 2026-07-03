@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { PitchShiftControl } from "../PitchShiftControl";
 
@@ -31,7 +31,12 @@ describe("PitchShiftControl", () => {
       },
     };
 
-    vi.stubGlobal("AudioWorkletNode", vi.fn().mockImplementation(() => fakeWorkletNode));
+    class FakeWaveSurferWorkletNode {
+      connect = fakeWorkletNode.connect;
+      disconnect = fakeWorkletNode.disconnect;
+      port = fakeWorkletNode.port;
+    }
+    vi.stubGlobal("AudioWorkletNode", FakeWaveSurferWorkletNode);
 
     fakeWavesurfer = {
       getMediaElement: () => ({
@@ -106,5 +111,46 @@ describe("PitchShiftControl", () => {
     fireEvent.click(resetBtn);
     expect(screen.getByText("0st")).toBeInTheDocument();
     expect(slider).toHaveValue("0");
+  });
+
+  it("routes an HTML audio element through the pitch worklet", async () => {
+    const sourceNode = {
+      connect: vi.fn(),
+    };
+    const workletNode = {
+      connect: vi.fn(),
+      port: {
+        postMessage: vi.fn(),
+      },
+    };
+    class FakeAudioContext {
+      state = "running";
+      destination = {};
+      audioWorklet = {
+        addModule: vi.fn().mockResolvedValue(undefined),
+      };
+      createMediaElementSource = vi.fn(() => sourceNode);
+      resume = vi.fn().mockResolvedValue(undefined);
+    }
+    class FakeAudioWorkletNode {
+      connect = workletNode.connect;
+      port = workletNode.port;
+    }
+    vi.stubGlobal("AudioContext", FakeAudioContext);
+    vi.stubGlobal("AudioWorkletNode", FakeAudioWorkletNode);
+
+    render(
+      <PitchShiftControl
+        audioElement={document.createElement("audio")}
+        isPlaying={false}
+        syncSemitones={2}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(sourceNode.connect).toHaveBeenCalledWith(expect.objectContaining({ port: workletNode.port }));
+      expect(workletNode.connect).toHaveBeenCalled();
+      expect(workletNode.port.postMessage).toHaveBeenCalledWith({ pitchFactor: Math.pow(2, 2 / 12) });
+    });
   });
 });

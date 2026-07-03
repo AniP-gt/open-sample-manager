@@ -229,6 +229,41 @@ describe("WaveSurferPlayer", () => {
     expect(currentFakeWs?.pause).toHaveBeenCalled();
   });
 
+  it("keeps WaveSurfer muted when playback is disabled", async () => {
+    const { rerender } = render(
+      <WaveSurferPlayer
+        sample={dummySample}
+        filePath="/test/test.wav"
+        isPlaying={false}
+        currentTime={0}
+        duration={10}
+        playbackEnabled={false}
+      />
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      currentFakeWs?.fire("ready");
+    });
+
+    rerender(
+      <WaveSurferPlayer
+        sample={dummySample}
+        filePath="/test/test.wav"
+        isPlaying={true}
+        currentTime={0}
+        duration={10}
+        playbackEnabled={false}
+      />
+    );
+
+    expect(currentFakeWs?.play).not.toHaveBeenCalled();
+    expect(currentFakeWs?.pause).toHaveBeenCalled();
+  });
+
   it("syncs seek position if time difference is > 0.5s", async () => {
     const { rerender } = render(
       <WaveSurferPlayer
