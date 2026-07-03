@@ -2,11 +2,14 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle, lazy, Sus
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type WaveSurfer from "wavesurfer.js";
 import type { Sample } from "../../types/sample";
+import type { SampleProcessingSettings } from "../../types/sample";
 import { WaveformDisplay } from "../WaveformDisplay/WaveformDisplay";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 import { SpectrogramView } from "../WaveSurferPlayer/SpectrogramView";
 import { LoopMarker } from "../WaveSurferPlayer/LoopMarker";
 import { PitchShiftControl } from "./PitchShiftControl";
+import { ProcessingControls } from "./ProcessingControls";
+import { createDefaultSampleProcessingSettings, hasSampleProcessingEdits } from "../../utils/sampleProcessing";
 
 const LazyWaveSurferPlayer = lazy(() => import("../WaveSurferPlayer/WaveSurferPlayer").then(m => ({ default: m.WaveSurferPlayer })));
 
@@ -15,6 +18,10 @@ interface PlayerBarProps {
   path?: string;
   onClose?: () => void;
   autoPlay?: boolean;
+  processingSettings?: SampleProcessingSettings;
+  onProcessingSettingsChange?: (settings: SampleProcessingSettings) => void;
+  onProcessingSettingsReset?: () => void;
+  onProcessingSettingsClear?: () => void;
 }
 
 export interface PlayerBarHandle {
@@ -32,7 +39,16 @@ const sharedAudio = (() => {
   return a;
 })();
 
-export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({ sample, path, onClose, autoPlay }: PlayerBarProps, ref) {
+export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function PlayerBar({
+  sample,
+  path,
+  onClose,
+  autoPlay,
+  processingSettings = createDefaultSampleProcessingSettings(),
+  onProcessingSettingsChange,
+  onProcessingSettingsReset,
+  onProcessingSettingsClear,
+}: PlayerBarProps, ref) {
   const audioRef = useRef<HTMLAudioElement>(sharedAudio);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -44,9 +60,25 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   const [showSpectrogram, setShowSpectrogram] = useState(false);
   const [wavesurferInstance, setWavesurferInstance] = useState<WaveSurfer | null>(null);
 
+  const gainMultiplier = Math.pow(10, processingSettings.gainDb / 20);
+  const effectiveVolume = Math.min(1, Math.max(0, volume * gainMultiplier));
+  const trimStart = Math.max(0, processingSettings.trimStartSeconds);
+  const trimEnd = processingSettings.trimEndSeconds > trimStart ? processingSettings.trimEndSeconds : 0;
+
   useEffect(() => {
-    audioRef.current.volume = volume;
-  }, [volume]);
+    audioRef.current.volume = effectiveVolume;
+  }, [effectiveVolume]);
+
+  const playFromPreviewStart = () => {
+    const audio = audioRef.current;
+    if (trimStart > 0 && (audio.currentTime < trimStart || (trimEnd > 0 && audio.currentTime >= trimEnd))) {
+      audio.currentTime = trimStart;
+      setCurrentTime(trimStart);
+    }
+    audio.play().catch((err) => {
+      setLoadError(err.message);
+    });
+  };
   const handleClose = () => {
     const audio = audioRef.current;
     audio.pause();
@@ -125,6 +157,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       setDuration(audio.duration);
       setLoading(false);
       if (autoPlayRef.current) {
+        if (trimStart > 0) audio.currentTime = trimStart;
         audio.play().catch(() => {});
       }
     };
@@ -138,7 +171,14 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
     audio.onended = () => { if (loadIdRef.current === myLoadId) setPlaying(false); };
     audio.onpause = () => { if (loadIdRef.current === myLoadId) setPlaying(false); };
     audio.onplay = () => { if (loadIdRef.current === myLoadId) setPlaying(true); };
-    audio.ontimeupdate = () => { if (loadIdRef.current === myLoadId) setCurrentTime(audio.currentTime); };
+    audio.ontimeupdate = () => {
+      if (loadIdRef.current !== myLoadId) return;
+      if (trimEnd > 0 && audio.currentTime >= trimEnd) {
+        audio.pause();
+        audio.currentTime = trimEnd;
+      }
+      setCurrentTime(audio.currentTime);
+    };
 
     return () => {
       audio.onloadedmetadata = null;
@@ -149,7 +189,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       audio.ontimeupdate = null;
       audio.pause();
     };
-  }, [stablePath]);
+  }, [stablePath, trimStart, trimEnd]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -172,20 +212,20 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       },
       play: () => {
         if (audioRef.current?.paused) {
-          audioRef.current.play().catch(() => {});
+          playFromPreviewStart();
         }
       },
       toggle: () => {
         if (!audioRef.current) return;
         if (audioRef.current.paused) {
-          audioRef.current.play().catch(() => {});
+          playFromPreviewStart();
         } else {
           audioRef.current.pause();
         }
       },
       isPlaying: playing,
     }),
-    [playing],
+    [playing, trimStart, trimEnd],
   );
 
   return (
@@ -227,9 +267,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
             if (playing) {
               audioRef.current.pause();
             } else {
-              audioRef.current.play().catch((err) => {
-                setLoadError(err.message);
-              });
+              playFromPreviewStart();
             }
           }}
           style={{
@@ -314,6 +352,11 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
           <span style={{ color: "#4b5563" }}>/</span>
           <span>{formatTime(duration || sample.duration)}</span>
         </div>
+        {hasSampleProcessingEdits(processingSettings) && (
+          <span style={{ fontSize: "11px", color: "#f97316", letterSpacing: "0.12em" }}>
+            EDITED
+          </span>
+        )}
 
         {/* Advanced Controls Toggle — autoPlay mode has no WaveSurfer instance, so hide */}
         {!autoPlayRef.current && (
@@ -440,6 +483,13 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
             onToggle={() => setShowSpectrogram((v) => !v)}
           />
           <LoopMarker wavesurfer={wavesurferInstance} />
+          <ProcessingControls
+            durationSeconds={duration || sample.duration}
+            settings={processingSettings}
+            onChange={(settings) => onProcessingSettingsChange?.(settings)}
+            onReset={() => onProcessingSettingsReset?.()}
+            onClear={() => onProcessingSettingsClear?.()}
+          />
           <PitchShiftControl audioElement={audioRef.current} wavesurfer={wavesurferInstance} isPlaying={playing} />
         </div>
       )}
