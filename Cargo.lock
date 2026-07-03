@@ -2517,6 +2517,7 @@ name = "open-sample-manager"
 version = "0.1.0"
 dependencies = [
  "dirs 4.0.0",
+ "midly",
  "open",
  "open-sample-manager-core",
  "serde",
@@ -2529,6 +2530,7 @@ dependencies = [
  "tauri-plugin-dragout",
  "tauri-plugin-fs",
  "tauri-plugin-shell",
+ "tempfile",
  "tokio",
  "trash",
  "which",

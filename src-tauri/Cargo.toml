@@ -22,6 +22,8 @@ open-sample-manager-core = { path = "../core" }
 trash = "5"
 dirs = "4"
 which = "6"
+midly = "0.5"
+tempfile = "3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-plugin-dragout = "0.1.1"
