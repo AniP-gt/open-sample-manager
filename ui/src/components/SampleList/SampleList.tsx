@@ -9,7 +9,7 @@ import { useColumnResize } from "./useColumnResize";
 import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { SampleListListView } from "./SampleListListView";
-import { matchesFilenameSubstring } from "../../utils/search";
+import { matchesSampleFilters } from "../../utils/sampleFilter";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 export type { SampleListHandle, SampleListProps } from "./types";
@@ -61,15 +61,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   } = useDragDropList(props.onImportPaths);
 
   const filtered = useMemo(() => {
-    return samples.filter((s) => {
-      const matchType = filters.filterType === "all" || s.sample_type === filters.filterType;
-      const matchBpmMin = filters.filterBpmMin === "" || (s.bpm && s.bpm >= parseFloat(filters.filterBpmMin));
-      const matchBpmMax = filters.filterBpmMax === "" || (s.bpm && s.bpm <= parseFloat(filters.filterBpmMax));
-      const matchInstrumentType = filters.filterInstrumentType === "" || s.instrument_type === filters.filterInstrumentType;
-      const matchKey = filters.filterKey === "" || s.musical_key === filters.filterKey;
-      const matchSearch = matchesFilenameSubstring(filters.search, s.file_name);
-      return matchType && matchBpmMin && matchBpmMax && matchInstrumentType && matchKey && matchSearch;
-    });
+    return samples.filter((sample) => matchesSampleFilters(sample, filters));
   }, [samples, filters]);
 
   const sorted = useMemo(() => {

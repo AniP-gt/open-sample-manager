@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { Sample, FilterState } from "../types/sample";
+import { matchesSampleFilters } from "../utils/sampleFilter";
 
 export function useDisplayedSamples(
   samples: Sample[],
@@ -12,10 +13,7 @@ export function useDisplayedSamples(
       const favSet = new Set(favorites);
       list = list.filter((s) => favSet.has(s.id));
     }
-    const key = filters.filterKey;
-    if (key && key !== "All") {
-      list = list.filter((s) => s.musical_key === key);
-    }
+    list = list.filter((sample) => matchesSampleFilters(sample, filters));
     return list;
-  }, [samples, filters.favoritesOnly, filters.filterKey, favorites]);
+  }, [samples, filters, favorites]);
 }
