@@ -34,6 +34,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     isLoadingPrevious,
     canLoadPrevious,
     instrumentColorCoding = false,
+    getSampleProcessingSettings,
   } = props;
 
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -267,6 +268,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             isLoadingMore={isLoadingMore}
             canLoadMore={canLoadMore}
             onLoadMore={onLoadMore}
+            getSampleProcessingSettings={getSampleProcessingSettings}
           />
         </div>
       )}
