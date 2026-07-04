@@ -15,7 +15,7 @@ const samples: Sample[] = [
     attack_slope: 0.9,
     decay_time: null,
     sample_type: "one-shot",
-    tags: [],
+    tags: ["drums", "warm"],
     waveform_peaks: null,
     playback_type: "oneshot",
     instrument_type: "kick",
@@ -61,6 +61,39 @@ describe("display hooks", () => {
 
   test("returns all samples when optional filters are inactive", () => {
     const { result } = renderHook(() => useDisplayedSamples(samples, filters, []));
+
+    expect(result.current).toEqual(samples);
+  });
+
+  test("filters samples by BPM, type, instrument, filename, and tags", () => {
+    const { result } = renderHook(() =>
+      useDisplayedSamples(
+        samples,
+        {
+          ...filters,
+          search: "warm",
+          filterBpmMin: "110",
+          filterBpmMax: "125",
+          filterType: "one-shot",
+          filterInstrumentType: "kick",
+        },
+        [],
+      )
+    );
+
+    expect(result.current).toEqual([samples[0]]);
+  });
+
+  test("keeps fuzzy tag matches returned by backend search", () => {
+    const { result } = renderHook(() => useDisplayedSamples(samples, { ...filters, search: "drm" }, []));
+
+    expect(result.current).toEqual([samples[0]]);
+  });
+
+  test("ignores invalid BPM bounds", () => {
+    const { result } = renderHook(() =>
+      useDisplayedSamples(samples, { ...filters, filterBpmMin: "nope", filterBpmMax: "also-nope" }, [])
+    );
 
     expect(result.current).toEqual(samples);
   });

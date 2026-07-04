@@ -28,6 +28,7 @@ const sampleRow = (overrides: Partial<TauriSampleRow> = {}): TauriSampleRow => (
   playback_type: "oneshot",
   instrument_type: "kick",
   musical_key: "C",
+  tags: [],
   ...overrides,
 });
 

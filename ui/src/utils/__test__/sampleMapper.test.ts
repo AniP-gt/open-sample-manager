@@ -18,6 +18,7 @@ const baseRow = (overrides: Partial<TauriSampleRow> = {}): TauriSampleRow => ({
   playback_type: "oneshot",
   instrument_type: "",
   musical_key: null,
+  tags: [],
   ...overrides,
 });
 
@@ -46,6 +47,7 @@ describe("mapRowToSample", () => {
         playback_type: "loop",
         instrument_type: "Snare",
         musical_key: "C#",
+        tags: ["drums", "favorite"],
       }),
     );
 
@@ -63,7 +65,7 @@ describe("mapRowToSample", () => {
       musical_key: "C#",
     });
     expect(sample.waveform_peaks).toEqual([0, 0.25, 1]);
-    expect(sample.tags).toEqual([]);
+    expect(sample.tags).toEqual(["drums", "favorite"]);
   });
 
   it("falls back safely for invalid peaks and legacy kick sample_type", () => {

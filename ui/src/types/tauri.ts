@@ -14,6 +14,7 @@ export type TauriSampleRow = {
   playback_type: string;
   instrument_type: string;
   musical_key: string | null;
+  tags: string[];
 };
 
 export type LibraryExportSummary = {

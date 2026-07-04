@@ -46,7 +46,7 @@ fn fuzzy_sample_rows(
         "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity, s.sample_rate, s.file_size,
                 s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type, s.waveform_peaks,
                 s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key,
-                COALESCE(GROUP_CONCAT(t.name, ' '), '') AS tag_names
+                COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tag_names
          FROM samples s
          LEFT JOIN sample_tags st ON st.sample_id = s.id
          LEFT JOIN tags t ON t.id = st.tag_id
@@ -57,7 +57,7 @@ fn fuzzy_sample_rows(
         "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity, s.sample_rate, s.file_size,
                 s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type, s.waveform_peaks,
                 s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key,
-                COALESCE(GROUP_CONCAT(t.name, ' '), '') AS tag_names
+                COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tag_names
          FROM samples s
          LEFT JOIN sample_tags st ON st.sample_id = s.id
          LEFT JOIN tags t ON t.id = st.tag_id
@@ -89,5 +89,7 @@ fn fuzzy_sample_rows(
 }
 
 fn row_with_tags(row: &rusqlite::Row<'_>) -> rusqlite::Result<(SampleRow, String)> {
-    Ok((row_to_sample(row)?, row.get::<_, String>("tag_names")?))
+    let sample = row_to_sample(row)?;
+    let tag_names = sample.tags.join(" ");
+    Ok((sample, tag_names))
 }

@@ -41,6 +41,7 @@ pub struct SampleRow {
     pub instrument_type: String,
     /// Detected musical key (pitch class only: "C", "C#", ..., "B").
     pub musical_key: Option<String>,
+    pub tags: Vec<String>,
 }
 
 /// Result of an embedding search: similarity score + sample row.

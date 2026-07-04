@@ -68,6 +68,7 @@ fn test_search_samples_matches_sample_tags() {
     let results = search_samples(&conn, "drm").expect("search failed");
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].file_name, "mystery.wav");
+    assert_eq!(results[0].tags, vec!["drums"]);
 }
 
 #[test]

@@ -121,7 +121,7 @@ export function AppMainPane({
         }
         favoritesOnly={uiState.viewMode === "midi" ? midiState.favoritesOnly : sampleState.filters.favoritesOnly}
         favoritesCount={uiState.viewMode === "midi" ? midiFavorites.length : sampleFavorites.length}
-        filterKey={sampleState.filters.filterKey}
+        filterKey={uiState.viewMode === "midi" ? midiState.midiFilterKey : sampleState.filters.filterKey}
         samples={sampleState.samples}
         onFilterChange={(filters) => {
           if (uiState.viewMode === "midi") {
@@ -129,7 +129,7 @@ export function AppMainPane({
               midiState.setFavoritesOnly(filters.favoritesOnly);
             }
             if (filters.filterKey !== undefined) {
-              sampleState.handleFilterChange({ filterKey: filters.filterKey });
+              midiState.setMidiFilterKey(filters.filterKey);
             }
           } else {
             sampleState.handleFilterChange(filters);
@@ -236,10 +236,15 @@ export function AppMainPane({
             externalIsDragOver={uiState.isDragOver}
             midiSearch={midiState.midiSearch}
             onMidiSearchChange={midiState.setMidiSearch}
+            tempoMin={midiState.midiTempoMin}
+            onTempoMinChange={midiState.setMidiTempoMin}
+            tempoMax={midiState.midiTempoMax}
+            onTempoMaxChange={midiState.setMidiTempoMax}
             onTogglePlayback={() => {
               void midiState.togglePlaySelectedMidi();
             }}
-            filterKey={sampleState.filters.filterKey}
+            filterKey={midiState.midiFilterKey}
+            onFilterKeyChange={midiState.setMidiFilterKey}
           />
 
           {midiState.selectedMidi && uiState.viewMode === "midi" && (

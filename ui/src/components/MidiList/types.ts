@@ -23,6 +23,11 @@ export interface MidiListProps {
   onMidiSearchChange?: (query: string) => void;
   onTogglePlayback?: () => void;
   filterKey?: string;
+  tempoMin?: string;
+  onTempoMinChange?: (value: string) => void;
+  tempoMax?: string;
+  onTempoMaxChange?: (value: string) => void;
+  onFilterKeyChange?: (value: string) => void;
 }
 
 export type MidiListHandle = {

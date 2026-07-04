@@ -226,6 +226,43 @@ describe('MidiList', () => {
     expect(onMidiSearchChange).toHaveBeenCalledWith('drums');
   });
 
+  test('filters MIDI rows by tempo, key, and tag controls', () => {
+    const onTempoMinChange = vi.fn();
+    const onTempoMaxChange = vi.fn();
+    const onFilterKeyChange = vi.fn();
+    const onTagFilterChange = vi.fn();
+
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        tempoMin="125"
+        tempoMax="135"
+        filterKey="A"
+        onTempoMinChange={onTempoMinChange}
+        onTempoMaxChange={onTempoMaxChange}
+        onFilterKeyChange={onFilterKeyChange}
+        midiTags={[{ id: 1, name: 'bass', created_at: '2023-01-01T00:00:00Z' }]}
+        tagFilterId={1}
+        onTagFilterChange={onTagFilterChange}
+      />
+    );
+
+    expect(screen.queryByText('test-midi.mid')).not.toBeInTheDocument();
+    expect(screen.queryByText('test-midi-2.mid')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('MIDI BPM minimum'), { target: { value: '110' } });
+    fireEvent.change(screen.getByLabelText('MIDI BPM maximum'), { target: { value: '140' } });
+    fireEvent.change(screen.getByLabelText('MIDI key filter'), { target: { value: 'C' } });
+    fireEvent.change(screen.getByLabelText('MIDI tag filter'), { target: { value: '' } });
+
+    expect(onTempoMinChange).toHaveBeenCalledWith('110');
+    expect(onTempoMaxChange).toHaveBeenCalledWith('140');
+    expect(onFilterKeyChange).toHaveBeenCalledWith('C');
+    expect(onTagFilterChange).toHaveBeenCalledWith(null);
+  });
+
   test('calls onMidiSelect when row is clicked', () => {
     const onMidiSelect = vi.fn();
     render(
