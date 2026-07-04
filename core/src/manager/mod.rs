@@ -27,6 +27,7 @@ mod midi_queries;
 mod midi_tags;
 mod migration;
 mod migration_io;
+mod processed_drag;
 mod samples;
 mod scan;
 
@@ -35,9 +36,11 @@ use std::path::PathBuf;
 use rusqlite::Connection;
 
 use crate::analysis::decoder::DecodeError;
+use crate::analysis::processed_wav::ProcessedWavError;
 use crate::db::schema::init_database;
 
 pub use migration::{LibraryExportSummary, LibraryImportSummary};
+pub use processed_drag::ProcessedDragFile;
 
 /// Progress information emitted during scanning.
 #[derive(Debug, Clone)]
@@ -82,6 +85,7 @@ pub enum ManagerError {
     Decode(DecodeError),
     /// I/O or filesystem error.
     Io(std::io::Error),
+    ProcessedWav(ProcessedWavError),
 }
 
 impl std::fmt::Display for ManagerError {
@@ -90,6 +94,7 @@ impl std::fmt::Display for ManagerError {
             ManagerError::Db(e) => write!(f, "database error: {e}"),
             ManagerError::Decode(e) => write!(f, "decode error: {e}"),
             ManagerError::Io(e) => write!(f, "I/O error: {e}"),
+            ManagerError::ProcessedWav(e) => write!(f, "processed WAV error: {e}"),
         }
     }
 }
@@ -100,6 +105,7 @@ impl std::error::Error for ManagerError {
             ManagerError::Db(e) => Some(e),
             ManagerError::Decode(e) => Some(e),
             ManagerError::Io(e) => Some(e),
+            ManagerError::ProcessedWav(e) => Some(e),
         }
     }
 }
@@ -119,6 +125,12 @@ impl From<DecodeError> for ManagerError {
 impl From<std::io::Error> for ManagerError {
     fn from(e: std::io::Error) -> Self {
         ManagerError::Io(e)
+    }
+}
+
+impl From<ProcessedWavError> for ManagerError {
+    fn from(e: ProcessedWavError) -> Self {
+        ManagerError::ProcessedWav(e)
     }
 }
 

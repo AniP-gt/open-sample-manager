@@ -87,6 +87,7 @@ pub use analysis::bpm::BpmResult;
 pub use analysis::decoder::DecodedAudio;
 pub use analysis::kick::KickResult;
 pub use analysis::loop_classifier::LoopType;
+pub use analysis::processed_wav::ProcessedSampleRenderSeconds;
 pub use db::schema::init_database;
 pub use ffi::handle::SMHandle;
 pub use manager::{

@@ -24,6 +24,7 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 - **Filter sidebar** — filter by instrument type, sample type, BPM range
 - **Waveform display** — inline waveform preview in the detail panel
 - **Drag to DAW** — drag samples directly from the app into your DAW
+- **Processed drag export** — with auto-play off, open `CONTROLS` in the player bar to set trim, fade, and gain before dragging a rendered WAV into your DAW
 
 ### MIDI File Management
 

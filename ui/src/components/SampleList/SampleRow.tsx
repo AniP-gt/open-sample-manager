@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { prepareDragFile, startFileDrag } from "../fileDragOut";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import type { Sample } from "../../types/sample";
+import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
 import { SampleRowActions } from "./SampleRowActions";
+import { sampleProcessingSignature } from "../../utils/sampleProcessing";
 
 interface SampleRowProps {
   sample: Sample;
@@ -17,6 +18,7 @@ interface SampleRowProps {
   instrumentColorCoding: boolean;
   dragIconPath: string;
   preparedPathsRef: React.MutableRefObject<Record<string, string>>;
+  processingSettings?: SampleProcessingSettings;
   onSampleSelect: (sample: Sample, isShift?: boolean) => void;
   onToggleFavorite: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
@@ -34,12 +36,14 @@ export function SampleRow({
   instrumentColorCoding,
   dragIconPath,
   preparedPathsRef,
+  processingSettings,
   onSampleSelect,
   onToggleFavorite,
   onTypeClick,
   onTrashSample,
 }: SampleRowProps) {
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
+  const dragKey = `${s.id}:${sampleProcessingSignature(processingSettings)}`;
 
   const showToast = (message: string) => {
     setToast({ message, visible: true });
@@ -79,11 +83,11 @@ export function SampleRow({
       draggable={!!samplePath}
       onMouseDown={(e) => {
         if (e.button === 0) {
-          prepareDragFile(samplePath, s.id, preparedPathsRef);
+          prepareDragFile(samplePath, dragKey, preparedPathsRef, processingSettings);
         }
       }}
       onDragStart={(e) => {
-        startFileDrag(e, samplePath, s.id, preparedPathsRef, dragIconPath, "[dragout-debug]");
+        startFileDrag(e, samplePath, dragKey, preparedPathsRef, dragIconPath, "[dragout-debug]", processingSettings);
       }}
       onClick={(e) => onSampleSelect(s, e.shiftKey)}
     >

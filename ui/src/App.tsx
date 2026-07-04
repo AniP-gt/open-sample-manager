@@ -24,6 +24,7 @@ import { useFavoritesStore } from "./store/useFavoritesStore";
 import { useMidiFavoritesStore } from "./store/useMidiFavoritesStore";
 import { useRecentStore } from "./store/useRecentStore";
 import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
+import { useSampleProcessingState } from "./hooks/useSampleProcessingState";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -165,6 +166,9 @@ export function App() {
     return midiState.midis.filter(m => favSet.has(m.id));
   }, [midiState.midis, midiState.favoritesOnly, midiFavorites]);
 
+  const selectedSamplePath = sampleState.selected ? sampleState.samplePaths[sampleState.selected.id] : undefined;
+  const sampleProcessingState = useSampleProcessingState(sampleState.selected, selectedSamplePath);
+
   useKeyboardShortcuts({
     viewMode: uiState.viewMode,
     sampleState: { selected: sampleState.selected },
@@ -270,14 +274,19 @@ export function App() {
         instrumentColorCoding={instrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
         handleSampleSelectWithRecent={handleSampleSelectWithRecent}
+        getSampleProcessingSettings={sampleProcessingState.getSettingsForSample}
       />
 
       {sampleState.selected && (
         <PlayerBar
           ref={playerBarRef}
           sample={sampleState.selected}
-          path={sampleState.samplePaths[sampleState.selected.id]}
+          path={selectedSamplePath}
           autoPlay={autoPlayOnSelect}
+          processingSettings={sampleProcessingState.selectedSettings}
+          onProcessingSettingsChange={sampleProcessingState.updateSelectedSettings}
+          onProcessingSettingsReset={sampleProcessingState.resetSelectedSettings}
+          onProcessingSettingsClear={sampleProcessingState.clearSelectedSettings}
           onClose={() => {
             playerBarRef.current?.stop();
             sampleState.setSelected(null);

@@ -1,5 +1,5 @@
 import type { MutableRefObject } from "react";
-import type { Sample, SortState } from "../../types/sample";
+import type { Sample, SortState, SampleProcessingSettings } from "../../types/sample";
 import { SampleListHeader } from "./SampleListHeader";
 import { SampleRow } from "./SampleRow";
 
@@ -35,6 +35,7 @@ interface SampleListListViewProps {
   isLoadingMore?: boolean;
   canLoadMore?: boolean;
   onLoadMore?: () => Promise<void>;
+  getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
 }
 
 export function SampleListListView({
@@ -69,6 +70,7 @@ export function SampleListListView({
   isLoadingMore,
   canLoadMore,
   onLoadMore,
+  getSampleProcessingSettings,
 }: SampleListListViewProps) {
   return (
     <>
@@ -118,6 +120,7 @@ export function SampleListListView({
                 samplePath={samplePaths[s.id]}
                 isFavorite={favorites.has(s.id)}
                 instrumentColorCoding={instrumentColorCoding}
+                processingSettings={getSampleProcessingSettings?.(s, samplePaths[s.id])}
                 dragIconPath={dragIconPath}
                 preparedPathsRef={preparedPathsRef}
                 onSampleSelect={onSampleSelect}

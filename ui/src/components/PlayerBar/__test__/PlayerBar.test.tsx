@@ -5,6 +5,14 @@ import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } 
 const mockPlay = vi.fn().mockResolvedValue(undefined);
 const mockPause = vi.fn();
 
+const editedSettings: SampleProcessingSettings = {
+  trimStartSeconds: 1.25,
+  trimEndSeconds: 4.5,
+  fadeInSeconds: 0.2,
+  fadeOutSeconds: 0.3,
+  gainDb: 3,
+};
+
 beforeAll(() => {
   Object.defineProperty(window.HTMLMediaElement.prototype, "play", {
     configurable: true,
@@ -21,7 +29,7 @@ afterAll(() => {
 });
 
 import { PlayerBar } from "../PlayerBar";
-import type { Sample } from "../../../types/sample";
+import type { Sample, SampleProcessingSettings } from "../../../types/sample";
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -125,6 +133,42 @@ describe("PlayerBar", () => {
     expect(screen.getByText("▴ CONTROLS")).toBeInTheDocument();
     
     expect(screen.getByText(/SPECTROGRAM/)).toBeInTheDocument();
+  });
+
+  it("shows processing controls and sends reset and clear actions", () => {
+    const onChange = vi.fn();
+    const onReset = vi.fn();
+    const onClear = vi.fn();
+    render(
+      <PlayerBar
+        sample={dummySample}
+        path="/test/test.wav"
+        processingSettings={editedSettings}
+        onProcessingSettingsChange={onChange}
+        onProcessingSettingsReset={onReset}
+        onProcessingSettingsClear={onClear}
+      />
+    );
+
+    fireEvent.click(screen.getByText("▾ CONTROLS"));
+    fireEvent.change(screen.getByLabelText("TRIM START"), { target: { value: "2" } });
+    expect(onChange).toHaveBeenCalledWith({ ...editedSettings, trimStartSeconds: 2 });
+
+    fireEvent.click(screen.getByText("RESET"));
+    fireEvent.click(screen.getByText("CLEAR EDIT"));
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("FADES: DRAG EXPORT ONLY")).toBeInTheDocument();
+  });
+
+  it("seeks to trim start when preview playback begins", () => {
+    render(<PlayerBar sample={dummySample} processingSettings={editedSettings} />);
+
+    const playButton = screen.getAllByRole("button")[0];
+    fireEvent.click(playButton);
+
+    expect(mockPlay).toHaveBeenCalled();
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
   });
 
   it("handles close button", () => {

@@ -1,6 +1,6 @@
 import React from "react";
 import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
-import type { Sample } from "../../types/sample";
+import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import type { Midi } from "../../types/midi";
 import type { SampleListHandle } from "../SampleList/types";
 import type { MidiListHandle, PlayerBarHandle } from "..";
@@ -25,6 +25,7 @@ interface AppMainPaneProps {
   instrumentColorCoding: boolean;
   directoryClickFiltering: boolean;
   handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
+  getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
 }
 
 export function AppMainPane({
@@ -40,6 +41,7 @@ export function AppMainPane({
   instrumentColorCoding,
   directoryClickFiltering,
   handleSampleSelectWithRecent,
+  getSampleProcessingSettings,
 }: AppMainPaneProps) {
   const { favorites: sampleFavorites } = useFavoritesStore();
   const { favorites: midiFavorites } = useMidiFavoritesStore();
@@ -197,6 +199,7 @@ export function AppMainPane({
           canLoadPrevious={sampleState.canLoadPrevious}
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
+          getSampleProcessingSettings={getSampleProcessingSettings}
         />
       ) : (
         <>
