@@ -1,4 +1,4 @@
-import type { Sample, FilterState, SortState } from "../../types/sample";
+import type { Sample, FilterState, SortState, SampleProcessingSettings } from "../../types/sample";
 
 export interface SampleListProps {
   samples: Sample[];
@@ -23,6 +23,7 @@ export interface SampleListProps {
   isLoadingPrevious?: boolean;
   canLoadPrevious?: boolean;
   instrumentColorCoding?: boolean;
+  getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
 }
 
 export type SampleListHandle = {

@@ -36,6 +36,14 @@ export interface Sample {
   musical_key?: string;
 }
 
+export interface SampleProcessingSettings {
+  trimStartSeconds: number;
+  trimEndSeconds: number;
+  fadeInSeconds: number;
+  fadeOutSeconds: number;
+  gainDb: number;
+}
+
 export interface FilterState {
   search: string;
   filterType: SampleType | "all";

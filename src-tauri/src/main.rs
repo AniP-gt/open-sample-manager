@@ -1,13 +1,16 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use open_sample_manager_core::analysis::processed_wav::{render_processed_wav, ProcessedWavError};
 use open_sample_manager_core::{
-    healthcheck, LibraryExportSummary, LibraryImportSummary, SampleManager, ScanProgress, ScanStage,
+    healthcheck, LibraryExportSummary, LibraryImportSummary, ProcessedSampleRenderSeconds,
+    SampleManager, ScanProgress, ScanStage,
 };
 use serde::Serialize;
+use std::collections::HashSet;
 use std::error::Error as _;
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -299,9 +302,13 @@ async fn send_to_trash(
 /// copies the file to the system temporary directory and returns the absolute
 /// path which can be used as a `file://` URI on the renderer side.
 #[tauri::command]
-async fn prepare_drag_file(path: String) -> Result<String, CommandError> {
+async fn prepare_drag_file(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, CommandError> {
+    let prepared_temp_paths = Arc::clone(&state.prepared_temp_paths);
     tokio::task::spawn_blocking(move || {
-        let src = std::path::Path::new(&path);
+        let src = Path::new(&path);
         if !src.exists() {
             return Err(CommandError {
                 code: "not_found".to_string(),
@@ -310,28 +317,9 @@ async fn prepare_drag_file(path: String) -> Result<String, CommandError> {
             });
         }
 
-        let file_name = match src.file_name().and_then(|s| s.to_str()) {
-            Some(n) => n.to_string(),
-            None => {
-                let ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs())
-                    .unwrap_or(0);
-                format!("drag-{}", ts)
-            }
-        };
-
-        let mut target = std::env::temp_dir();
-        target.push(file_name);
-
-        match std::fs::copy(src, &target) {
-            Ok(_) => Ok(target.to_string_lossy().to_string()),
-            Err(e) => Err(CommandError {
-                code: "io_error".to_string(),
-                message: format!("failed to prepare drag file: {}", e),
-                details: None,
-            }),
-        }
+        let target = copy_to_prepared_temp_file(src)?;
+        register_prepared_temp_path(&prepared_temp_paths, &target)?;
+        Ok(target.to_string_lossy().to_string())
     })
     .await
     .map_err(|e| CommandError {
@@ -339,6 +327,209 @@ async fn prepare_drag_file(path: String) -> Result<String, CommandError> {
         message: e.to_string(),
         details: None,
     })?
+}
+
+#[tauri::command]
+async fn prepare_processed_drag_file(
+    path: String,
+    params: ProcessedSampleRenderSeconds,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, CommandError> {
+    let prepared_temp_paths = Arc::clone(&state.prepared_temp_paths);
+    tokio::task::spawn_blocking(move || {
+        let source = PathBuf::from(&path);
+        if !source.exists() {
+            return Err(CommandError {
+                code: "not_found".to_string(),
+                message: format!("source path does not exist: {}", path),
+                details: None,
+            });
+        }
+
+        let output_path = processed_drag_output_path(&source)?;
+        render_processed_wav(&source, &output_path, params).map_err(CommandError::from)?;
+        register_prepared_temp_path(&prepared_temp_paths, &output_path)?;
+        Ok(output_path.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| CommandError {
+        code: "task_error".to_string(),
+        message: e.to_string(),
+        details: None,
+    })?
+}
+
+#[tauri::command]
+fn delete_file(path: String, state: tauri::State<'_, AppState>) -> Result<(), CommandError> {
+    delete_registered_temp_file(&path, &state.prepared_temp_paths)
+}
+
+fn delete_registered_temp_file(
+    path: impl AsRef<Path>,
+    prepared_temp_paths: &PreparedTempRegistry,
+) -> Result<(), CommandError> {
+    let target = PathBuf::from(path.as_ref());
+    let canonical_target = target.canonicalize().map_err(|e| CommandError {
+        code: "io_error".to_string(),
+        message: format!("failed to resolve path for deletion: {}", e),
+        details: None,
+    })?;
+
+    let registered = {
+        let paths = prepared_temp_paths
+            .lock()
+            .expect("prepared temp registry mutex poisoned");
+        paths.contains(&canonical_target)
+    };
+
+    if !registered {
+        return Err(CommandError {
+            code: "invalid_path".to_string(),
+            message: "delete_file only removes app-created prepared drag files".to_string(),
+            details: None,
+        });
+    }
+
+    if canonical_target.is_file() {
+        std::fs::remove_file(&canonical_target).map_err(|e| CommandError {
+            code: "io_error".to_string(),
+            message: format!("failed to delete temp file: {}", e),
+            details: None,
+        })?;
+    }
+
+    prepared_temp_paths
+        .lock()
+        .expect("prepared temp registry mutex poisoned")
+        .remove(&canonical_target);
+
+    Ok(())
+}
+
+type PreparedTempRegistry = Arc<Mutex<HashSet<PathBuf>>>;
+
+fn register_prepared_temp_path(
+    prepared_temp_paths: &PreparedTempRegistry,
+    path: &Path,
+) -> Result<(), CommandError> {
+    let canonical_path = path.canonicalize().map_err(|e| CommandError {
+        code: "io_error".to_string(),
+        message: format!("failed to register prepared drag file: {}", e),
+        details: None,
+    })?;
+    prepared_temp_paths
+        .lock()
+        .expect("prepared temp registry mutex poisoned")
+        .insert(canonical_path);
+    Ok(())
+}
+
+fn copy_to_prepared_temp_file(source: &Path) -> Result<PathBuf, CommandError> {
+    let target = prepared_drag_output_path(source, None)?;
+    let mut source_file = std::fs::File::open(source).map_err(|e| CommandError {
+        code: "io_error".to_string(),
+        message: format!("failed to open drag source file: {}", e),
+        details: None,
+    })?;
+    let mut target_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&target)
+        .map_err(|e| CommandError {
+            code: "io_error".to_string(),
+            message: format!("failed to create prepared drag file: {}", e),
+            details: None,
+        })?;
+
+    if let Err(error) = std::io::copy(&mut source_file, &mut target_file) {
+        let _ = std::fs::remove_file(&target);
+        return Err(CommandError {
+            code: "io_error".to_string(),
+            message: format!("failed to prepare drag file: {}", error),
+            details: None,
+        });
+    }
+
+    Ok(target)
+}
+
+fn processed_drag_output_path(source: &Path) -> Result<PathBuf, CommandError> {
+    prepared_drag_output_path(source, Some("wav"))
+}
+
+fn prepared_drag_output_path(
+    source: &Path,
+    extension_override: Option<&str>,
+) -> Result<PathBuf, CommandError> {
+    let output_dir = app_drag_temp_dir()?;
+    std::fs::create_dir_all(&output_dir).map_err(|e| CommandError {
+        code: "io_error".to_string(),
+        message: format!("failed to create drag temp directory: {}", e),
+        details: None,
+    })?;
+
+    let stem = source
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("sample");
+    let extension =
+        extension_override.or_else(|| source.extension().and_then(|value| value.to_str()));
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let process_id = std::process::id();
+
+    let mut output_path = output_dir;
+    match extension {
+        Some(extension) if !extension.is_empty() => {
+            output_path.push(format!("{stem}-{process_id}-{timestamp}.{extension}"));
+        }
+        _ => output_path.push(format!("{stem}-{process_id}-{timestamp}")),
+    }
+    Ok(output_path)
+}
+
+fn app_drag_temp_dir() -> Result<PathBuf, CommandError> {
+    let mut output_dir = std::env::temp_dir();
+    output_dir.push("open-sample-manager-drag");
+    Ok(output_dir)
+}
+
+#[cfg(test)]
+mod prepared_temp_tests {
+    use super::{delete_registered_temp_file, PreparedTempRegistry};
+    use std::collections::HashSet;
+    use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn delete_registered_temp_file_rejects_unregistered_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("unregistered.wav");
+        std::fs::write(&path, b"not app-created").unwrap();
+        let registry: PreparedTempRegistry = Arc::new(Mutex::new(HashSet::new()));
+
+        let error = delete_registered_temp_file(&path, &registry).unwrap_err();
+
+        assert_eq!(error.code, "invalid_path");
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn delete_registered_temp_file_removes_registered_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("registered.wav");
+        std::fs::write(&path, b"app-created").unwrap();
+        let canonical_path = path.canonicalize().unwrap();
+        let registry: PreparedTempRegistry = Arc::new(Mutex::new(HashSet::new()));
+        registry.lock().unwrap().insert(canonical_path);
+
+        delete_registered_temp_file(&path, &registry).unwrap();
+
+        assert!(!path.exists());
+        assert!(registry.lock().unwrap().is_empty());
+    }
 }
 
 /// Return an absolute filesystem path to a small drag-cursor PNG icon.
@@ -531,6 +722,7 @@ fn update_sample_classification(
 }
 struct AppState {
     manager: Arc<Mutex<SampleManager>>,
+    prepared_temp_paths: PreparedTempRegistry,
     /// PID of the currently running timidity process, if any.
     timidity_pid: Arc<Mutex<Option<u32>>>,
     temp_midi_preview_file: Arc<Mutex<Option<tempfile::NamedTempFile>>>,
@@ -549,6 +741,7 @@ impl From<open_sample_manager_core::ManagerError> for CommandError {
             open_sample_manager_core::ManagerError::Db(_) => "db_error",
             open_sample_manager_core::ManagerError::Decode(_) => "decode_error",
             open_sample_manager_core::ManagerError::Io(_) => "io_error",
+            open_sample_manager_core::ManagerError::ProcessedWav(_) => "processed_wav_error",
         }
         .to_string();
 
@@ -557,6 +750,17 @@ impl From<open_sample_manager_core::ManagerError> for CommandError {
         Self {
             code,
             message: value.to_string(),
+            details,
+        }
+    }
+}
+
+impl From<ProcessedWavError> for CommandError {
+    fn from(value: ProcessedWavError) -> Self {
+        let details = value.source().map(|e| e.to_string());
+        Self {
+            code: "processed_wav_error".to_string(),
+            message: format!("processed WAV error: {value}"),
             details,
         }
     }
@@ -687,6 +891,7 @@ fn main() {
 
         app.manage(AppState {
             manager: Arc::new(Mutex::new(manager)),
+            prepared_temp_paths: Arc::new(Mutex::new(HashSet::new())),
             timidity_pid: Arc::new(Mutex::new(None)),
             temp_midi_preview_file: Arc::new(Mutex::new(None)),
         });
@@ -721,6 +926,8 @@ fn main() {
         open_folder,
         copy_to_clipboard,
         prepare_drag_file,
+        prepare_processed_drag_file,
+        delete_file,
         get_drag_icon_path,
         debug_start_drag,
         debug_try_deserialize,
@@ -1060,11 +1267,13 @@ fn create_preview_midi_file(
             message: format!("Failed to create temporary preview MIDI: {}", e),
             details: None,
         })?;
-    temp_file.write_all(&transformed).map_err(|e| CommandError {
-        code: "midi_temp_write_error".to_string(),
-        message: format!("Failed to write temporary preview MIDI: {}", e),
-        details: Some(temp_file.path().to_string_lossy().to_string()),
-    })?;
+    temp_file
+        .write_all(&transformed)
+        .map_err(|e| CommandError {
+            code: "midi_temp_write_error".to_string(),
+            message: format!("Failed to write temporary preview MIDI: {}", e),
+            details: Some(temp_file.path().to_string_lossy().to_string()),
+        })?;
     Ok(temp_file)
 }
 

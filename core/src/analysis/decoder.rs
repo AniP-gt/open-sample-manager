@@ -11,7 +11,6 @@ use symphonia::core::probe::Hint;
 use symphonia::default::{get_codecs, get_probe};
 use thiserror::Error;
 
-/// Target sample rate for all decoded audio.
 pub const TARGET_SAMPLE_RATE: u32 = 11_025;
 
 /// Decoded audio data after monaural conversion and downsampling.
@@ -23,6 +22,13 @@ pub struct DecodedAudio {
     pub sample_rate: u32,
     /// The original sample rate from the source file (before downsampling).
     pub original_sample_rate: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct DecodedExportAudio {
+    pub samples: Vec<f32>,
+    pub sample_rate: u32,
+    pub channels: usize,
 }
 
 /// Errors that can occur during audio decoding.
@@ -39,6 +45,9 @@ pub enum DecodeError {
     #[error("No audio tracks found in file")]
     /// Audio file contains no audio tracks.
     NoAudioTrack,
+
+    #[error("Audio track has no channels")]
+    NoAudioChannels,
 
     #[error("Could not create decoder for track")]
     /// Unable to create decoder for the audio track.
@@ -58,10 +67,22 @@ pub enum DecodeError {
 ///
 /// Returns an error if the file cannot be read, decoded, or contains no audio tracks.
 ///
-/// # Panics
-///
-/// Panics if the audio track has no sample rate (calls `unwrap()` on `codec_params.sample_rate`).
 pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
+    let decoded = decode_to_interleaved_f32(path)?;
+
+    let mono = interleaved_to_mono(&decoded.samples, decoded.channels);
+
+    let decimation_factor = decimation_ratio(decoded.sample_rate, TARGET_SAMPLE_RATE);
+    let downsampled = decimate(&mono, decimation_factor);
+
+    Ok(DecodedAudio {
+        samples: downsampled,
+        sample_rate: TARGET_SAMPLE_RATE,
+        original_sample_rate: decoded.sample_rate,
+    })
+}
+
+pub fn decode_to_interleaved_f32(path: &Path) -> Result<DecodedExportAudio, DecodeError> {
     let file = File::open(path)?;
     let mss = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
 
@@ -82,7 +103,10 @@ pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
         .find(|t| t.codec_params.sample_rate.is_some())
         .ok_or(DecodeError::NoAudioTrack)?;
 
-    let original_sample_rate = track.codec_params.sample_rate.unwrap();
+    let sample_rate = track
+        .codec_params
+        .sample_rate
+        .ok_or(DecodeError::NoAudioTrack)?;
     let track_id = track.id;
 
     let mut decoder = get_codecs()
@@ -131,21 +155,13 @@ pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
     }
 
     if num_channels == 0 {
-        // Treat as mono if we never encountered a non-zero channel count.
-        num_channels = 1;
+        return Err(DecodeError::NoAudioChannels);
     }
 
-    // Convert interleaved multi-channel samples to mono.
-    let mono = interleaved_to_mono(&all_interleaved, num_channels);
-
-    // Downsample to target rate via simple decimation.
-    let decimation_factor = decimation_ratio(original_sample_rate, TARGET_SAMPLE_RATE);
-    let downsampled = decimate(&mono, decimation_factor);
-
-    Ok(DecodedAudio {
-        samples: downsampled,
-        sample_rate: TARGET_SAMPLE_RATE,
-        original_sample_rate,
+    Ok(DecodedExportAudio {
+        samples: all_interleaved,
+        sample_rate,
+        channels: num_channels,
     })
 }
 
