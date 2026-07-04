@@ -11,10 +11,10 @@ describe('SampleList rendering, search, and sort', () => {
     });
 
     expect(screen.getByText('FILENAME')).toBeInTheDocument();
-    expect(screen.getByText('TYPE')).toBeInTheDocument();
-    expect(screen.getByText('INST')).toBeInTheDocument();
+    expect(screen.getByText('TYPE', { selector: 'div' })).toBeInTheDocument();
+    expect(screen.getByText('INST', { selector: 'div' })).toBeInTheDocument();
     expect(screen.getByText('BPM')).toBeInTheDocument();
-    expect(screen.getByText('KEY')).toBeInTheDocument();
+    expect(screen.getByText('KEY', { selector: 'div' })).toBeInTheDocument();
     expect(screen.getByText('DUR')).toBeInTheDocument();
     expect(screen.getAllByText('kick.wav')[0]).toBeInTheDocument();
     expect(screen.getAllByText('loop.wav')[0]).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe('SampleList rendering, search, and sort', () => {
     fireEvent.click(screen.getByText('BPM'));
     expect(onSortChange).toHaveBeenCalledWith({ field: 'bpm', direction: 'asc' });
 
-    fireEvent.click(screen.getByText('TYPE'));
+    fireEvent.click(screen.getByText('TYPE', { selector: 'div' }));
     expect(onSortChange).toHaveBeenCalledWith({ field: 'sample_type', direction: 'asc' });
   });
 
@@ -46,6 +46,29 @@ describe('SampleList rendering, search, and sort', () => {
     fireEvent.change(searchInput, { target: { value: 'kick' } });
 
     expect(handleFilterChange).toHaveBeenCalledWith({ search: 'kick' });
+  });
+
+  test('calls onFilterChange from metadata header controls', () => {
+    const handleFilterChange = vi.fn();
+    renderSampleList({
+      filters: defaultFilters,
+      onFilterChange: handleFilterChange,
+    });
+
+    fireEvent.change(screen.getByLabelText('Sample BPM minimum'), { target: { value: '90' } });
+    expect(handleFilterChange).toHaveBeenCalledWith({ filterBpmMin: '90' });
+
+    fireEvent.change(screen.getByLabelText('Sample BPM maximum'), { target: { value: '130' } });
+    expect(handleFilterChange).toHaveBeenCalledWith({ filterBpmMax: '130' });
+
+    fireEvent.change(screen.getByLabelText('Sample type filter'), { target: { value: 'loop' } });
+    expect(handleFilterChange).toHaveBeenCalledWith({ filterType: 'loop' });
+
+    fireEvent.change(screen.getByLabelText('Sample instrument type filter'), { target: { value: 'kick' } });
+    expect(handleFilterChange).toHaveBeenCalledWith({ filterInstrumentType: 'kick' });
+
+    fireEvent.change(screen.getByLabelText('Sample key filter'), { target: { value: 'C#' } });
+    expect(handleFilterChange).toHaveBeenCalledWith({ filterKey: 'C#' });
   });
 
   test('applies local filter combinations', () => {
@@ -78,7 +101,7 @@ describe('SampleList rendering, search, and sort', () => {
     expect(screen.queryByText('flute.wav')).not.toBeInTheDocument();
   });
 
-  test('does not fuzzy-match non-contiguous filename letters', () => {
+  test('fuzzy-matches non-contiguous filename letters', () => {
     renderSampleList({
       samples: [
         { ...mockSamples[0], id: 10, file_name: 'DrumFill.wav' },
@@ -86,7 +109,7 @@ describe('SampleList rendering, search, and sort', () => {
       filters: { ...defaultFilters, search: 'fll' },
     });
 
-    expect(screen.queryByText('DrumFill.wav')).not.toBeInTheDocument();
+    expect(screen.queryByText('DrumFill.wav')).toBeInTheDocument();
   });
 
   test('applies descending sort correctly', () => {

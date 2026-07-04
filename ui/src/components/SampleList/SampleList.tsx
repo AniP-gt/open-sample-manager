@@ -4,7 +4,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useFavoritesStore } from "../../store/useFavoritesStore";
 import { GridView } from "./GridView";
 import type { SampleListProps, SampleListHandle } from "./types";
-import type { Sample } from "../../types/sample";
+import type { InstrumentType, Sample, SampleType } from "../../types/sample";
 import { useColumnResize } from "./useColumnResize";
 import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
@@ -13,6 +13,22 @@ import { matchesSampleFilters } from "../../utils/sampleFilter";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 export type { SampleListHandle, SampleListProps } from "./types";
+
+const keyOptions = ["", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const sampleTypeOptions: Array<SampleType | "all"> = ["all", "loop", "one-shot"];
+
+const controlStyle = {
+  height: "26px",
+  padding: "3px 6px",
+  borderRadius: "4px",
+  border: "1px solid #1f2937",
+  background: "#0f1117",
+  color: "#9ca3af",
+  fontSize: "12px",
+  fontFamily: "'Courier New', monospace",
+  outline: "none",
+  boxSizing: "border-box" as const,
+};
 
 export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
   const {
@@ -63,6 +79,10 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const filtered = useMemo(() => {
     return samples.filter((sample) => matchesSampleFilters(sample, filters));
   }, [samples, filters]);
+
+  const instrumentTypeOptions = useMemo(() => {
+    return Array.from(new Set(samples.map((sample) => sample.instrument_type).filter(Boolean))).sort();
+  }, [samples]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
@@ -197,7 +217,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "10px" }}>
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
@@ -206,8 +226,55 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           value={filters.search}
           onChange={(e) => onFilterChange({ search: e.target.value })}
           placeholder="Search by filename, tag, key..."
-          style={{ flex: 1, fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em" }}
+          style={{ flex: "1 1 220px", minWidth: "160px", fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
         />
+        <input
+          type="number"
+          value={filters.filterBpmMin}
+          onChange={(e) => onFilterChange({ filterBpmMin: e.target.value })}
+          placeholder="BPM MIN"
+          aria-label="Sample BPM minimum"
+          style={{ ...controlStyle, width: "78px" }}
+        />
+        <input
+          type="number"
+          value={filters.filterBpmMax}
+          onChange={(e) => onFilterChange({ filterBpmMax: e.target.value })}
+          placeholder="BPM MAX"
+          aria-label="Sample BPM maximum"
+          style={{ ...controlStyle, width: "78px" }}
+        />
+        <select
+          value={filters.filterType}
+          onChange={(e) => onFilterChange({ filterType: e.target.value as SampleType | "all" })}
+          aria-label="Sample type filter"
+          style={{ ...controlStyle, width: "92px" }}
+        >
+          {sampleTypeOptions.map((type) => (
+            <option key={type} value={type}>{type === "all" ? "TYPE" : type}</option>
+          ))}
+        </select>
+        <select
+          value={filters.filterInstrumentType}
+          onChange={(e) => onFilterChange({ filterInstrumentType: e.target.value as InstrumentType | "" })}
+          aria-label="Sample instrument type filter"
+          style={{ ...controlStyle, width: "96px" }}
+        >
+          <option value="">INST</option>
+          {instrumentTypeOptions.map((instrumentType) => (
+            <option key={instrumentType} value={instrumentType}>{instrumentType}</option>
+          ))}
+        </select>
+        <select
+          value={filters.filterKey}
+          onChange={(e) => onFilterChange({ filterKey: e.target.value })}
+          aria-label="Sample key filter"
+          style={{ ...controlStyle, width: "74px" }}
+        >
+          {keyOptions.map((key) => (
+            <option key={key || "all"} value={key}>{key || "KEY"}</option>
+          ))}
+        </select>
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
