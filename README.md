@@ -35,6 +35,12 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 - **Tag system** — create and assign custom tags to MIDI files
 - **Search** — full-text search over MIDI filenames
 
+### Project Preview Sync
+
+- **Project BPM and key controls**: set the target tempo and key from the header before auditioning sounds
+- **Synced sample previews**: preview audio samples at a playback rate that matches the project BPM, with optional pitch shift to the project key
+- **Synced MIDI previews**: preview MIDI files with tempo rewrite and note transposition before bringing them into a track
+
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample

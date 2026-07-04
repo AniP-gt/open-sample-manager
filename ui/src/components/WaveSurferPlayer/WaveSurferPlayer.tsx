@@ -13,6 +13,7 @@ interface WaveSurferPlayerProps {
   duration: number;
   onSeek?: (time: number) => void;
   onPlayStateChange?: (playing: boolean) => void;
+  playbackEnabled?: boolean;
   /** Called once when the underlying WaveSurfer instance has finished
    *  loading and is ready for plugin registration / external control. */
   onWaveSurferReady?: (ws: WaveSurfer) => void;
@@ -28,6 +29,7 @@ export function WaveSurferPlayer({
   duration,
   onSeek,
   onPlayStateChange,
+  playbackEnabled = true,
   onWaveSurferReady,
   height = 100,
 }: WaveSurferPlayerProps) {
@@ -161,12 +163,17 @@ export function WaveSurferPlayer({
   useEffect(() => {
     if (!wavesurferRef.current || !isReady) return;
 
+    if (!playbackEnabled) {
+      wavesurferRef.current.pause();
+      return;
+    }
+
     if (isPlaying) {
       wavesurferRef.current.play();
     } else {
       wavesurferRef.current.pause();
     }
-  }, [isPlaying, isReady]);
+  }, [isPlaying, isReady, playbackEnabled]);
 
   // Sync seek position
   useEffect(() => {

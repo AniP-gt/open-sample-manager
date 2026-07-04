@@ -7,6 +7,7 @@ interface PitchShiftControlProps {
   /** When true, the slider is disabled — adjusting pitch during playback
    *  causes audible glitches because the worklet graph is being rewired. */
   isPlaying: boolean;
+  syncSemitones?: number;
 }
 
 // Internal-API shape we care about on the WebAudioPlayer that WaveSurfer
@@ -26,10 +27,18 @@ interface PipelineEntry {
   moduleLoaded: Promise<void>;
 }
 
+interface HtmlAudioPipelineEntry {
+  audioContext: AudioContext;
+  sourceNode: MediaElementAudioSourceNode;
+  workletNode: AudioWorkletNode | null;
+  moduleLoaded: Promise<void>;
+}
+
 // Module-level cache so each AudioContext gets exactly one worklet pipeline,
 // even if PitchShiftControl unmounts/remounts (e.g. when the user toggles
 // the advanced controls panel).
 const pipelineCache = new WeakMap<AudioContext, PipelineEntry>();
+const htmlAudioPipelineCache = new WeakMap<HTMLAudioElement, HtmlAudioPipelineEntry>();
 
 function getWebAudioPlayer(ws: WaveSurfer): WebAudioPlayerLike | null {
   // WaveSurfer 7.x stores the media (HTMLMediaElement OR WebAudioPlayer)
@@ -54,16 +63,21 @@ function getWebAudioPlayer(ws: WaveSurfer): WebAudioPlayerLike | null {
 }
 
 export function PitchShiftControl({
-  audioElement: _audioElement,
+  audioElement,
   wavesurfer,
   isPlaying,
+  syncSemitones = 0,
 }: PitchShiftControlProps) {
   const [semitones, setSemitones] = useState(0);
   const [ready, setReady] = useState(false);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+  const canUseHtmlAudioPipeline =
+    typeof AudioContext !== "undefined" &&
+    typeof HTMLAudioElement !== "undefined" &&
+    audioElement instanceof HTMLAudioElement;
 
   useEffect(() => {
-    if (!wavesurfer) {
+    if (!audioElement && !wavesurfer) {
       setReady(false);
       workletNodeRef.current = null;
       return;
@@ -72,6 +86,59 @@ export function PitchShiftControl({
     let cancelled = false;
 
     const setup = async () => {
+      if (canUseHtmlAudioPipeline) {
+        const existingEntry = htmlAudioPipelineCache.get(audioElement);
+        const audioCtx = existingEntry?.audioContext ?? new AudioContext();
+        if (audioCtx.state === "suspended") {
+          await audioCtx.resume().catch(() => {});
+        }
+        if (cancelled) return;
+
+        let entry = existingEntry;
+        if (!entry) {
+          const sourceNode = audioCtx.createMediaElementSource(audioElement);
+          const moduleLoaded = audioCtx.audioWorklet.addModule("/pitch-processor.js");
+          entry = { audioContext: audioCtx, sourceNode, workletNode: null, moduleLoaded };
+          htmlAudioPipelineCache.set(audioElement, entry);
+
+          try {
+            await moduleLoaded;
+          } catch (err) {
+            htmlAudioPipelineCache.delete(audioElement);
+            sourceNode.connect(audioCtx.destination);
+            console.warn("[PitchShiftControl] Worklet module load failed:", err);
+            return;
+          }
+          if (cancelled) {
+            htmlAudioPipelineCache.delete(audioElement);
+            sourceNode.connect(audioCtx.destination);
+            return;
+          }
+
+          const node = new AudioWorkletNode(audioCtx, "pitch-processor");
+          sourceNode.connect(node);
+          node.connect(audioCtx.destination);
+          entry.workletNode = node;
+        } else {
+          try {
+            await entry.moduleLoaded;
+          } catch {
+            return;
+          }
+          if (cancelled) return;
+        }
+
+        if (entry.workletNode) {
+          workletNodeRef.current = entry.workletNode;
+          setReady(true);
+          return;
+        }
+      }
+
+      if (!wavesurfer) {
+        return;
+      }
+
       const player = getWebAudioPlayer(wavesurfer);
       if (!player || !player.audioContext || !player.gainNode) {
         console.warn(
@@ -167,7 +234,11 @@ export function PitchShiftControl({
       workletNodeRef.current = null;
       setReady(false);
     };
-  }, [wavesurfer]);
+  }, [audioElement, canUseHtmlAudioPipeline, wavesurfer]);
+
+  useEffect(() => {
+    setSemitones(syncSemitones);
+  }, [syncSemitones]);
 
   // Push pitchFactor changes to the worklet via its message port.
   useEffect(() => {
@@ -239,7 +310,7 @@ export function PitchShiftControl({
       </button>
       {!ready && (
         <span style={{ fontSize: "10px", color: "#4b5563" }}>
-          {wavesurfer ? "loading..." : "load a sample"}
+          {canUseHtmlAudioPipeline || wavesurfer ? "loading..." : "load a sample"}
         </span>
       )}
     </div>
