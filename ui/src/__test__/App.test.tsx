@@ -41,6 +41,7 @@ const defaultInvokeMock = (cmd: string) => {
         duration: 1.0,
         bpm: 120,
         sample_type: 'one-shot',
+        tags: [],
         musical_key: 'C',
         instrument_type: 'kick',
         created_at: Date.now(),
@@ -74,8 +75,9 @@ vi.mock('@tauri-apps/api/core', () => ({
         duration: 1.0,
         bpm: 120,
         sample_type: 'one-shot',
+        tags: [],
         musical_key: 'C',
-          instrument_type: 'kick',
+        instrument_type: 'kick',
           created_at: Date.now(),
           updated_at: Date.now()
         }
@@ -123,12 +125,12 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
 }));
 
 describe('App Integration', () => {
-  const findSampleTypeBadge = async () => {
+  async function findSampleTypeBadge() {
     const matches = await screen.findAllByText('one-shot');
-    const badge = matches.find((element) => element.tagName !== 'OPTION');
-    if (!badge) throw new Error('sample type badge not found');
+    const badge = matches.find((node) => node.tagName.toLowerCase() === 'span');
+    if (!badge) throw new Error('Sample type badge not found');
     return badge;
-  };
+  }
 
   beforeEach(async () => {
     vi.clearAllMocks();
