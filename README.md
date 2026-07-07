@@ -11,6 +11,15 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 
 ## Features
 
+Feature guides:
+
+- [Feature overview](docs/features/README.md)
+- [Audio sample management](docs/features/audio-sample-management.md)
+- [MIDI file management](docs/features/midi-file-management.md)
+- [Search and organization](docs/features/search-and-organization.md)
+- [Preview sync and drag export](docs/features/preview-sync-and-drag-export.md)
+- [Settings and local data](docs/features/settings-and-local-data.md)
+
 ### Audio Sample Management
 
 <img width="1680" height="981" alt="Sample-List" src="https://github.com/user-attachments/assets/06af7071-a93a-4733-b5d0-454d84d90860" />
