@@ -4,6 +4,26 @@ use crate::db::operations::{insert_sample, search_samples, search_samples_pagina
 
 use super::{make_input, setup_db};
 
+fn tagged_sample(conn: &rusqlite::Connection, sample_id: i64, tag_name: &str) {
+    conn.execute(
+        "INSERT OR IGNORE INTO tags (name) VALUES (?1)",
+        params![tag_name],
+    )
+    .expect("tag insert failed");
+    let tag_id: i64 = conn
+        .query_row(
+            "SELECT id FROM tags WHERE name = ?1",
+            params![tag_name],
+            |row| row.get(0),
+        )
+        .expect("tag lookup failed");
+    conn.execute(
+        "INSERT INTO sample_tags (sample_id, tag_id) VALUES (?1, ?2)",
+        params![sample_id, tag_id],
+    )
+    .expect("sample tag insert failed");
+}
+
 #[test]
 fn test_search_samples_basic_match() {
     let conn = setup_db();
@@ -135,4 +155,63 @@ fn test_search_samples_special_chars_do_not_error() {
     assert!(search_samples(&conn, "\"")
         .expect("search failed")
         .is_empty());
+}
+
+#[test]
+fn test_search_samples_supports_advanced_dsl_fields() {
+    let conn = setup_db();
+    let mut kick = make_input("/samples/metal_kick.wav", "metal_kick.wav");
+    kick.bpm = Some(140.0);
+    kick.playback_type = Some("oneshot".to_string());
+    kick.instrument_type = Some("kick".to_string());
+    kick.musical_key = Some("A".to_string());
+    let kick_id = insert_sample(&conn, &kick).expect("insert kick failed");
+    tagged_sample(&conn, kick_id, "metal");
+
+    let mut snare = make_input("/samples/metal_snare.wav", "metal_snare.wav");
+    snare.bpm = Some(95.0);
+    snare.playback_type = Some("oneshot".to_string());
+    snare.instrument_type = Some("snare".to_string());
+    snare.musical_key = Some("C".to_string());
+    let snare_id = insert_sample(&conn, &snare).expect("insert snare failed");
+    tagged_sample(&conn, snare_id, "metal");
+
+    let results = search_samples(
+        &conn,
+        "kick bpm:120-180 type:one-shot instrument:kick key:Am tag:metal",
+    )
+    .expect("search failed");
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].file_name, "metal_kick.wav");
+}
+
+#[test]
+fn test_search_samples_supports_negative_terms_and_tags() {
+    let conn = setup_db();
+    let clean_id = insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav"))
+        .expect("insert clean failed");
+    tagged_sample(&conn, clean_id, "drums");
+    let rimshot_id = insert_sample(
+        &conn,
+        &make_input("/samples/snare_rimshot.wav", "snare_rimshot.wav"),
+    )
+    .expect("insert rimshot failed");
+    tagged_sample(&conn, rimshot_id, "rimshot");
+
+    let results = search_samples(&conn, "snare -rimshot -tag:rimshot").expect("search failed");
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].file_name, "snare.wav");
+}
+
+#[test]
+fn test_search_samples_ignores_frontend_only_favorite_clause() {
+    let conn = setup_db();
+    insert_sample(&conn, &make_input("/samples/kick.wav", "kick.wav")).expect("insert failed");
+
+    let results = search_samples(&conn, "favorite:true").expect("search failed");
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].file_name, "kick.wav");
 }

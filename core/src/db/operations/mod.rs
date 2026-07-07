@@ -2,6 +2,7 @@ mod fuzzy;
 mod instrument_types;
 mod midi;
 mod samples;
+mod search_dsl;
 mod types;
 
 pub use instrument_types::{
