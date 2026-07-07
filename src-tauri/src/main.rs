@@ -213,6 +213,104 @@ fn get_sample(
 }
 
 #[tauri::command]
+fn list_projects(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::ProjectRow>, CommandError> {
+    let manager = get_manager(&state);
+    manager.list_projects().map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn get_default_project(
+    state: tauri::State<'_, AppState>,
+) -> Result<open_sample_manager_core::db::operations::ProjectRow, CommandError> {
+    let manager = get_manager(&state);
+    manager.get_default_project().map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn record_project_sample_selection(
+    project_id: Option<String>,
+    sample_id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<i64, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .record_project_sample_selection(project_id.as_deref(), sample_id)
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn record_project_sample_export(
+    project_id: Option<String>,
+    sample_id: i64,
+    variant: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<i64, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .record_project_sample_export(project_id.as_deref(), sample_id, &variant)
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn add_project_collection_sample(
+    project_id: Option<String>,
+    sample_id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .add_project_collection_sample(project_id.as_deref(), sample_id)
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn remove_project_collection_sample(
+    project_id: Option<String>,
+    sample_id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .remove_project_collection_sample(project_id.as_deref(), sample_id)
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn list_project_collection_sample_ids(
+    project_id: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<i64>, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .list_project_collection_sample_ids(project_id.as_deref())
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn list_project_usage_events(
+    project_id: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::ProjectSampleEventRow>, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .list_project_usage_events(project_id.as_deref())
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn list_project_used_sample_ids(
+    project_id: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<i64>, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .list_project_used_sample_ids(project_id.as_deref())
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
 fn list_all_sample_paths(state: tauri::State<'_, AppState>) -> Result<Vec<String>, CommandError> {
     let manager = get_manager(&state);
     manager.get_all_sample_paths().map_err(CommandError::from)
@@ -912,6 +1010,15 @@ fn main() {
         list_samples_around_id,
         search_by_embedding,
         get_sample,
+        list_projects,
+        get_default_project,
+        record_project_sample_selection,
+        record_project_sample_export,
+        add_project_collection_sample,
+        remove_project_collection_sample,
+        list_project_collection_sample_ids,
+        list_project_usage_events,
+        list_project_used_sample_ids,
         list_all_sample_paths,
         delete_sample,
         clear_all_samples,
