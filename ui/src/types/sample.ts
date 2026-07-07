@@ -47,6 +47,8 @@ export interface Sample {
   channel_count?: number;
   bit_depth?: number;
   quality_flags: string[];
+  content_hash?: string;
+  duplicate_count?: number;
 }
 
 export interface SampleProcessingSettings {
@@ -64,6 +66,7 @@ export interface FilterState {
   filterBpmMax: string;
   filterInstrumentType: InstrumentType | "";
   favoritesOnly: boolean;
+  hideDuplicates?: boolean;
   /** Pitch class filter (e.g. "C", "C#"); empty string = no filter. */
   filterKey: string;
   filterLicense: string;

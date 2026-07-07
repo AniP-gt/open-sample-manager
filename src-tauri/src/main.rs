@@ -219,6 +219,14 @@ fn list_all_sample_paths(state: tauri::State<'_, AppState>) -> Result<Vec<String
 }
 
 #[tauri::command]
+fn list_duplicate_groups(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::DuplicateGroup>, CommandError> {
+    let manager = get_manager(&state);
+    manager.list_duplicate_groups().map_err(CommandError::from)
+}
+
+#[tauri::command]
 fn delete_sample(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
     manager.delete_sample(&path).map_err(CommandError::from)
@@ -919,7 +927,13 @@ fn main() {
         };
 
         let db_path_str = db_path.as_ref().map(|p| p.to_string_lossy().to_string());
-        let manager = SampleManager::new(db_path_str.as_deref()).expect("failed to open database");
+        let manager = SampleManager::new(db_path_str.as_deref()).map_err(|error| {
+            eprintln!("failed to open database at {:?}: {error}", db_path_str);
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("failed to open database: {error}"),
+            )
+        })?;
 
         app.manage(AppState {
             manager: Arc::new(Mutex::new(manager)),
@@ -945,6 +959,7 @@ fn main() {
         search_by_embedding,
         get_sample,
         list_all_sample_paths,
+        list_duplicate_groups,
         delete_sample,
         clear_all_samples,
         re_scan_all_samples,
@@ -985,9 +1000,10 @@ fn main() {
         set_midi_file_tag,
         get_midi_file_tags,
     ]);
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    if let Err(error) = builder.run(tauri::generate_context!()) {
+        eprintln!("error while running tauri application: {error}");
+        std::process::exit(1);
+    }
 }
 
 #[tauri::command]

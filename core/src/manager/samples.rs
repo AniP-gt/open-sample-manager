@@ -81,6 +81,10 @@ impl SampleManager {
         Ok(operations::get_all_sample_paths(&self.conn)?)
     }
 
+    pub fn list_duplicate_groups(&self) -> Result<Vec<operations::DuplicateGroup>, ManagerError> {
+        Ok(operations::list_duplicate_groups(&self.conn)?)
+    }
+
     pub fn delete_sample(&self, path: &str) -> Result<usize, ManagerError> {
         Ok(operations::delete_sample(&self.conn, path)?)
     }
@@ -201,6 +205,7 @@ impl SampleManager {
             playback_type: Some(pt),
             instrument_type: Some(it),
             musical_key: row.musical_key,
+            content_hash: row.content_hash,
         };
         Ok(operations::update_sample(&self.conn, &input)?)
     }

@@ -2,6 +2,7 @@ mod fuzzy;
 mod instrument_types;
 mod midi;
 mod samples;
+mod search_dsl;
 mod types;
 
 pub use instrument_types::{
@@ -16,11 +17,11 @@ pub use midi::{
 };
 pub use samples::{
     clear_all_samples, delete_sample, get_all_sample_paths, get_sample_by_id, get_sample_by_path,
-    insert_sample, list_samples_around_id, list_samples_paginated, move_sample_path,
-    search_by_embedding, search_samples, search_samples_paginated, update_sample,
+    insert_sample, list_duplicate_groups, list_samples_around_id, list_samples_paginated,
+    move_sample_path, search_by_embedding, search_samples, search_samples_paginated, update_sample,
     update_sample_license_metadata,
 };
 pub use types::{
-    EmbeddingSearchResult, InstrumentTypeRow, MidiInput, MidiRow, MidiTagRow, SampleInput,
-    SampleRow,
+    DuplicateGroup, EmbeddingSearchResult, InstrumentTypeRow, MidiInput, MidiRow, MidiTagRow,
+    SampleInput, SampleRow,
 };

@@ -31,6 +31,8 @@ const baseRow = (overrides: Partial<TauriSampleRow> = {}): TauriSampleRow => ({
   channel_count: null,
   bit_depth: null,
   quality_flags: null,
+  content_hash: null,
+  duplicate_count: null,
   tags: [],
   ...overrides,
 });
@@ -73,6 +75,8 @@ describe("mapRowToSample", () => {
         channel_count: 2,
         bit_depth: 24,
         quality_flags: '["clipping","leading_silence"]',
+        content_hash: "abc123",
+        duplicate_count: 2,
         tags: ["drums", "favorite"],
       }),
     );
@@ -102,6 +106,8 @@ describe("mapRowToSample", () => {
       channel_count: 2,
       bit_depth: 24,
       quality_flags: ["clipping", "leading_silence"],
+      content_hash: "abc123",
+      duplicate_count: 2,
     });
     expect(sample.waveform_peaks).toEqual([0, 0.25, 1]);
     expect(sample.tags).toEqual(["drums", "favorite"]);

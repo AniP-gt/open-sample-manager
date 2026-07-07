@@ -21,6 +21,7 @@ const samples: Sample[] = [
     instrument_type: "kick",
     musical_key: "C",
     quality_flags: [],
+    duplicate_count: 1,
   },
   {
     id: 2,
@@ -39,6 +40,7 @@ const samples: Sample[] = [
     instrument_type: "snare",
     musical_key: "D",
     quality_flags: [],
+    duplicate_count: 1,
   },
 ];
 
@@ -52,6 +54,7 @@ const filters: FilterState = {
   filterLicense: "",
   qualityIssuesOnly: false,
   favoritesOnly: false,
+  hideDuplicates: false,
 };
 
 describe("display hooks", () => {
@@ -92,6 +95,20 @@ describe("display hooks", () => {
     const { result } = renderHook(() => useDisplayedSamples(samples, { ...filters, search: "drm" }, []));
 
     expect(result.current).toEqual([samples[0]]);
+  });
+
+  test("filters samples with advanced search DSL clauses", () => {
+    const { result } = renderHook(() =>
+      useDisplayedSamples(samples, { ...filters, search: "kick bpm:110-130 type:one-shot tag:warm key:C favorite:true" }, [1])
+    );
+
+    expect(result.current).toEqual([samples[0]]);
+  });
+
+  test("honors negative DSL terms", () => {
+    const { result } = renderHook(() => useDisplayedSamples(samples, { ...filters, search: "snare -kick" }, []));
+
+    expect(result.current).toEqual([samples[1]]);
   });
 
   test("ignores invalid BPM bounds", () => {

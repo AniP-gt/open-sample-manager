@@ -48,6 +48,7 @@ fn update_classification_by_id_updates_row() {
             playback_type: Some("oneshot".to_string()),
             instrument_type: Some("other".to_string()),
             musical_key: None,
+            content_hash: None,
         };
 
         let id = insert_sample(&conn, &input).expect("insert");

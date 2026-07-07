@@ -27,7 +27,16 @@ export type TauriSampleRow = {
   channel_count: number | null;
   bit_depth: number | null;
   quality_flags: string | null;
+  content_hash: string | null;
+  duplicate_count: number | null;
   tags: string[];
+};
+
+export type DuplicateGroup = {
+  content_hash: string;
+  sample_count: number;
+  total_file_size: number;
+  samples: TauriSampleRow[];
 };
 
 export type LibraryExportSummary = {

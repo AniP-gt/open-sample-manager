@@ -1,10 +1,10 @@
 use rusqlite::{params, Connection};
 
-use crate::db::operations::types::SampleRow;
+use crate::db::operations::types::{DuplicateGroup, SampleRow};
 
 use super::{row_to_sample, OptionalExt};
 
-pub(in crate::db::operations::samples) const SAMPLE_COLUMNS: &str = "id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, source, pack_name, license, license_url, license_memo, imported_at, peak_db, rms_db, leading_silence_ms, clipping_count, channel_count, bit_depth, quality_flags, is_online, playback_type, instrument_type, musical_key, COALESCE((SELECT GROUP_CONCAT(name, char(31)) FROM (SELECT t.name AS name FROM sample_tags st JOIN tags t ON t.id = st.tag_id WHERE st.sample_id = samples.id ORDER BY t.name)), '') AS tag_names";
+pub(in crate::db::operations::samples) const SAMPLE_COLUMNS: &str = "id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, source, pack_name, license, license_url, license_memo, imported_at, peak_db, rms_db, leading_silence_ms, clipping_count, channel_count, bit_depth, quality_flags, is_online, playback_type, instrument_type, musical_key, content_hash, COALESCE((SELECT COUNT(*) FROM samples dup WHERE dup.content_hash = samples.content_hash AND dup.content_hash IS NOT NULL), 1) AS duplicate_count, COALESCE((SELECT GROUP_CONCAT(name, char(31)) FROM (SELECT t.name AS name FROM sample_tags st JOIN tags t ON t.id = st.tag_id WHERE st.sample_id = samples.id ORDER BY t.name)), '') AS tag_names";
 
 pub fn get_sample_by_path(
     conn: &Connection,
@@ -142,4 +142,41 @@ pub(in crate::db::operations::samples) fn list_all_samples(
         conn.prepare_cached(&format!("SELECT {SAMPLE_COLUMNS} FROM samples ORDER BY id"))?;
     let rows = stmt.query_map([], row_to_sample)?.collect();
     rows
+}
+
+pub fn list_duplicate_groups(conn: &Connection) -> Result<Vec<DuplicateGroup>, rusqlite::Error> {
+    let mut group_stmt = conn.prepare_cached(
+        "SELECT content_hash, COUNT(*) AS sample_count, COALESCE(SUM(file_size), 0) AS total_file_size
+         FROM samples
+         WHERE content_hash IS NOT NULL
+         GROUP BY content_hash
+         HAVING COUNT(*) > 1
+         ORDER BY sample_count DESC, content_hash",
+    )?;
+    let group_rows = group_stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>("content_hash")?,
+            row.get::<_, i64>("sample_count")?,
+            row.get::<_, i64>("total_file_size")?,
+        ))
+    })?;
+
+    let mut groups = Vec::new();
+    for group in group_rows {
+        let (content_hash, sample_count, total_file_size) = group?;
+        let mut sample_stmt = conn.prepare_cached(&format!(
+            "SELECT {SAMPLE_COLUMNS} FROM samples WHERE content_hash = ?1 ORDER BY id"
+        ))?;
+        let samples = sample_stmt
+            .query_map(params![content_hash.as_str()], row_to_sample)?
+            .collect::<Result<Vec<_>, _>>()?;
+        groups.push(DuplicateGroup {
+            content_hash,
+            sample_count,
+            total_file_size,
+            samples,
+        });
+    }
+
+    Ok(groups)
 }

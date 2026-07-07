@@ -41,6 +41,8 @@ const sampleRow = (overrides: Partial<TauriSampleRow> = {}): TauriSampleRow => (
   channel_count: null,
   bit_depth: null,
   quality_flags: null,
+  content_hash: null,
+  duplicate_count: null,
   tags: [],
   ...overrides,
 });

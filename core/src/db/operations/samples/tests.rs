@@ -47,5 +47,6 @@ pub(super) fn make_input(path: &str, file_name: &str) -> SampleInput {
         playback_type: None,
         instrument_type: None,
         musical_key: None,
+        content_hash: None,
     }
 }

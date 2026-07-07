@@ -1,5 +1,6 @@
 import type { FilterState, Sample } from "../types/sample";
 import { matchesFuzzySearch } from "./search";
+import { matchesSampleSearchDsl } from "./searchDsl";
 
 function parseBound(value: string) {
   if (!value.trim()) return null;
@@ -15,8 +16,8 @@ function matchesBpm(sampleBpm: number | null, min: number | null, max: number | 
   return true;
 }
 
-function matchesSearch(sample: Sample, query: string) {
-  return matchesFuzzySearch(query, [
+function matchesSearch(sample: Sample, query: string, isFavorite: boolean) {
+  return matchesSampleSearchDsl(query, sample, isFavorite) || matchesFuzzySearch(query, [
     sample.file_name,
     sample.source ?? "",
     sample.pack_name ?? "",
@@ -26,7 +27,7 @@ function matchesSearch(sample: Sample, query: string) {
   ]);
 }
 
-export function matchesSampleFilters(sample: Sample, filters: FilterState) {
+export function matchesSampleFilters(sample: Sample, filters: FilterState, isFavorite = false) {
   const minBpm = parseBound(filters.filterBpmMin);
   const maxBpm = parseBound(filters.filterBpmMax);
   const key = filters.filterKey;
@@ -37,5 +38,5 @@ export function matchesSampleFilters(sample: Sample, filters: FilterState) {
   if (filters.filterLicense && (sample.license ?? "") !== filters.filterLicense) return false;
   if (filters.qualityIssuesOnly && sample.quality_flags.length === 0) return false;
   if (!matchesBpm(sample.bpm, minBpm, maxBpm)) return false;
-  return matchesSearch(sample, filters.search);
+  return matchesSearch(sample, filters.search, isFavorite);
 }

@@ -3,22 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { FilterState, Sample } from "../../types/sample";
 import { useRecentStore } from "../../store/useRecentStore";
 import { loadDragIconPath, prepareDragFile, startFileDrag } from "../fileDragOut";
-
-const KEY_OPTIONS = [
-  "All",
-  "C",
-  "C#",
-  "D",
-  "D#",
-  "E",
-  "F",
-  "F#",
-  "G",
-  "G#",
-  "A",
-  "A#",
-  "B",
-];
+import { KEY_FILTER_OPTIONS } from "../../utils/keyOptions";
 
 interface FilterSidebarProps {
   scannedPaths: string[];
@@ -33,6 +18,8 @@ interface FilterSidebarProps {
   width?: number;
   bottomInset?: number; // space to leave at the bottom (e.g. player height)
   favoritesOnly?: boolean;
+  hideDuplicates?: boolean;
+  duplicateCount?: number;
   /** Pitch class filter currently selected; "" or "All" disables filter. */
   filterKey?: string;
   /** Sample list to resolve recent ids against (for the Recent section). */
@@ -278,6 +265,8 @@ export function FilterSidebar({
   width = 180,
   bottomInset = 0,
   favoritesOnly = false,
+  hideDuplicates = false,
+  duplicateCount = 0,
   filterKey = "",
   samples = [],
   onSampleSelect,
@@ -412,15 +401,39 @@ export function FilterSidebar({
           </button>
         </div>
 
+        <div style={{ padding: "4px 12px 4px" }}>
+          <button
+            onClick={() => onFilterChange({ hideDuplicates: !hideDuplicates })}
+            style={{
+              background: hideDuplicates ? "#38bdf825" : "#38bdf80a",
+              border: `1px solid ${hideDuplicates ? "#38bdf880" : "#38bdf830"}`,
+              color: hideDuplicates ? "#7dd3fc" : "#9ca3af",
+              borderRadius: "3px",
+              padding: "6px 10px",
+              fontSize: "11px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              letterSpacing: "0.08em",
+              transition: "background 0.15s, border-color 0.15s, color 0.15s",
+            }}
+          >
+            <span>{hideDuplicates ? "●" : "○"}</span>
+            <span>HIDE DUPLICATES {duplicateCount > 0 ? `(${duplicateCount})` : ""}</span>
+          </button>
+        </div>
+
         <div style={{ padding: "4px 12px 12px" }}>
           <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>
             KEY
           </div>
           <select
-            value={filterKey === "" ? "All" : filterKey}
+            value={filterKey ?? ""}
             onChange={(e) => {
-              const v = e.target.value;
-              onFilterChange({ filterKey: v === "All" ? "" : v });
+              onFilterChange({ filterKey: e.target.value });
             }}
             style={{
               width: "100%",
@@ -433,9 +446,9 @@ export function FilterSidebar({
               fontSize: "12px",
             }}
           >
-            {KEY_OPTIONS.map((k) => (
+            {KEY_FILTER_OPTIONS.map((k) => (
               <option key={k} value={k}>
-                {k}
+                {k || "All"}
               </option>
             ))}
           </select>

@@ -24,7 +24,6 @@ import { useFavoritesStore } from "./store/useFavoritesStore";
 import { useMidiFavoritesStore } from "./store/useMidiFavoritesStore";
 import { useRecentStore } from "./store/useRecentStore";
 import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
-import { useProjectSyncState } from "./hooks/useProjectSyncState";
 import { useSampleProcessingState } from "./hooks/useSampleProcessingState";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
@@ -36,6 +35,7 @@ const defaultFilters: FilterState = {
   filterBpmMax: "",
   filterInstrumentType: "",
   favoritesOnly: false,
+  hideDuplicates: false,
   filterKey: "",
   filterLicense: "",
   qualityIssuesOnly: false,
@@ -97,15 +97,12 @@ export function App() {
     },
   });
 
-  const projectSyncState = useProjectSyncState();
-
   const midiState = useMidiState({
     setError: scanState.setError,
     pageLimit: uiState.pageLimit,
     midiListRef,
     viewMode: uiState.viewMode,
     autoPlayOnSelect,
-    getPreviewOptions: (midi) => projectSyncState.getMidiPreviewOptions(midi),
   });
 
   const sampleState = useSampleState({
@@ -240,7 +237,6 @@ export function App() {
         onReload={() => {
           void sampleState.handleSearch(sampleState.filters.search);
         }}
-        projectSync={projectSyncState}
       />
 
       <RescanPrompt
@@ -290,8 +286,6 @@ export function App() {
           sample={sampleState.selected}
           path={selectedSamplePath}
           autoPlay={autoPlayOnSelect}
-          playbackRate={projectSyncState.getSamplePlaybackRate(sampleState.selected)}
-          syncPitchShift={projectSyncState.getSamplePitchShift(sampleState.selected)}
           processingSettings={sampleProcessingState.selectedSettings}
           onProcessingSettingsChange={sampleProcessingState.updateSelectedSettings}
           onProcessingSettingsReset={sampleProcessingState.resetSelectedSettings}

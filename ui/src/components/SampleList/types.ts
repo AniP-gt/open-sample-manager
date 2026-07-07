@@ -2,6 +2,7 @@ import type { Sample, FilterState, SortState, SampleProcessingSettings } from ".
 
 export interface SampleListProps {
   samples: Sample[];
+  instrumentTypeOptions?: FilterState["filterInstrumentType"][];
   samplePaths: Record<number, string>;
   filters: FilterState;
   sort: SortState;

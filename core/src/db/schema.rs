@@ -54,6 +54,7 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             channel_count INTEGER,
             bit_depth INTEGER,
             quality_flags TEXT,
+            content_hash TEXT,
             is_online INTEGER DEFAULT 1
         );
 
@@ -266,6 +267,12 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         "UPDATE samples SET imported_at = CURRENT_TIMESTAMP WHERE imported_at IS NULL",
         [],
     );
+
+    add_samples_column_if_missing(conn, "content_hash", "content_hash TEXT");
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_content_hash ON samples(content_hash)",
+        [],
+    )?;
 
     Ok(())
 }

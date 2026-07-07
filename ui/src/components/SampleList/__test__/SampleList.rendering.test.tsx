@@ -2,6 +2,7 @@ import './mockSampleListDependencies';
 import { describe, expect, test, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { defaultFilters, mockSamples, renderSampleList } from './sampleListTestHelpers';
+import { KEY_FILTER_OPTIONS } from '../../../utils/keyOptions';
 
 describe('SampleList rendering, search, and sort', () => {
   test('renders list headers and virtual items', () => {
@@ -69,6 +70,27 @@ describe('SampleList rendering, search, and sort', () => {
 
     fireEvent.change(screen.getByLabelText('Sample key filter'), { target: { value: 'C#' } });
     expect(handleFilterChange).toHaveBeenCalledWith({ filterKey: 'C#' });
+  });
+
+  test('renders instrument options from the full option list when provided', () => {
+    renderSampleList({
+      samples: [{ ...mockSamples[0], instrument_type: 'kick' }],
+      instrumentTypeOptions: ['kick', 'snare', 'bass'],
+    });
+
+    const select = screen.getByLabelText('Sample instrument type filter') as HTMLSelectElement;
+    const values = Array.from(select.options).map((option) => option.value);
+
+    expect(values).toEqual(['', 'bass', 'kick', 'snare']);
+  });
+
+  test('uses the shared key filter values', () => {
+    renderSampleList();
+
+    const select = screen.getByLabelText('Sample key filter') as HTMLSelectElement;
+    const values = Array.from(select.options).map((option) => option.value);
+
+    expect(values).toEqual([...KEY_FILTER_OPTIONS]);
   });
 
   test('applies local filter combinations', () => {

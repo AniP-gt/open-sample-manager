@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SetStateAction } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Midi, MidiTagRow, TimidityStatus } from "../types/midi";
-import type { PreviewSyncResult } from "../utils/previewSync";
 import { getErrorMessage } from "../utils/sampleMapper";
 import type { MidiListHandle } from "../components";
 
@@ -12,7 +11,6 @@ type UseMidiStateParams = {
   midiListRef: React.RefObject<MidiListHandle | null>;
   viewMode: "sample" | "midi";
   autoPlayOnSelect: boolean;
-  getPreviewOptions?: (midi: Midi) => PreviewSyncResult;
 };
 
 export function useMidiState({
@@ -21,7 +19,6 @@ export function useMidiState({
   midiListRef,
   viewMode,
   autoPlayOnSelect,
-  getPreviewOptions,
 }: UseMidiStateParams) {
   const [midis, setMidis] = useState<Midi[]>([]);
   const [selectedMidi, setSelectedMidiState] = useState<Midi | null>(null);
@@ -52,11 +49,6 @@ export function useMidiState({
   const [lastFetchCountMidi, setLastFetchCountMidi] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrashMidiId, setPendingTrashMidiId] = useState<number | null>(null);
-
-  const buildPlayPayload = useCallback((midi: Midi) => ({
-    path: midi.path,
-    ...(getPreviewOptions?.(midi) ?? {}),
-  }), [getPreviewOptions]);
 
   const setSelectedMidi = useCallback((value: SetStateAction<Midi | null>) => {
     setSelectedMidiState((prev) => {
@@ -130,7 +122,7 @@ export function useMidiState({
           setIsMidiPlaying(false);
         }
         try {
-          await invoke("play_midi", buildPlayPayload(row));
+          await invoke("play_midi", { path: row.path });
           setIsMidiPlaying(true);
         } catch {
           setIsMidiPlaying(false);
@@ -368,7 +360,7 @@ export function useMidiState({
     });
     if (autoPlayOnSelect && midi.path && selectedMidi?.id !== midi.id) {
       try {
-        await invoke("play_midi", buildPlayPayload(midi));
+        await invoke("play_midi", { path: midi.path });
         setIsMidiPlaying(true);
       } catch {
         setIsMidiPlaying(false);
@@ -388,14 +380,14 @@ export function useMidiState({
       }
     } else {
       try {
-        await invoke("play_midi", buildPlayPayload(selectedMidi));
+        await invoke("play_midi", { path: selectedMidi.path });
         setIsMidiPlaying(true);
       } catch (e) {
         setError(getErrorMessage(e));
         setIsMidiPlaying(false);
       }
     }
-  }, [selectedMidi, isMidiPlaying, setError, buildPlayPayload]);
+  }, [selectedMidi, isMidiPlaying, setError]);
 
   useEffect(() => {
     invoke<TimidityStatus>("check_timidity").then(setTimidityStatus).catch(console.error);

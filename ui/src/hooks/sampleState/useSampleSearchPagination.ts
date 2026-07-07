@@ -32,6 +32,7 @@ const initialFilters: FilterState = {
   filterBpmMax: "",
   filterInstrumentType: "",
   favoritesOnly: false,
+  hideDuplicates: false,
   filterKey: "",
   filterLicense: "",
   qualityIssuesOnly: false,

@@ -37,6 +37,8 @@ pub(in crate::db::operations::samples) fn row_to_sample(
         playback_type: row.get::<_, String>("playback_type")?,
         instrument_type: row.get::<_, String>("instrument_type")?,
         musical_key: row.get::<_, Option<String>>("musical_key")?,
+        content_hash: row.get::<_, Option<String>>("content_hash")?,
+        duplicate_count: row.get::<_, Option<i64>>("duplicate_count")?.unwrap_or(1),
         tags: parse_tag_names(tag_names.as_deref()),
     })
 }
