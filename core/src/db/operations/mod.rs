@@ -1,9 +1,15 @@
+mod collections;
 mod fuzzy;
 mod instrument_types;
 mod midi;
 mod samples;
+mod saved_searches;
 mod types;
 
+pub use collections::{
+    add_samples_to_collection, create_collection, delete_collection, get_collection,
+    list_collection_samples, list_collections, remove_samples_from_collection, update_collection,
+};
 pub use instrument_types::{
     delete_instrument_type, get_all_instrument_types, insert_instrument_type,
     update_instrument_type,
@@ -19,7 +25,11 @@ pub use samples::{
     insert_sample, list_samples_around_id, list_samples_paginated, move_sample_path,
     search_by_embedding, search_samples, search_samples_paginated, update_sample,
 };
+pub use saved_searches::{
+    create_saved_search, delete_saved_search, get_saved_search, list_saved_searches,
+    update_saved_search,
+};
 pub use types::{
-    EmbeddingSearchResult, InstrumentTypeRow, MidiInput, MidiRow, MidiTagRow, SampleInput,
-    SampleRow,
+    CollectionInput, CollectionRow, EmbeddingSearchResult, InstrumentTypeRow, MidiInput, MidiRow,
+    MidiTagRow, SampleInput, SampleRow, SavedSearchInput, SavedSearchRow,
 };
