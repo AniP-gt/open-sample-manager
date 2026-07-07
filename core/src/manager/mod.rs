@@ -21,6 +21,7 @@
 
 mod analyze;
 mod audio;
+mod collections;
 mod instrument_types;
 mod midi;
 mod midi_queries;
@@ -29,6 +30,7 @@ mod migration;
 mod migration_io;
 mod processed_drag;
 mod samples;
+mod saved_searches;
 mod scan;
 
 use std::path::PathBuf;
