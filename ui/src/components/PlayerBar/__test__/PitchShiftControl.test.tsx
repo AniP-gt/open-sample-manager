@@ -143,9 +143,12 @@ describe("PitchShiftControl", () => {
       <PitchShiftControl
         audioElement={document.createElement("audio")}
         isPlaying={false}
-        syncSemitones={2}
       />,
     );
+
+    const slider = screen.getByRole("slider", { name: "Pitch shift in semitones" });
+    await waitFor(() => expect(slider).not.toBeDisabled());
+    fireEvent.change(slider, { target: { value: "2" } });
 
     await waitFor(() => {
       expect(sourceNode.connect).toHaveBeenCalledWith(expect.objectContaining({ port: workletNode.port }));

@@ -18,8 +18,6 @@ interface PlayerBarProps {
   path?: string;
   onClose?: () => void;
   autoPlay?: boolean;
-  playbackRate?: number;
-  syncPitchShift?: number;
   processingSettings?: SampleProcessingSettings;
   onProcessingSettingsChange?: (settings: SampleProcessingSettings) => void;
   onProcessingSettingsReset?: () => void;
@@ -46,8 +44,6 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   path,
   onClose,
   autoPlay,
-  playbackRate = 1,
-  syncPitchShift = 0,
   processingSettings = createDefaultSampleProcessingSettings(),
   onProcessingSettingsChange,
   onProcessingSettingsReset,
@@ -72,11 +68,6 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   useEffect(() => {
     audioRef.current.volume = effectiveVolume;
   }, [effectiveVolume]);
-
-  useEffect(() => {
-    audioRef.current.playbackRate = playbackRate;
-    wavesurferInstance?.setPlaybackRate(playbackRate);
-  }, [playbackRate, wavesurferInstance]);
 
   const playFromPreviewStart = () => {
     const audio = audioRef.current;
@@ -160,7 +151,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
     setCurrentTime(0);
 
     audio.src = assetUrl;
-    audio.playbackRate = playbackRate;
+    audio.playbackRate = 1;
 
     audio.onloadedmetadata = () => {
       if (loadIdRef.current !== myLoadId) return;
@@ -199,7 +190,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       audio.ontimeupdate = null;
       audio.pause();
     };
-  }, [stablePath, playbackRate, trimStart, trimEnd]);
+  }, [stablePath, trimStart, trimEnd]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -345,11 +336,6 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
                 {sample.musical_key}
               </span>
             )}
-            {playbackRate !== 1 && (
-              <span style={{ fontSize: "11px", color: "#f97316", letterSpacing: "0.1em" }}>
-                x{playbackRate.toFixed(2)}
-              </span>
-            )}
             <span style={{ fontSize: "12px", color: "#6b7280" }}>
               {sample.duration.toFixed(2)}s
             </span>
@@ -443,7 +429,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
           </button>
         </div>
 
-        {(!autoPlayRef.current || syncPitchShift !== 0) && stablePath ? (
+        {!autoPlayRef.current && stablePath ? (
           <Suspense fallback={
             <WaveformDisplay
               sample={sample}
@@ -461,7 +447,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
               currentTime={currentTime}
               duration={duration || sample.duration}
               height={100}
-              playbackEnabled={syncPitchShift === 0}
+              playbackEnabled={true}
               onSeek={(time) => {
                 const audio = audioRef.current;
                 audio.currentTime = time;
@@ -488,7 +474,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       </div>
 
       {/* Advanced Controls */}
-      {(showAdvanced || syncPitchShift !== 0) && (
+      {showAdvanced && (
         <div
           style={{
             display: "flex",
@@ -511,7 +497,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
             onReset={() => onProcessingSettingsReset?.()}
             onClear={() => onProcessingSettingsClear?.()}
           />
-          <PitchShiftControl audioElement={audioRef.current} wavesurfer={wavesurferInstance} isPlaying={playing} syncSemitones={syncPitchShift} />
+          <PitchShiftControl audioElement={audioRef.current} wavesurfer={wavesurferInstance} isPlaying={playing} />
         </div>
       )}
 
