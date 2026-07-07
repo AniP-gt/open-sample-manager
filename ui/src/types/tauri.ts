@@ -14,7 +14,16 @@ export type TauriSampleRow = {
   playback_type: string;
   instrument_type: string;
   musical_key: string | null;
+  content_hash: string | null;
+  duplicate_count: number | null;
   tags: string[];
+};
+
+export type DuplicateGroup = {
+  content_hash: string;
+  sample_count: number;
+  total_file_size: number;
+  samples: TauriSampleRow[];
 };
 
 export type LibraryExportSummary = {

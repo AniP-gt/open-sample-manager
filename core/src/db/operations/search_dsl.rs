@@ -345,6 +345,8 @@ mod tests {
             playback_type: "oneshot".to_string(),
             instrument_type: "kick".to_string(),
             musical_key: Some("A".to_string()),
+            content_hash: None,
+            duplicate_count: 1,
             tags: vec!["metal".to_string(), "drums".to_string()],
         }
     }

@@ -41,6 +41,7 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             sample_type TEXT,
             waveform_peaks TEXT,
             embedding BLOB,
+            content_hash TEXT,
             is_online INTEGER DEFAULT 1
         );
 
@@ -230,6 +231,12 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     // Migration: add musical_key column to samples
     let _ = conn.execute("ALTER TABLE samples ADD COLUMN musical_key TEXT", []);
+
+    let _ = conn.execute("ALTER TABLE samples ADD COLUMN content_hash TEXT", []);
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_content_hash ON samples(content_hash)",
+        [],
+    )?;
 
     Ok(())
 }

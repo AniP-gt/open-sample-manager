@@ -30,8 +30,9 @@ Feature guides:
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
 - **Advanced search DSL** — combine free text with filters such as `bpm:120-180`, `type:oneshot`, `tag:metal`, `key:Am`, `instrument:kick`, and negative terms like `-rimshot`
 - **Similarity search** — embedding-based "find similar samples" lookup
+- **Duplicate detection** — group exact duplicate audio files by content hash and hide duplicate rows from the sample list
 - **Random discovery**: pick a random sample from the current result set, step back through random picks, or jump to a random similar sample. See [Random Inspiration](docs/random-inspiration.md).
-- **Filter sidebar** — filter by instrument type, sample type, BPM range
+- **Filter sidebar** — filter by instrument type, sample type, BPM range, and duplicate status
 - **Waveform display** — inline waveform preview in the detail panel
 - **Drag to DAW** — drag samples directly from the app into your DAW
 - **Processed drag export** — with auto-play off, open `CONTROLS` in the player bar to set trim, fade, and gain before dragging a rendered WAV into your DAW
@@ -48,9 +49,11 @@ Feature guides:
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
+- **Duplicate visibility controls** — keep every scanned file in the library while hiding repeated content from day-to-day browsing
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency
 - **Library migration** — export the local metadata database from Settings and import it on another PC
 
+For implementation details, see [Duplicate Detection](docs/duplicate-detection.md).
 See [Advanced Search DSL](docs/advanced_search_dsl.md) for the supported sample search syntax and examples.
 
 ---

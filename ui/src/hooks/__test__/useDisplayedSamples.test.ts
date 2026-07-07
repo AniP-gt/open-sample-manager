@@ -20,6 +20,7 @@ const samples: Sample[] = [
     playback_type: "oneshot",
     instrument_type: "kick",
     musical_key: "C",
+    duplicate_count: 1,
   },
   {
     id: 2,
@@ -37,6 +38,7 @@ const samples: Sample[] = [
     playback_type: "oneshot",
     instrument_type: "snare",
     musical_key: "D",
+    duplicate_count: 1,
   },
 ];
 
@@ -48,6 +50,7 @@ const filters: FilterState = {
   filterInstrumentType: "",
   filterKey: "All",
   favoritesOnly: false,
+  hideDuplicates: false,
 };
 
 describe("display hooks", () => {

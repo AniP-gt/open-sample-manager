@@ -43,6 +43,8 @@ const embeddingRow = (overrides: Partial<EmbeddingSampleRow> = {}): EmbeddingSam
   waveform_peaks: null,
   playback_type: 'oneshot',
   instrument_type: 'snare',
+  content_hash: null,
+  duplicate_count: null,
   ...overrides,
 });
 

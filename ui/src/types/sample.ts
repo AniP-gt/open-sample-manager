@@ -34,6 +34,8 @@ export interface Sample {
   instrument_type: InstrumentType;
   /** Detected musical key (pitch class only: "C", "C#", ..., "B"). */
   musical_key?: string;
+  content_hash?: string;
+  duplicate_count?: number;
 }
 
 export interface SampleProcessingSettings {
@@ -51,6 +53,7 @@ export interface FilterState {
   filterBpmMax: string;
   filterInstrumentType: InstrumentType | "";
   favoritesOnly: boolean;
+  hideDuplicates?: boolean;
   /** Pitch class filter (e.g. "C", "C#"); empty string = no filter. */
   filterKey: string;
   directoryPath?: string;

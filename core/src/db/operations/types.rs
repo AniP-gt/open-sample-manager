@@ -41,7 +41,19 @@ pub struct SampleRow {
     pub instrument_type: String,
     /// Detected musical key (pitch class only: "C", "C#", ..., "B").
     pub musical_key: Option<String>,
+    /// Stable hash of the original file bytes for exact duplicate detection.
+    pub content_hash: Option<String>,
+    /// Number of indexed rows sharing this content hash. One means no known duplicate.
+    pub duplicate_count: i64,
     pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DuplicateGroup {
+    pub content_hash: String,
+    pub sample_count: i64,
+    pub total_file_size: i64,
+    pub samples: Vec<SampleRow>,
 }
 
 /// Result of an embedding search: similarity score + sample row.
@@ -88,6 +100,8 @@ pub struct SampleInput {
     pub instrument_type: Option<String>,
     /// Detected musical key (pitch class only: "C", "C#", ..., "B").
     pub musical_key: Option<String>,
+    /// Stable hash of the original file bytes for exact duplicate detection.
+    pub content_hash: Option<String>,
 }
 
 /// A row from the `midis` table.

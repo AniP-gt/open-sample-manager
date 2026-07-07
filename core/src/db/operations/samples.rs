@@ -12,16 +12,16 @@ use super::types::SampleInput;
 
 pub use embedding::search_by_embedding;
 pub use queries::{
-    get_all_sample_paths, get_sample_by_id, get_sample_by_path, list_samples_around_id,
-    list_samples_paginated,
+    get_all_sample_paths, get_sample_by_id, get_sample_by_path, list_duplicate_groups,
+    list_samples_around_id, list_samples_paginated,
 };
 pub(in crate::db::operations::samples) use row_mapping::row_to_sample;
 pub use search::{search_samples, search_samples_paginated};
 
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type, musical_key)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, COALESCE(?15, 'oneshot'), COALESCE(?16, 'other'), ?17)",
+        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type, musical_key, content_hash)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, COALESCE(?15, 'oneshot'), COALESCE(?16, 'other'), ?17, ?18)",
     )?;
     stmt.execute(params![
         input.path,
@@ -41,6 +41,7 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
         input.playback_type,
         input.instrument_type,
         input.musical_key,
+        input.content_hash,
     ])?;
     let rowid = conn.last_insert_rowid();
     let mut fts_stmt =
@@ -65,8 +66,8 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         "UPDATE samples SET file_name = ?1, duration = ?2, bpm = ?3, periodicity = ?4,
          sample_rate = ?5, file_size = ?6, artist = ?7, low_ratio = ?8, attack_slope = ?9, decay_time = ?10, sample_type = ?11, embedding = ?12,
          playback_type = COALESCE(?13, playback_type), instrument_type = COALESCE(?14, instrument_type),
-         musical_key = COALESCE(?15, musical_key)
-         WHERE path = ?16",
+         musical_key = COALESCE(?15, musical_key), content_hash = ?16
+         WHERE path = ?17",
     )?;
     let updated = stmt.execute(params![
         input.file_name,
@@ -84,6 +85,7 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         input.playback_type,
         input.instrument_type,
         input.musical_key,
+        input.content_hash,
         input.path,
     ])?;
 

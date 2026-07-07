@@ -81,6 +81,7 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         playback_type: None,
         instrument_type: None,
         musical_key: None,
+        content_hash: None,
     }
 }
 

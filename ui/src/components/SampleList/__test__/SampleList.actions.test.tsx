@@ -57,8 +57,8 @@ describe('SampleList row actions', () => {
     renderSampleList({ onTypeClick });
 
     const typeBadge = screen.getAllByText('one-shot').find((node) => node.tagName.toLowerCase() === 'span');
-    expect(typeBadge).toBeDefined();
-    fireEvent.click(typeBadge as HTMLElement);
+    if (!typeBadge) throw new Error('type badge not found');
+    fireEvent.click(typeBadge);
     expect(onTypeClick).toHaveBeenCalledWith(mockSamples[0]);
   });
 

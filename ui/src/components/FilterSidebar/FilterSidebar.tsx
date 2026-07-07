@@ -18,6 +18,8 @@ interface FilterSidebarProps {
   width?: number;
   bottomInset?: number; // space to leave at the bottom (e.g. player height)
   favoritesOnly?: boolean;
+  hideDuplicates?: boolean;
+  duplicateCount?: number;
   /** Pitch class filter currently selected; "" or "All" disables filter. */
   filterKey?: string;
   /** Sample list to resolve recent ids against (for the Recent section). */
@@ -263,6 +265,8 @@ export function FilterSidebar({
   width = 180,
   bottomInset = 0,
   favoritesOnly = false,
+  hideDuplicates = false,
+  duplicateCount = 0,
   filterKey = "",
   samples = [],
   onSampleSelect,
@@ -394,6 +398,31 @@ export function FilterSidebar({
           >
             <span>{favoritesOnly ? "★" : "☆"}</span>
             <span>FAVORITES {favoritesCount > 0 ? `(${favoritesCount})` : ""}</span>
+          </button>
+        </div>
+
+        <div style={{ padding: "4px 12px 4px" }}>
+          <button
+            onClick={() => onFilterChange({ hideDuplicates: !hideDuplicates })}
+            style={{
+              background: hideDuplicates ? "#38bdf825" : "#38bdf80a",
+              border: `1px solid ${hideDuplicates ? "#38bdf880" : "#38bdf830"}`,
+              color: hideDuplicates ? "#7dd3fc" : "#9ca3af",
+              borderRadius: "3px",
+              padding: "6px 10px",
+              fontSize: "11px",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              letterSpacing: "0.08em",
+              transition: "background 0.15s, border-color 0.15s, color 0.15s",
+            }}
+          >
+            <span>{hideDuplicates ? "●" : "○"}</span>
+            <span>HIDE DUPLICATES {duplicateCount > 0 ? `(${duplicateCount})` : ""}</span>
           </button>
         </div>
 

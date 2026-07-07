@@ -146,7 +146,7 @@ function renderPane(overrides: {
     allSamplePaths: ["/library/kick.wav"],
     selected: overrides.selectedSample ?? null,
     samplePaths: { 1: "/library/kick.wav" },
-    filters: { directoryPath: overrides.sampleDirectoryPath ?? "", favoritesOnly: false, filterKey: "" },
+    filters: { directoryPath: overrides.sampleDirectoryPath ?? "", favoritesOnly: false, hideDuplicates: false, filterKey: "" },
     handleFilterChange: vi.fn(),
     suppressNextSearch: vi.fn(),
     loadSampleByPath: vi.fn(),
