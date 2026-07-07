@@ -1,8 +1,12 @@
 import './mockSampleListDependencies';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import { invoke } from '@tauri-apps/api/core';
-import { mockSamples, renderSampleList, setFavoriteStore } from './sampleListTestHelpers';
+import { defaultFilters as mockSamplesDefaultFilters, mockSamples, renderSampleList, setFavoriteStore } from './sampleListTestHelpers';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('SampleList row actions', () => {
   test('calls onSampleSelect when row is clicked', () => {
@@ -52,7 +56,7 @@ describe('SampleList row actions', () => {
     const onTypeClick = vi.fn();
     renderSampleList({ onTypeClick });
 
-    const typeBadge = screen.getAllByText('one-shot').find((element) => element.tagName !== 'OPTION');
+    const typeBadge = screen.getAllByText('one-shot').find((node) => node.tagName.toLowerCase() === 'span');
     if (!typeBadge) throw new Error('type badge not found');
     fireEvent.click(typeBadge);
     expect(onTypeClick).toHaveBeenCalledWith(mockSamples[0]);
@@ -83,5 +87,56 @@ describe('SampleList row actions', () => {
       fireEvent.click(copyBtns[0]);
     });
     expect(screen.getByText('Copy failed')).toBeInTheDocument();
+  });
+});
+
+
+describe('SampleList random toolbar controls', () => {
+  test('disables random controls when there are no candidates or history', () => {
+    renderSampleList({ samples: [] });
+
+    expect(screen.getByRole('button', { name: 'Random' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled();
+  });
+
+  test('selects a random sample from the filtered sorted candidate pool', () => {
+    const onSampleSelect = vi.fn();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    renderSampleList({
+      filters: { ...mockSamplesDefaultFilters, filterType: 'loop' },
+      onSampleSelect,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Random' }));
+
+    expect(onSampleSelect).toHaveBeenCalledWith(mockSamples[1]);
+  });
+
+  test('avoids immediately repeating the selected sample when another candidate exists', () => {
+    const onSampleSelect = vi.fn();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    renderSampleList({ selectedSample: mockSamples[0], onSampleSelect });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Random' }));
+
+    expect(onSampleSelect).toHaveBeenCalledWith(mockSamples[1]);
+  });
+
+  test('returns to the previous random selection', () => {
+    const onSampleSelect = vi.fn();
+    const randomSpy = vi.spyOn(Math, 'random');
+    randomSpy.mockReturnValueOnce(0).mockReturnValueOnce(0.99);
+
+    renderSampleList({ onSampleSelect });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Random' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Random' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(onSampleSelect).toHaveBeenNthCalledWith(1, mockSamples[0]);
+    expect(onSampleSelect).toHaveBeenNthCalledWith(2, mockSamples[1]);
+    expect(onSampleSelect).toHaveBeenNthCalledWith(3, mockSamples[0]);
   });
 });
