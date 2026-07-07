@@ -10,6 +10,7 @@ import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { SampleListListView } from "./SampleListListView";
 import { matchesSampleFilters } from "../../utils/sampleFilter";
+import { appendPreviousRandomSelection, chooseRandomSample, popRandomHistory } from "./randomSelection";
 import { KEY_FILTER_OPTIONS } from "../../utils/keyOptions";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
@@ -29,6 +30,18 @@ const controlStyle = {
   outline: "none",
   boxSizing: "border-box" as const,
 };
+
+const randomButtonStyle = (disabled: boolean) => ({
+  background: disabled ? "#0f1117" : "#111827",
+  border: "1px solid #1f2937",
+  color: disabled ? "#374151" : "#f97316",
+  padding: "4px 8px",
+  borderRadius: "2px",
+  cursor: disabled ? "not-allowed" : "pointer",
+  fontFamily: "'Courier New', monospace",
+  fontSize: "12px",
+  letterSpacing: "0.04em",
+});
 
 export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
   const {
@@ -62,6 +75,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const preparedPathsRef = useRef<Record<string, string>>({});
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [randomHistory, setRandomHistory] = useState<Sample[]>([]);
+  const [lastRandomSample, setLastRandomSample] = useState<Sample | null>(null);
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
@@ -141,6 +156,27 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     onTogglePlayback,
     listRef
   });
+
+  const handleRandomSample = useCallback(() => {
+    const nextSample = chooseRandomSample(sorted, selectedSample?.id);
+    if (!nextSample) return;
+
+    setRandomHistory((history) => appendPreviousRandomSelection(history, lastRandomSample));
+    setLastRandomSample(nextSample);
+    onSampleSelect(nextSample);
+  }, [sorted, selectedSample, lastRandomSample, onSampleSelect]);
+
+  const handleRandomBack = useCallback(() => {
+    const { previousSample, nextHistory } = popRandomHistory(randomHistory);
+    if (!previousSample) return;
+
+    setRandomHistory(nextHistory);
+    setLastRandomSample(previousSample);
+    onSampleSelect(previousSample);
+  }, [randomHistory, onSampleSelect]);
+
+  const isRandomDisabled = sorted.length === 0;
+  const isRandomBackDisabled = randomHistory.length === 0;
 
   const lastScrolledRef = useRef<number | null>(null);
   useEffect(() => {
@@ -283,6 +319,10 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
+        <div style={{ display: "flex", gap: "4px" }}>
+          <button type="button" onClick={handleRandomSample} disabled={isRandomDisabled} title="Select random sample" style={randomButtonStyle(isRandomDisabled)}>Random</button>
+          <button type="button" onClick={handleRandomBack} disabled={isRandomBackDisabled} title="Return to previous random sample" style={randomButtonStyle(isRandomBackDisabled)}>Back</button>
+        </div>
         <div style={{ display: "flex", gap: "4px" }}>
           <button type="button" onClick={() => setViewMode("list")} title="List view" style={{ background: viewMode === "list" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "list" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>☰</button>
           <button type="button" onClick={() => setViewMode("grid")} title="Grid view" style={{ background: viewMode === "grid" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "grid" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>▦</button>

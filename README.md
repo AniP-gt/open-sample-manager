@@ -30,6 +30,7 @@ Feature guides:
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
 - **Advanced search DSL** — combine free text with filters such as `bpm:120-180`, `type:oneshot`, `tag:metal`, `key:Am`, `instrument:kick`, and negative terms like `-rimshot`
 - **Similarity search** — embedding-based "find similar samples" lookup
+- **Random discovery**: pick a random sample from the current result set, step back through random picks, or jump to a random similar sample. See [Random Inspiration](docs/random-inspiration.md).
 - **Filter sidebar** — filter by instrument type, sample type, BPM range
 - **Waveform display** — inline waveform preview in the detail panel
 - **Drag to DAW** — drag samples directly from the app into your DAW
