@@ -44,6 +44,7 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
+- **Collections and saved searches** — group hand-picked samples into persistent collections and save reusable search/filter presets; see [Collections and Saved Searches](docs/collections-saved-searches.md)
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency
 - **Library migration** — export the local metadata database from Settings and import it on another PC
 
