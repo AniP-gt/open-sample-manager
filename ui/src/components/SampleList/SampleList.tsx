@@ -42,6 +42,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     onSortChange,
     onTrashSample,
     onTypeClick,
+    onMetadataClick,
     onTogglePlayback,
     onLoadMore,
     isLoadingMore,
@@ -65,7 +66,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
   const { colWidths, startColumnResize, draggedColumnRef, activeResize } = useColumnResize([
-    "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "86px", "88px"
+    "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "96px", "70px", "88px"
   ]);
 
   const {
@@ -85,6 +86,10 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     return Array.from(new Set(samples.map((sample) => sample.instrument_type).filter(Boolean))).sort();
   }, [samples]);
 
+  const licenseOptions = useMemo(() => {
+    return Array.from(new Set(samples.map((sample) => sample.license).filter((license): license is string => Boolean(license)))).sort();
+  }, [samples]);
+
   const sorted = useMemo(() => {
     const copy = [...filtered];
     const dir = sort.direction === "asc" ? 1 : -1;
@@ -98,6 +103,9 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         case "duration": return (a.duration - b.duration) * dir;
         case "sample_rate": return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
         case "musical_key": return (a.musical_key ?? "").localeCompare(b.musical_key ?? "") * dir;
+        case "license": return (a.license ?? "").localeCompare(b.license ?? "") * dir;
+        case "source": return (a.source ?? "").localeCompare(b.source ?? "") * dir;
+        case "quality_flags": return (a.quality_flags.length - b.quality_flags.length) * dir;
         default: return 0;
       }
     });
@@ -276,6 +284,26 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             <option key={key || "all"} value={key}>{key || "KEY"}</option>
           ))}
         </select>
+        <select
+          value={filters.filterLicense}
+          onChange={(e) => onFilterChange({ filterLicense: e.target.value })}
+          aria-label="Sample license filter"
+          style={{ ...controlStyle, width: "94px" }}
+        >
+          <option value="">LIC</option>
+          {licenseOptions.map((license) => (
+            <option key={license} value={license}>{license}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => onFilterChange({ qualityIssuesOnly: !filters.qualityIssuesOnly })}
+          aria-pressed={filters.qualityIssuesOnly}
+          title="Show samples with quality flags"
+          style={{ ...controlStyle, width: "74px", cursor: "pointer", color: filters.qualityIssuesOnly ? "#f97316" : "#6b7280", borderColor: filters.qualityIssuesOnly ? "#f97316" : "#1f2937" }}
+        >
+          QC
+        </button>
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
@@ -286,7 +314,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       </div>
 
       {viewMode === "grid" ? (
-        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} />
+        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} onMetadataClick={onMetadataClick} />
       ) : (
         <div
           style={{ flex: 1, overflowY: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}
@@ -306,6 +334,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onSortChange={onSortChange}
             onSampleSelect={handleSampleSelectInternal}
             onTypeClick={onTypeClick}
+            onMetadataClick={onMetadataClick}
             onTrashSample={onTrashSample}
             onToggleFavorite={toggleFavorite}
             favorites={favSet}

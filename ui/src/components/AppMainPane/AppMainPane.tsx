@@ -188,6 +188,7 @@ export function AppMainPane({
             sampleState.requestTrash(id);
           }}
           onTypeClick={sampleState.handleTypeClick}
+          onMetadataClick={sampleState.handleMetadataClick}
           onImportPaths={scanState.handleImportPaths}
           onLoadMore={sampleState.loadMore}
           isLoadingMore={sampleState.isLoadingMore}

@@ -1,4 +1,4 @@
-import type { Sample } from "../../types/sample";
+import type { InstrumentType, PlaybackType, Sample, SampleType } from "../../types/sample";
 
 interface EmbeddingResult {
   similarity: number;
@@ -27,6 +27,25 @@ interface Props {
   // so the parent can decide how to handle navigation/focus.
   onSelect: (sample: Sample, path?: string) => void;
 }
+
+const instrumentTypes: readonly InstrumentType[] = [
+  "kick",
+  "snare",
+  "hihat",
+  "bass",
+  "synth",
+  "fx",
+  "vocal",
+  "percussion",
+  "other",
+];
+
+const normalizeSampleType = (value: string | null): SampleType => (value === "loop" ? "loop" : "one-shot");
+const normalizePlaybackType = (value: string): PlaybackType => (value === "loop" ? "loop" : "oneshot");
+const normalizeInstrumentType = (value: string): InstrumentType => {
+  const normalized = value.toLowerCase();
+  return instrumentTypes.includes(normalized as InstrumentType) ? normalized as InstrumentType : "other";
+};
 
 export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Props) {
   if (!isOpen) return null;
@@ -81,11 +100,12 @@ export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Pr
                   low_ratio: r.row.low_ratio ?? 0,
                   attack_slope: r.row.attack_slope ?? 0,
                   decay_time: r.row.decay_time ?? null,
-                  sample_type: (r.row.sample_type as any) ?? null,
+                  sample_type: normalizeSampleType(r.row.sample_type),
                   tags: [],
                   waveform_peaks: r.row.waveform_peaks ? JSON.parse(r.row.waveform_peaks) : null,
-                  playback_type: r.row.playback_type as any,
-                  instrument_type: r.row.instrument_type as any,
+                  playback_type: normalizePlaybackType(r.row.playback_type),
+                  instrument_type: normalizeInstrumentType(r.row.instrument_type),
+                  quality_flags: [],
                 },
                 r.row.path,
               )}

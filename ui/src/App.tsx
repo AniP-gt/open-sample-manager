@@ -37,6 +37,8 @@ const defaultFilters: FilterState = {
   filterInstrumentType: "",
   favoritesOnly: false,
   filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
   directoryPath: "",
 };
 

@@ -14,6 +14,7 @@ interface SampleListListViewProps {
   onSortChange: (sort: SortState) => void;
   onSampleSelect: (sample: Sample, isShift?: boolean) => void;
   onTypeClick?: (sample: Sample) => void;
+  onMetadataClick?: (sample: Sample) => void;
   onTrashSample?: (id: number) => void;
   onToggleFavorite: (id: number) => void;
   favorites: Set<number>;
@@ -49,6 +50,7 @@ export function SampleListListView({
   onSortChange,
   onSampleSelect,
   onTypeClick,
+  onMetadataClick,
   onTrashSample,
   onToggleFavorite,
   favorites,
@@ -126,6 +128,7 @@ export function SampleListListView({
                 onSampleSelect={onSampleSelect}
                 onToggleFavorite={onToggleFavorite}
                 onTypeClick={onTypeClick}
+                onMetadataClick={onMetadataClick}
                 onTrashSample={onTrashSample}
               />
             );

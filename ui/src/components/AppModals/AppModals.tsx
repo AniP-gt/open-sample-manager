@@ -1,6 +1,7 @@
 import {
   ConfirmModal,
   ClassificationEditModal,
+  SampleMetadataEditModal,
   InstrumentTypeManagementModal,
   MidiTagManagementModal,
   MidiTagEditModal,
@@ -15,6 +16,13 @@ interface AppModalsProps {
     samples: Sample[];
     confirmTrash: () => Promise<void>;
     cancelTrash: () => void;
+    metadataModalOpen: boolean;
+    metadataSample: Sample | null;
+    metadataTargetIds: number[];
+    metadataForm: { source: string; packName: string; license: string; licenseUrl: string; licenseMemo: string };
+    handleMetadataFieldChange: (field: "source" | "packName" | "license" | "licenseUrl" | "licenseMemo", value: string) => void;
+    handleMetadataSave: () => Promise<void>;
+    setMetadataModalOpen: (v: boolean) => void;
     classificationModalOpen: boolean;
     classificationSample: Sample | null;
     classificationTargetIds: number[];
@@ -89,6 +97,16 @@ export function AppModals({ sampleState, midiState }: AppModalsProps) {
             sampleState.cancelTrash();
           }
         }}
+      />
+
+      <SampleMetadataEditModal
+        isOpen={sampleState.metadataModalOpen}
+        sample={sampleState.metadataSample}
+        targetIds={sampleState.metadataTargetIds}
+        form={sampleState.metadataForm}
+        onFieldChange={sampleState.handleMetadataFieldChange}
+        onSave={sampleState.handleMetadataSave}
+        onClose={() => sampleState.setMetadataModalOpen(false)}
       />
 
       <ClassificationEditModal

@@ -20,6 +20,7 @@ describe("ClassificationEditModal", () => {
     playback_type: "oneshot",
     instrument_type: "kick",
     musical_key: "C",
+    quality_flags: [],
   };
 
   it("does not render when isOpen is false or sample is null", () => {

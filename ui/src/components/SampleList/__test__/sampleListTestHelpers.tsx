@@ -23,6 +23,7 @@ export const mockSamples: Sample[] = [
     waveform_peaks: null,
     sample_rate: 44100,
     musical_key: 'C',
+    quality_flags: [],
   },
   {
     id: 2,
@@ -40,6 +41,7 @@ export const mockSamples: Sample[] = [
     waveform_peaks: null,
     sample_rate: 48000,
     musical_key: 'A',
+    quality_flags: [],
   },
 ];
 
@@ -50,6 +52,8 @@ export const defaultFilters: FilterState = {
   filterBpmMax: '',
   filterInstrumentType: '',
   filterKey: '',
+  filterLicense: '',
+  qualityIssuesOnly: false,
   favoritesOnly: false,
 };
 

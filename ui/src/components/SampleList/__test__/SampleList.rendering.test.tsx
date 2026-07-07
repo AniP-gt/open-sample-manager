@@ -80,6 +80,8 @@ describe('SampleList rendering, search, and sort', () => {
         filterBpmMax: '130',
         filterInstrumentType: 'kick',
         filterKey: 'C',
+        filterLicense: '',
+        qualityIssuesOnly: false,
         favoritesOnly: false,
       },
     });

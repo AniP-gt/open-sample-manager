@@ -13,6 +13,7 @@ export interface SampleListProps {
   onDeleteSample: (id: number) => void;
   onTrashSample?: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
+  onMetadataClick?: (sample: Sample) => void;
   onTogglePlayback?: () => void;
   onImportPaths?: (paths: string[]) => void;
   externalIsDragOver?: boolean;

@@ -41,8 +41,29 @@ const defaultInvokeMock = (cmd: string) => {
         duration: 1.0,
         bpm: 120,
         sample_type: 'one-shot',
-        musical_key: 'C',
-        instrument_type: 'kick',
+          musical_key: 'C',
+          playback_type: 'oneshot',
+          instrument_type: 'kick',
+          periodicity: null,
+          sample_rate: null,
+          low_ratio: null,
+          attack_slope: null,
+          decay_time: null,
+          waveform_peaks: null,
+          source: null,
+          pack_name: null,
+          license: null,
+          license_url: null,
+          license_memo: null,
+          imported_at: null,
+          peak_db: null,
+          rms_db: null,
+          leading_silence_ms: null,
+          clipping_count: null,
+          channel_count: null,
+          bit_depth: null,
+          quality_flags: null,
+          tags: [],
         created_at: Date.now(),
         updated_at: Date.now()
       }
@@ -71,11 +92,32 @@ vi.mock('@tauri-apps/api/core', () => ({
           id: 1,
           path: '/tmp/test.wav',
           file_name: 'test.wav',
+          sample_type: 'one-shot',
+          musical_key: 'C',
+          playback_type: 'oneshot',
+          instrument_type: 'kick',
         duration: 1.0,
         bpm: 120,
-        sample_type: 'one-shot',
-        musical_key: 'C',
-          instrument_type: 'kick',
+          periodicity: null,
+          sample_rate: null,
+          low_ratio: null,
+          attack_slope: null,
+          decay_time: null,
+          waveform_peaks: null,
+          source: null,
+          pack_name: null,
+          license: null,
+          license_url: null,
+          license_memo: null,
+          imported_at: null,
+          peak_db: null,
+          rms_db: null,
+          leading_silence_ms: null,
+          clipping_count: null,
+          channel_count: null,
+          bit_depth: null,
+          quality_flags: null,
+          tags: [],
           created_at: Date.now(),
           updated_at: Date.now()
         }
@@ -217,7 +259,7 @@ describe('App Integration', () => {
 
   test('opens classification modal from sample row and closes it', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = (await screen.findAllByText('one-shot'))[1];
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
     const cancelBtn = screen.getByText('CANCEL');
@@ -265,7 +307,7 @@ describe('App Integration', () => {
 
   test('saves changes in classification modal', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = (await screen.findAllByText('one-shot'))[1];
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
 
@@ -276,7 +318,7 @@ describe('App Integration', () => {
 
   test('opens and closes instrument type management modal', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = (await screen.findAllByText('one-shot'))[1];
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
 
@@ -337,7 +379,7 @@ describe('App Integration', () => {
 
   test('changes instrument type in classification modal', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = (await screen.findAllByText('one-shot'))[1];
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
 
