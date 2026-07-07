@@ -24,6 +24,7 @@ interface AppMainPaneProps {
   filteredMidis: Midi[];
   instrumentColorCoding: boolean;
   directoryClickFiltering: boolean;
+  showSampleMetadataQuality: boolean;
   handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
 }
@@ -40,6 +41,7 @@ export function AppMainPane({
   filteredMidis,
   instrumentColorCoding,
   directoryClickFiltering,
+  showSampleMetadataQuality,
   handleSampleSelectWithRecent,
   getSampleProcessingSettings,
 }: AppMainPaneProps) {
@@ -193,6 +195,7 @@ export function AppMainPane({
             sampleState.requestTrash(id);
           }}
           onTypeClick={sampleState.handleTypeClick}
+          onMetadataClick={showSampleMetadataQuality ? sampleState.handleMetadataClick : undefined}
           onImportPaths={scanState.handleImportPaths}
           onLoadMore={sampleState.loadMore}
           isLoadingMore={sampleState.isLoadingMore}
@@ -204,6 +207,7 @@ export function AppMainPane({
           canLoadPrevious={sampleState.canLoadPrevious}
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
+          showSampleMetadataQuality={showSampleMetadataQuality}
           getSampleProcessingSettings={getSampleProcessingSettings}
         />
       ) : (

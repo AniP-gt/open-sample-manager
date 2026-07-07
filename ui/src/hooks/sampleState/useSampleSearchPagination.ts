@@ -34,6 +34,8 @@ const initialFilters: FilterState = {
   favoritesOnly: false,
   hideDuplicates: false,
   filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
   directoryPath: "",
 };
 

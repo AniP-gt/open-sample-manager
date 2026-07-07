@@ -16,6 +16,7 @@ const mockSample: Sample = {
   file_size: 2048,
   artist: 'User',
   musical_key: 'C',
+  quality_flags: [],
   periodicity: 0.5,
   low_ratio: 0.1,
   attack_slope: 2,

@@ -12,6 +12,8 @@ const filters: FilterState = {
   favoritesOnly: false,
   hideDuplicates: true,
   filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
   directoryPath: "",
 };
 
@@ -29,6 +31,7 @@ const sample = (id: number, contentHash?: string): Sample => ({
   waveform_peaks: null,
   playback_type: "oneshot",
   instrument_type: "other",
+  quality_flags: [],
   content_hash: contentHash,
   duplicate_count: contentHash ? 2 : 1,
 });

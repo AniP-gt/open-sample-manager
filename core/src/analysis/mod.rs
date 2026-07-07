@@ -16,6 +16,7 @@ pub mod loop_classifier;
 /// Onset detection and spectral flux computation.
 pub mod onset;
 pub mod processed_wav;
+pub mod quality;
 
 use std::path::PathBuf;
 

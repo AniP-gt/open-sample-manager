@@ -98,6 +98,7 @@ const sample: Sample = {
   playback_type: "oneshot",
   instrument_type: "kick",
   musical_key: "C",
+  quality_flags: [],
 };
 
 const midi: Midi = {
@@ -146,7 +147,7 @@ function renderPane(overrides: {
     allSamplePaths: ["/library/kick.wav"],
     selected: overrides.selectedSample ?? null,
     samplePaths: { 1: "/library/kick.wav" },
-    filters: { directoryPath: overrides.sampleDirectoryPath ?? "", favoritesOnly: false, hideDuplicates: false, filterKey: "" },
+    filters: { directoryPath: overrides.sampleDirectoryPath ?? "", favoritesOnly: false, hideDuplicates: false, filterKey: "", filterLicense: "", qualityIssuesOnly: false },
     handleFilterChange: vi.fn(),
     suppressNextSearch: vi.fn(),
     loadSampleByPath: vi.fn(),
@@ -215,6 +216,7 @@ function renderPane(overrides: {
       filteredMidis={[midi]}
       instrumentColorCoding={true}
       directoryClickFiltering={overrides.directoryClickFiltering ?? true}
+      showSampleMetadataQuality={true}
       handleSampleSelectWithRecent={handleSampleSelectWithRecent}
     />
   );

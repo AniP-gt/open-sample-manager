@@ -18,6 +18,19 @@ const baseRow = (overrides: Partial<TauriSampleRow> = {}): TauriSampleRow => ({
   playback_type: "oneshot",
   instrument_type: "",
   musical_key: null,
+  source: null,
+  pack_name: null,
+  license: null,
+  license_url: null,
+  license_memo: null,
+  imported_at: null,
+  peak_db: null,
+  rms_db: null,
+  leading_silence_ms: null,
+  clipping_count: null,
+  channel_count: null,
+  bit_depth: null,
+  quality_flags: null,
   content_hash: null,
   duplicate_count: null,
   tags: [],
@@ -49,6 +62,19 @@ describe("mapRowToSample", () => {
         playback_type: "loop",
         instrument_type: "Snare",
         musical_key: "C#",
+        source: "Splice",
+        pack_name: "Drum Hits",
+        license: "royalty-free",
+        license_url: "https://example.test/license",
+        license_memo: "Allowed in releases",
+        imported_at: "2026-07-07T00:00:00Z",
+        peak_db: -0.2,
+        rms_db: -12.5,
+        leading_silence_ms: 15,
+        clipping_count: 2,
+        channel_count: 2,
+        bit_depth: 24,
+        quality_flags: '["clipping","leading_silence"]',
         content_hash: "abc123",
         duplicate_count: 2,
         tags: ["drums", "favorite"],
@@ -67,11 +93,32 @@ describe("mapRowToSample", () => {
       playback_type: "loop",
       instrument_type: "snare",
       musical_key: "C#",
+      source: "Splice",
+      pack_name: "Drum Hits",
+      license: "royalty-free",
+      license_url: "https://example.test/license",
+      license_memo: "Allowed in releases",
+      imported_at: "2026-07-07T00:00:00Z",
+      peak_db: -0.2,
+      rms_db: -12.5,
+      leading_silence_ms: 15,
+      clipping_count: 2,
+      channel_count: 2,
+      bit_depth: 24,
+      quality_flags: ["clipping", "leading_silence"],
       content_hash: "abc123",
       duplicate_count: 2,
     });
     expect(sample.waveform_peaks).toEqual([0, 0.25, 1]);
     expect(sample.tags).toEqual(["drums", "favorite"]);
+  });
+
+  it("normalizes nullable metadata and invalid quality flags", () => {
+    const sample = mapRowToSample(baseRow({ source: "  ", license: null, quality_flags: "not json" }));
+
+    expect(sample.source).toBeUndefined();
+    expect(sample.license).toBeUndefined();
+    expect(sample.quality_flags).toEqual([]);
   });
 
   it("falls back safely for invalid peaks and legacy kick sample_type", () => {

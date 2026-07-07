@@ -28,6 +28,8 @@ Feature guides:
 
 - **Directory scanning** — recursively scan folders and index WAV, MP3, FLAC, and Ogg files
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
+- **Sample quality checks**: peak, RMS, leading silence, clipping, channel count, and bit depth flags are captured during scan
+- **Full-text search** — fast FTS5-powered search over filenames and metadata
 - **Advanced search DSL** — combine free text with filters such as `bpm:120-180`, `type:oneshot`, `tag:metal`, `key:Am`, `instrument:kick`, and negative terms like `-rimshot`
 - **Similarity search** — embedding-based "find similar samples" lookup
 - **Duplicate detection** — group exact duplicate audio files by content hash and hide duplicate rows from the sample list
@@ -49,10 +51,12 @@ Feature guides:
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
+- **License and source metadata**: track source, pack name, license, license URL, memo, and import date for each sample
 - **Duplicate visibility controls** — keep every scanned file in the library while hiding repeated content from day-to-day browsing
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency
 - **Library migration** — export the local metadata database from Settings and import it on another PC
 
+See [Sample Metadata and Quality Checks](docs/sample_metadata_quality.md) for the stored fields, UI behavior, and analysis notes.
 For implementation details, see [Duplicate Detection](docs/duplicate-detection.md).
 See [Advanced Search DSL](docs/advanced_search_dsl.md) for the supported sample search syntax and examples.
 

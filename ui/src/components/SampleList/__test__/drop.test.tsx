@@ -20,7 +20,7 @@ describe('SampleList drop handling', () => {
       <SampleList
         samples={emptySamples}
         samplePaths={{}}
-        filters={{ search: '', filterType: 'all', filterBpmMin: '', filterBpmMax: '', filterInstrumentType: '', favoritesOnly: false, filterKey: '' }}
+        filters={{ search: '', filterType: 'all', filterBpmMin: '', filterBpmMax: '', filterInstrumentType: '', favoritesOnly: false, filterKey: '', filterLicense: '', qualityIssuesOnly: false }}
         sort={{ field: 'id', direction: 'asc' }}
         selectedSample={null}
         onSampleSelect={() => {}}

@@ -16,6 +16,7 @@ export { ResizeHandle } from "./ResizeHandle/ResizeHandle";
 
 export { SettingsModal } from "./SettingsModal/SettingsModal";
 export { ClassificationEditModal } from "./ClassificationEditModal/ClassificationEditModal";
+export { SampleMetadataEditModal } from "./SampleMetadataEditModal/SampleMetadataEditModal";
 export { ConfirmModal } from "./ConfirmModal/ConfirmModal";
 export { InstrumentTypeManagementModal } from "./InstrumentTypeManagementModal/InstrumentTypeManagementModal";
 export { MidiTagManagementModal } from "./MidiTagManagementModal/MidiTagManagementModal";

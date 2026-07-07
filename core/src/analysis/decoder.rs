@@ -22,6 +22,8 @@ pub struct DecodedAudio {
     pub sample_rate: u32,
     /// The original sample rate from the source file (before downsampling).
     pub original_sample_rate: u32,
+    pub channel_count: Option<usize>,
+    pub bit_depth: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,6 +31,7 @@ pub struct DecodedExportAudio {
     pub samples: Vec<f32>,
     pub sample_rate: u32,
     pub channels: usize,
+    pub bit_depth: Option<u32>,
 }
 
 /// Errors that can occur during audio decoding.
@@ -79,6 +82,8 @@ pub fn decode_to_mono_f32(path: &Path) -> Result<DecodedAudio, DecodeError> {
         samples: downsampled,
         sample_rate: TARGET_SAMPLE_RATE,
         original_sample_rate: decoded.sample_rate,
+        channel_count: Some(decoded.channels),
+        bit_depth: decoded.bit_depth,
     })
 }
 
@@ -107,6 +112,8 @@ pub fn decode_to_interleaved_f32(path: &Path) -> Result<DecodedExportAudio, Deco
         .codec_params
         .sample_rate
         .ok_or(DecodeError::NoAudioTrack)?;
+    let codec_channel_count = track.codec_params.channels.map(|channels| channels.count());
+    let bit_depth = track.codec_params.bits_per_sample;
     let track_id = track.id;
 
     let mut decoder = get_codecs()
@@ -115,7 +122,7 @@ pub fn decode_to_interleaved_f32(path: &Path) -> Result<DecodedExportAudio, Deco
 
     // Collect all interleaved f32 samples from every packet.
     let mut all_interleaved: Vec<f32> = Vec::new();
-    let mut num_channels: usize = 0;
+    let mut num_channels: usize = codec_channel_count.unwrap_or(0);
 
     loop {
         let pkt = match format.next_packet() {
@@ -162,6 +169,7 @@ pub fn decode_to_interleaved_f32(path: &Path) -> Result<DecodedExportAudio, Deco
         samples: all_interleaved,
         sample_rate,
         channels: num_channels,
+        bit_depth,
     })
 }
 

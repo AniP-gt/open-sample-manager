@@ -18,6 +18,7 @@ const sample: Sample = {
   playback_type: "oneshot",
   instrument_type: "kick",
   musical_key: "A",
+  quality_flags: [],
 };
 
 describe("search DSL", () => {

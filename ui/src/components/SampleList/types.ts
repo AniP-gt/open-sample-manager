@@ -14,6 +14,7 @@ export interface SampleListProps {
   onDeleteSample: (id: number) => void;
   onTrashSample?: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
+  onMetadataClick?: (sample: Sample) => void;
   onTogglePlayback?: () => void;
   onImportPaths?: (paths: string[]) => void;
   externalIsDragOver?: boolean;
@@ -24,6 +25,7 @@ export interface SampleListProps {
   isLoadingPrevious?: boolean;
   canLoadPrevious?: boolean;
   instrumentColorCoding?: boolean;
+  showSampleMetadataQuality?: boolean;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
 }
 

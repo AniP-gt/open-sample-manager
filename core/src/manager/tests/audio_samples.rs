@@ -100,6 +100,11 @@ fn analyze_file_returns_metadata() {
     assert!(input.duration.is_some());
     assert!(input.bpm.is_some());
     assert!(input.sample_type.is_some());
+    assert!(input.peak_db.is_some());
+    assert!(input.rms_db.is_some());
+    assert_eq!(input.channel_count, Some(1));
+    assert_eq!(input.bit_depth, Some(16));
+    assert!(input.quality_flags.is_some());
 }
 
 #[test]
@@ -205,4 +210,37 @@ fn manager_move_sample_moves_file_and_updates_database() {
         .expect("new sample lookup failed")
         .expect("moved sample missing");
     assert_eq!(sample.file_name, "new_move.wav");
+}
+
+#[test]
+fn manager_update_sample_license_metadata_normalizes_blanks() {
+    let dir = TempDir::new().unwrap();
+    let wav_path = write_wav(&dir, "license.wav", 11_025);
+    let path = wav_path.to_str().expect("utf8 path");
+    let manager = make_manager();
+    manager.scan_directory(dir.path()).expect("scan failed");
+
+    assert_eq!(
+        manager
+            .update_sample_license_metadata(
+                path,
+                Some("  source  ".to_string()),
+                Some("".to_string()),
+                Some("MIT".to_string()),
+                Some("  ".to_string()),
+                Some("memo".to_string()),
+            )
+            .expect("license update failed"),
+        1
+    );
+
+    let sample = manager
+        .get_sample(path)
+        .expect("get sample failed")
+        .expect("sample missing");
+    assert_eq!(sample.source.as_deref(), Some("source"));
+    assert_eq!(sample.pack_name, None);
+    assert_eq!(sample.license.as_deref(), Some("MIT"));
+    assert_eq!(sample.license_url, None);
+    assert_eq!(sample.license_memo.as_deref(), Some("memo"));
 }

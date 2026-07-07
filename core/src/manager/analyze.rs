@@ -6,6 +6,7 @@ use crate::analysis::decoder::decode_to_mono_f32;
 use crate::analysis::key::detect_key;
 use crate::analysis::kick::detect_kick;
 use crate::analysis::loop_classifier::{classify_loop, compute_energy_ratio, LoopType};
+use crate::analysis::quality::compute_quality_metrics;
 use crate::db::operations::{insert_sample, SampleInput};
 
 use super::audio::{compute_waveform_peaks, extract_artist};
@@ -139,6 +140,7 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
     let bpm_result = estimate_bpm(&decoded.samples, decoded.sample_rate);
     let kick_result = detect_kick(&decoded.samples, decoded.sample_rate);
     let musical_key = detect_key(&decoded.samples, decoded.sample_rate);
+    let quality_metrics = compute_quality_metrics(&decoded.samples, decoded.sample_rate);
 
     #[allow(clippy::cast_precision_loss)]
     let duration = decoded.samples.len() as f64 / f64::from(decoded.sample_rate);
@@ -195,6 +197,22 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
         sample_type: Some(sample_type),
         waveform_peaks: Some(waveform_peaks),
         embedding: Some(emb_bytes),
+        source: None,
+        pack_name: None,
+        license: None,
+        license_url: None,
+        license_memo: None,
+        imported_at: None,
+        peak_db: Some(quality_metrics.peak_db),
+        rms_db: Some(quality_metrics.rms_db),
+        leading_silence_ms: Some(quality_metrics.leading_silence_ms),
+        clipping_count: Some(quality_metrics.clipping_count),
+        channel_count: decoded.channel_count.map(|count| count as i64),
+        bit_depth: decoded.bit_depth.map(i64::from),
+        quality_flags: Some(
+            serde_json::to_string(&quality_metrics.quality_flags)
+                .unwrap_or_else(|_| "[]".to_string()),
+        ),
         playback_type: Some(playback_type.to_string()),
         instrument_type: Some(instrument_type.to_string()),
         musical_key,

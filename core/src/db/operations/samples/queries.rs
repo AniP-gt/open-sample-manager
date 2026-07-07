@@ -4,7 +4,7 @@ use crate::db::operations::types::{DuplicateGroup, SampleRow};
 
 use super::{row_to_sample, OptionalExt};
 
-pub(in crate::db::operations::samples) const SAMPLE_COLUMNS: &str = "id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key, content_hash, COALESCE((SELECT COUNT(*) FROM samples dup WHERE dup.content_hash = samples.content_hash AND dup.content_hash IS NOT NULL), 1) AS duplicate_count, COALESCE((SELECT GROUP_CONCAT(name, char(31)) FROM (SELECT t.name AS name FROM sample_tags st JOIN tags t ON t.id = st.tag_id WHERE st.sample_id = samples.id ORDER BY t.name)), '') AS tag_names";
+pub(in crate::db::operations::samples) const SAMPLE_COLUMNS: &str = "id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, source, pack_name, license, license_url, license_memo, imported_at, peak_db, rms_db, leading_silence_ms, clipping_count, channel_count, bit_depth, quality_flags, is_online, playback_type, instrument_type, musical_key, content_hash, COALESCE((SELECT COUNT(*) FROM samples dup WHERE dup.content_hash = samples.content_hash AND dup.content_hash IS NOT NULL), 1) AS duplicate_count, COALESCE((SELECT GROUP_CONCAT(name, char(31)) FROM (SELECT t.name AS name FROM sample_tags st JOIN tags t ON t.id = st.tag_id WHERE st.sample_id = samples.id ORDER BY t.name)), '') AS tag_names";
 
 pub fn get_sample_by_path(
     conn: &Connection,

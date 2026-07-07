@@ -1,4 +1,5 @@
 import type { FilterState, Sample } from "../types/sample";
+import { matchesFuzzySearch } from "./search";
 import { matchesSampleSearchDsl } from "./searchDsl";
 
 function parseBound(value: string) {
@@ -16,7 +17,14 @@ function matchesBpm(sampleBpm: number | null, min: number | null, max: number | 
 }
 
 function matchesSearch(sample: Sample, query: string, isFavorite: boolean) {
-  return matchesSampleSearchDsl(query, sample, isFavorite);
+  return matchesSampleSearchDsl(query, sample, isFavorite) || matchesFuzzySearch(query, [
+    sample.file_name,
+    sample.source ?? "",
+    sample.pack_name ?? "",
+    sample.license ?? "",
+    ...sample.quality_flags,
+    ...sample.tags,
+  ]);
 }
 
 export function matchesSampleFilters(sample: Sample, filters: FilterState, isFavorite = false) {
@@ -27,6 +35,8 @@ export function matchesSampleFilters(sample: Sample, filters: FilterState, isFav
   if (filters.filterType !== "all" && sample.sample_type !== filters.filterType) return false;
   if (filters.filterInstrumentType && sample.instrument_type !== filters.filterInstrumentType) return false;
   if (key && key !== "All" && sample.musical_key !== key) return false;
+  if (filters.filterLicense && (sample.license ?? "") !== filters.filterLicense) return false;
+  if (filters.qualityIssuesOnly && sample.quality_flags.length === 0) return false;
   if (!matchesBpm(sample.bpm, minBpm, maxBpm)) return false;
   return matchesSearch(sample, filters.search, isFavorite);
 }
