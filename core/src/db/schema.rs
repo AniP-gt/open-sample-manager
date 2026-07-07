@@ -103,7 +103,6 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
-        CREATE INDEX IF NOT EXISTS idx_content_hash ON samples(content_hash);
 
         CREATE INDEX IF NOT EXISTS idx_sample_tags_sid ON sample_tags(sample_id);
         CREATE INDEX IF NOT EXISTS idx_sample_tags_tid ON sample_tags(tag_id);

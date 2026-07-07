@@ -895,7 +895,13 @@ fn main() {
         };
 
         let db_path_str = db_path.as_ref().map(|p| p.to_string_lossy().to_string());
-        let manager = SampleManager::new(db_path_str.as_deref()).expect("failed to open database");
+        let manager = SampleManager::new(db_path_str.as_deref()).map_err(|error| {
+            eprintln!("failed to open database at {:?}: {error}", db_path_str);
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("failed to open database: {error}"),
+            )
+        })?;
 
         app.manage(AppState {
             manager: Arc::new(Mutex::new(manager)),
@@ -961,9 +967,10 @@ fn main() {
         set_midi_file_tag,
         get_midi_file_tags,
     ]);
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    if let Err(error) = builder.run(tauri::generate_context!()) {
+        eprintln!("error while running tauri application: {error}");
+        std::process::exit(1);
+    }
 }
 
 #[tauri::command]
