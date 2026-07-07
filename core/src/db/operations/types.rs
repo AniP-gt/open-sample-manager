@@ -33,6 +33,19 @@ pub struct SampleRow {
     pub waveform_peaks: Option<String>,
     /// Feature embedding blob.
     pub embedding: Option<Vec<u8>>,
+    pub source: Option<String>,
+    pub pack_name: Option<String>,
+    pub license: Option<String>,
+    pub license_url: Option<String>,
+    pub license_memo: Option<String>,
+    pub imported_at: Option<String>,
+    pub peak_db: Option<f64>,
+    pub rms_db: Option<f64>,
+    pub leading_silence_ms: Option<f64>,
+    pub clipping_count: Option<i64>,
+    pub channel_count: Option<i64>,
+    pub bit_depth: Option<i64>,
+    pub quality_flags: Option<String>,
     /// Whether the file is currently accessible.
     pub is_online: bool,
     /// Playback type: "loop" or "oneshot".
@@ -82,6 +95,19 @@ pub struct SampleInput {
     pub decay_time: Option<f64>,
     /// Feature embedding blob.
     pub embedding: Option<Vec<u8>>,
+    pub source: Option<String>,
+    pub pack_name: Option<String>,
+    pub license: Option<String>,
+    pub license_url: Option<String>,
+    pub license_memo: Option<String>,
+    pub imported_at: Option<String>,
+    pub peak_db: Option<f64>,
+    pub rms_db: Option<f64>,
+    pub leading_silence_ms: Option<f64>,
+    pub clipping_count: Option<i64>,
+    pub channel_count: Option<i64>,
+    pub bit_depth: Option<i64>,
+    pub quality_flags: Option<String>,
     /// Playback type: "loop" or "oneshot".
     pub playback_type: Option<String>,
     /// Instrument type: "kick", "snare", etc.

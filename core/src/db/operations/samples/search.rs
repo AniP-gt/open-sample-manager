@@ -5,6 +5,7 @@ use crate::db::operations::types::SampleRow;
 
 use super::queries::{
     directory_like_pattern, list_all_samples, list_samples_paginated, normalize_directory_path,
+    SAMPLE_COLUMNS,
 };
 use super::row_to_sample;
 
@@ -43,28 +44,15 @@ fn fuzzy_sample_rows(
 ) -> Result<Vec<(SampleRow, String)>, rusqlite::Error> {
     let directory_path = normalize_directory_path(directory_path);
     let sql = if directory_path.is_some() {
-        "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity, s.sample_rate, s.file_size,
-                s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type, s.waveform_peaks,
-                s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key,
-                COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tag_names
-         FROM samples s
-         LEFT JOIN sample_tags st ON st.sample_id = s.id
-         LEFT JOIN tags t ON t.id = st.tag_id
-         WHERE REPLACE(s.path, '\\', '/') = ?1 OR REPLACE(s.path, '\\', '/') LIKE ?2 ESCAPE '\\'
-         GROUP BY s.id
-         ORDER BY s.id"
+        format!(
+            "SELECT {SAMPLE_COLUMNS} FROM samples
+             WHERE REPLACE(path, '\\', '/') = ?1 OR REPLACE(path, '\\', '/') LIKE ?2 ESCAPE '\\'
+             ORDER BY id"
+        )
     } else {
-        "SELECT s.id, s.path, s.file_name, s.duration, s.bpm, s.periodicity, s.sample_rate, s.file_size,
-                s.artist, s.low_ratio, s.attack_slope, s.decay_time, s.sample_type, s.waveform_peaks,
-                s.embedding, s.is_online, s.playback_type, s.instrument_type, s.musical_key,
-                COALESCE(GROUP_CONCAT(t.name, char(31)), '') AS tag_names
-         FROM samples s
-         LEFT JOIN sample_tags st ON st.sample_id = s.id
-         LEFT JOIN tags t ON t.id = st.tag_id
-         GROUP BY s.id
-         ORDER BY s.id"
+        format!("SELECT {SAMPLE_COLUMNS} FROM samples ORDER BY id")
     };
-    let mut stmt = conn.prepare_cached(sql)?;
+    let mut stmt = conn.prepare_cached(&sql)?;
     let rows = if let Some(directory_path) = directory_path {
         let like_pattern = directory_like_pattern(&directory_path);
         stmt.query_map(

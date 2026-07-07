@@ -20,8 +20,8 @@ pub use search::{search_samples, search_samples_paginated};
 
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, playback_type, instrument_type, musical_key)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, COALESCE(?15, 'oneshot'), COALESCE(?16, 'other'), ?17)",
+        "INSERT INTO samples (path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, source, pack_name, license, license_url, license_memo, imported_at, peak_db, rms_db, leading_silence_ms, clipping_count, channel_count, bit_depth, quality_flags, playback_type, instrument_type, musical_key)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, COALESCE(?20, CURRENT_TIMESTAMP), ?21, ?22, ?23, ?24, ?25, ?26, ?27, COALESCE(?28, 'oneshot'), COALESCE(?29, 'other'), ?30)",
     )?;
     stmt.execute(params![
         input.path,
@@ -38,6 +38,19 @@ pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusq
         input.sample_type,
         input.waveform_peaks,
         input.embedding,
+        input.source,
+        input.pack_name,
+        input.license,
+        input.license_url,
+        input.license_memo,
+        input.imported_at,
+        input.peak_db,
+        input.rms_db,
+        input.leading_silence_ms,
+        input.clipping_count,
+        input.channel_count,
+        input.bit_depth,
+        input.quality_flags,
         input.playback_type,
         input.instrument_type,
         input.musical_key,
@@ -64,9 +77,12 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
     let mut stmt = conn.prepare_cached(
         "UPDATE samples SET file_name = ?1, duration = ?2, bpm = ?3, periodicity = ?4,
          sample_rate = ?5, file_size = ?6, artist = ?7, low_ratio = ?8, attack_slope = ?9, decay_time = ?10, sample_type = ?11, embedding = ?12,
-         playback_type = COALESCE(?13, playback_type), instrument_type = COALESCE(?14, instrument_type),
-         musical_key = COALESCE(?15, musical_key)
-         WHERE path = ?16",
+         source = COALESCE(?13, source), pack_name = COALESCE(?14, pack_name), license = COALESCE(?15, license),
+         license_url = COALESCE(?16, license_url), license_memo = COALESCE(?17, license_memo), imported_at = COALESCE(imported_at, ?18, CURRENT_TIMESTAMP),
+         peak_db = ?19, rms_db = ?20, leading_silence_ms = ?21, clipping_count = ?22, channel_count = ?23, bit_depth = ?24, quality_flags = ?25,
+         playback_type = COALESCE(?26, playback_type), instrument_type = COALESCE(?27, instrument_type),
+         musical_key = COALESCE(?28, musical_key)
+         WHERE path = ?29",
     )?;
     let updated = stmt.execute(params![
         input.file_name,
@@ -81,6 +97,19 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         input.decay_time,
         input.sample_type,
         input.embedding,
+        input.source,
+        input.pack_name,
+        input.license,
+        input.license_url,
+        input.license_memo,
+        input.imported_at,
+        input.peak_db,
+        input.rms_db,
+        input.leading_silence_ms,
+        input.clipping_count,
+        input.channel_count,
+        input.bit_depth,
+        input.quality_flags,
         input.playback_type,
         input.instrument_type,
         input.musical_key,
@@ -96,6 +125,28 @@ pub fn update_sample(conn: &Connection, input: &SampleInput) -> Result<usize, ru
         ins_stmt.execute(params![rowid, input.file_name])?;
     }
     Ok(updated)
+}
+
+pub fn update_sample_license_metadata(
+    conn: &Connection,
+    path: &str,
+    source: Option<&str>,
+    pack_name: Option<&str>,
+    license: Option<&str>,
+    license_url: Option<&str>,
+    license_memo: Option<&str>,
+) -> Result<usize, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "UPDATE samples SET source = ?1, pack_name = ?2, license = ?3, license_url = ?4, license_memo = ?5 WHERE path = ?6",
+    )?;
+    stmt.execute(params![
+        source,
+        pack_name,
+        license,
+        license_url,
+        license_memo,
+        path,
+    ])
 }
 
 pub fn delete_sample(conn: &Connection, path: &str) -> Result<usize, rusqlite::Error> {

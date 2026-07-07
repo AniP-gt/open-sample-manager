@@ -1,5 +1,6 @@
 use crate::db::operations::{
-    get_sample_by_path, insert_sample, search_samples, update_sample, SampleInput,
+    get_sample_by_path, insert_sample, search_samples, update_sample,
+    update_sample_license_metadata, SampleInput,
 };
 
 use super::{make_input, setup_db};
@@ -41,6 +42,19 @@ fn test_insert_sample_with_nulls() {
         sample_type: None,
         waveform_peaks: None,
         embedding: None,
+        source: None,
+        pack_name: None,
+        license: None,
+        license_url: None,
+        license_memo: None,
+        imported_at: None,
+        peak_db: None,
+        rms_db: None,
+        leading_silence_ms: None,
+        clipping_count: None,
+        channel_count: None,
+        bit_depth: None,
+        quality_flags: None,
         playback_type: None,
         instrument_type: None,
         musical_key: None,
@@ -92,6 +106,109 @@ fn test_update_sample_modifies_fields() {
     assert_eq!(sample.file_name, "kick_renamed.wav");
     assert_eq!(sample.bpm, Some(140.0));
     assert_eq!(sample.embedding, Some(vec![1, 2, 3, 4]));
+}
+
+#[test]
+fn test_insert_sample_persists_license_and_quality_fields() {
+    let conn = setup_db();
+    let input = SampleInput {
+        source: Some("Splice".to_string()),
+        pack_name: Some("Test Pack".to_string()),
+        license: Some("royalty-free".to_string()),
+        license_url: Some("https://example.invalid/license".to_string()),
+        license_memo: Some("ok for release".to_string()),
+        peak_db: Some(-0.5),
+        rms_db: Some(-12.0),
+        leading_silence_ms: Some(10.0),
+        clipping_count: Some(2),
+        channel_count: Some(2),
+        bit_depth: Some(24),
+        quality_flags: Some("[\"clipping\"]".to_string()),
+        ..make_input("/samples/meta.wav", "meta.wav")
+    };
+
+    insert_sample(&conn, &input).expect("insert failed");
+    let sample = get_sample_by_path(&conn, "/samples/meta.wav")
+        .expect("query failed")
+        .expect("sample not found");
+
+    assert_eq!(sample.source.as_deref(), Some("Splice"));
+    assert_eq!(sample.pack_name.as_deref(), Some("Test Pack"));
+    assert_eq!(sample.license.as_deref(), Some("royalty-free"));
+    assert_eq!(sample.peak_db, Some(-0.5));
+    assert_eq!(sample.clipping_count, Some(2));
+    assert_eq!(sample.quality_flags.as_deref(), Some("[\"clipping\"]"));
+    assert!(sample.imported_at.is_some());
+}
+
+#[test]
+fn test_update_sample_preserves_manual_license_metadata_when_input_has_none() {
+    let conn = setup_db();
+    let input = SampleInput {
+        source: Some("source".to_string()),
+        pack_name: Some("pack".to_string()),
+        license: Some("license".to_string()),
+        license_url: Some("url".to_string()),
+        license_memo: Some("memo".to_string()),
+        ..make_input("/samples/preserve.wav", "preserve.wav")
+    };
+    insert_sample(&conn, &input).expect("insert failed");
+
+    let updated = SampleInput {
+        bpm: Some(128.0),
+        peak_db: Some(-1.0),
+        rms_db: Some(-9.0),
+        source: None,
+        pack_name: None,
+        license: None,
+        license_url: None,
+        license_memo: None,
+        ..make_input("/samples/preserve.wav", "preserve.wav")
+    };
+
+    assert_eq!(update_sample(&conn, &updated).expect("update failed"), 1);
+    let sample = get_sample_by_path(&conn, "/samples/preserve.wav")
+        .expect("query failed")
+        .expect("sample not found");
+    assert_eq!(sample.source.as_deref(), Some("source"));
+    assert_eq!(sample.pack_name.as_deref(), Some("pack"));
+    assert_eq!(sample.license.as_deref(), Some("license"));
+    assert_eq!(sample.license_url.as_deref(), Some("url"));
+    assert_eq!(sample.license_memo.as_deref(), Some("memo"));
+    assert_eq!(sample.peak_db, Some(-1.0));
+}
+
+#[test]
+fn test_update_sample_license_metadata_sets_nullable_fields() {
+    let conn = setup_db();
+    insert_sample(&conn, &make_input("/samples/license.wav", "license.wav"))
+        .expect("insert failed");
+
+    assert_eq!(
+        update_sample_license_metadata(
+            &conn,
+            "/samples/license.wav",
+            Some("Bandcamp"),
+            Some("Pack"),
+            None,
+            Some("https://example.invalid"),
+            Some("memo"),
+        )
+        .expect("metadata update failed"),
+        1
+    );
+    let sample = get_sample_by_path(&conn, "/samples/license.wav")
+        .expect("query failed")
+        .expect("sample not found");
+
+    assert_eq!(sample.source.as_deref(), Some("Bandcamp"));
+    assert_eq!(sample.pack_name.as_deref(), Some("Pack"));
+    assert_eq!(sample.license, None);
+    assert_eq!(
+        sample.license_url.as_deref(),
+        Some("https://example.invalid")
+    );
+    assert_eq!(sample.license_memo.as_deref(), Some("memo"));
 }
 
 #[test]
