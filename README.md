@@ -44,10 +44,11 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 
 ### Project Usage History
 
-- **Selection history**: the app records selected samples for the default project in SQLite
+- **Project selector**: create DAW project records and switch the active project from the sample list toolbar
+- **Selection history**: the app records selected samples for the active project in SQLite
 - **Export history**: successful raw and processed DAW drags are stored after the native drag starts
 - **Project collection**: mark candidate samples with the `P` row button and keep them with the project
-- **Avoid Reuse**: hide samples already selected, exported, or added to the project collection
+- **Avoid Reuse**: hide samples already selected, exported, or added to another project collection
 
 See [Project Usage History](docs/project-usage-history.md) for the stored data and UI flow.
 
