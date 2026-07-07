@@ -41,6 +41,7 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             sample_type TEXT,
             waveform_peaks TEXT,
             embedding BLOB,
+            content_hash TEXT,
             is_online INTEGER DEFAULT 1
         );
 
@@ -102,6 +103,7 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
+        CREATE INDEX IF NOT EXISTS idx_content_hash ON samples(content_hash);
 
         CREATE INDEX IF NOT EXISTS idx_sample_tags_sid ON sample_tags(sample_id);
         CREATE INDEX IF NOT EXISTS idx_sample_tags_tid ON sample_tags(tag_id);
@@ -230,6 +232,12 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     // Migration: add musical_key column to samples
     let _ = conn.execute("ALTER TABLE samples ADD COLUMN musical_key TEXT", []);
+
+    let _ = conn.execute("ALTER TABLE samples ADD COLUMN content_hash TEXT", []);
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_content_hash ON samples(content_hash)",
+        [],
+    )?;
 
     Ok(())
 }
