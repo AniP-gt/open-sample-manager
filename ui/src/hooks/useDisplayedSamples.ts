@@ -9,11 +9,11 @@ export function useDisplayedSamples(
 ) {
   return useMemo(() => {
     let list = samples;
+    const favSet = new Set(favorites);
     if (filters.favoritesOnly) {
-      const favSet = new Set(favorites);
       list = list.filter((s) => favSet.has(s.id));
     }
-    list = list.filter((sample) => matchesSampleFilters(sample, filters));
+    list = list.filter((sample) => matchesSampleFilters(sample, filters, favSet.has(sample.id)));
     if (filters.hideDuplicates) {
       const seenHashes = new Set<string>();
       list = list.filter((sample) => {

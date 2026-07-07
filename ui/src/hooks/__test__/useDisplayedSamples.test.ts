@@ -93,6 +93,20 @@ describe("display hooks", () => {
     expect(result.current).toEqual([samples[0]]);
   });
 
+  test("filters samples with advanced search DSL clauses", () => {
+    const { result } = renderHook(() =>
+      useDisplayedSamples(samples, { ...filters, search: "kick bpm:110-130 type:one-shot tag:warm key:C favorite:true" }, [1])
+    );
+
+    expect(result.current).toEqual([samples[0]]);
+  });
+
+  test("honors negative DSL terms", () => {
+    const { result } = renderHook(() => useDisplayedSamples(samples, { ...filters, search: "snare -kick" }, []));
+
+    expect(result.current).toEqual([samples[1]]);
+  });
+
   test("ignores invalid BPM bounds", () => {
     const { result } = renderHook(() =>
       useDisplayedSamples(samples, { ...filters, filterBpmMin: "nope", filterBpmMax: "also-nope" }, [])
