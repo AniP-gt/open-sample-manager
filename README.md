@@ -19,6 +19,7 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 
 - **Directory scanning** — recursively scan folders and index WAV, MP3, FLAC, and Ogg files
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
+- **Sample quality checks**: peak, RMS, leading silence, clipping, channel count, and bit depth flags are captured during scan
 - **Full-text search** — fast FTS5-powered search over filenames and metadata
 - **Similarity search** — embedding-based "find similar samples" lookup
 - **Filter sidebar** — filter by instrument type, sample type, BPM range
@@ -44,8 +45,11 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
+- **License and source metadata**: track source, pack name, license, license URL, memo, and import date for each sample
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency
 - **Library migration** — export the local metadata database from Settings and import it on another PC
+
+See [Sample Metadata and Quality Checks](docs/sample_metadata_quality.md) for the stored fields, UI behavior, and analysis notes.
 
 ---
 
