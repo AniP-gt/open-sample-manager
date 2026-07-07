@@ -6,6 +6,7 @@ export { ScannerOverlay } from "./ScannerOverlay/ScannerOverlay";
 export { Header } from "./Header/Header";
 export { ProjectSyncControls } from "./ProjectSyncControls/ProjectSyncControls";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
+export { CollectionsSavedSearchesPanel } from "./CollectionsSavedSearchesPanel/CollectionsSavedSearchesPanel";
 export { SampleList } from "./SampleList/SampleList";
 export { MidiList } from "./MidiList/MidiList";
 export type { MidiListHandle } from "./MidiList/types";
