@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { getErrorMessage } from "../utils/sampleMapper";
+import { useCollectionsSavedSearches } from "./sampleState/useCollectionsSavedSearches";
 import { useInstrumentTypes } from "./sampleState/useInstrumentTypes";
 import { useSampleClassificationState } from "./sampleState/useSampleClassificationState";
 import { useSamplePathLoading } from "./sampleState/useSamplePathLoading";
@@ -66,6 +67,18 @@ export function useSampleState({
     setLastFetchCount: searchState.setLastFetchCount,
     setCanLoadMore: searchState.setCanLoadMore,
     setCanLoadPrevious: searchState.setCanLoadPrevious,
+  });
+
+  const collectionsState = useCollectionsSavedSearches({
+    filters: searchState.filters,
+    sort: searchState.sort,
+    setFilters: searchState.setFilters,
+    setSort: searchState.setSort,
+    setSamples: searchState.setSamples,
+    setSamplePaths: searchState.setSamplePaths,
+    setSelected: selection.setSelected,
+    runSearch: searchState.runSearch,
+    onInvokeError: handleInvokeError,
   });
 
   const classificationState = useSampleClassificationState({
@@ -135,5 +148,21 @@ export function useSampleState({
     setConfirmOpen: connectedTrashState.setConfirmOpen,
     setPendingTrashSampleId: connectedTrashState.setPendingTrashSampleId,
     togglePlayback: selection.togglePlayback,
+    collections: collectionsState.collections,
+    savedSearches: collectionsState.savedSearches,
+    activeCollectionId: collectionsState.activeCollectionId,
+    refreshCollections: collectionsState.refreshCollections,
+    refreshSavedSearches: collectionsState.refreshSavedSearches,
+    loadCollectionSamples: collectionsState.loadCollectionSamples,
+    clearCollectionMode: collectionsState.clearCollectionMode,
+    createCollection: collectionsState.createCollection,
+    updateCollection: collectionsState.updateCollection,
+    deleteCollection: collectionsState.deleteCollection,
+    addSelectedToCollection: collectionsState.addSelectedToCollection,
+    removeSelectedFromCollection: collectionsState.removeSelectedFromCollection,
+    createSavedSearch: collectionsState.createSavedSearch,
+    updateSavedSearch: collectionsState.updateSavedSearch,
+    deleteSavedSearch: collectionsState.deleteSavedSearch,
+    applySavedSearch: collectionsState.applySavedSearch,
   };
 }

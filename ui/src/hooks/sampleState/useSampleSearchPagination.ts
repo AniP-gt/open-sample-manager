@@ -58,12 +58,13 @@ export function useSampleSearchPagination({
   const [canLoadPrevious, setCanLoadPrevious] = useState(false);
 
   const runSearch = useCallback(
-    async (query: string) => {
+    async (query: string, directoryPathOverride?: string | null) => {
+      const directoryPath = directoryPathOverride ?? filters.directoryPath ?? "";
       const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
         query: query || null,
         limit: pageLimit,
         offset: 0,
-        directoryPath: filters.directoryPath || null,
+        directoryPath: directoryPath || null,
       });
       const nextSamples = mapSampleRowsToSamples(rows);
 

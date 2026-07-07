@@ -44,7 +44,7 @@ export const mapRowToSample = (row: TauriSampleRow): Sample => {
     attack_slope: row.attack_slope ?? 0,
     decay_time: row.decay_time,
     sample_type: normalizeSampleType(row.playback_type, row.sample_type),
-    tags: row.tags,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     waveform_peaks: waveformPeaks,
     playback_type: playbackType,
     instrument_type: instrumentType,
