@@ -110,6 +110,12 @@ pub fn delete_sample(conn: &Connection, path: &str) -> Result<usize, rusqlite::E
         let _ = fts_stmt.execute(params![rowid, file_name]);
         let mut tags_stmt = conn.prepare_cached("DELETE FROM sample_tags WHERE sample_id = ?1")?;
         let _ = tags_stmt.execute(params![rowid]);
+        let mut project_events_stmt =
+            conn.prepare_cached("DELETE FROM project_sample_events WHERE sample_id = ?1")?;
+        let _ = project_events_stmt.execute(params![rowid]);
+        let mut project_collections_stmt =
+            conn.prepare_cached("DELETE FROM project_collections WHERE sample_id = ?1")?;
+        let _ = project_collections_stmt.execute(params![rowid]);
         let mut stmt = conn.prepare_cached("DELETE FROM samples WHERE id = ?1")?;
         Ok(stmt.execute(params![rowid])?)
     } else {
@@ -120,6 +126,8 @@ pub fn delete_sample(conn: &Connection, path: &str) -> Result<usize, rusqlite::E
 pub fn clear_all_samples(conn: &Connection) -> Result<usize, rusqlite::Error> {
     conn.execute("DELETE FROM samples_fts", [])?;
     conn.execute("DELETE FROM sample_tags", [])?;
+    conn.execute("DELETE FROM project_sample_events", [])?;
+    conn.execute("DELETE FROM project_collections", [])?;
     Ok(conn.execute("DELETE FROM samples", [])?)
 }
 

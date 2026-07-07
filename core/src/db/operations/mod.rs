@@ -16,7 +16,8 @@ pub use midi::{
     search_midis_paginated, set_midi_tag, update_midi_tag,
 };
 pub use project_usage::{
-    add_project_collection_sample, get_default_project, list_project_collection_sample_ids,
+    add_project_collection_sample, create_project, get_default_project,
+    list_other_project_used_sample_ids, list_project_collection_sample_ids,
     list_project_usage_events, list_project_used_sample_ids, list_projects,
     record_project_sample_export, record_project_sample_selection,
     remove_project_collection_sample, DEFAULT_PROJECT_ID,

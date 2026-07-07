@@ -229,6 +229,15 @@ fn get_default_project(
 }
 
 #[tauri::command]
+fn create_project(
+    name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<open_sample_manager_core::db::operations::ProjectRow, CommandError> {
+    let manager = get_manager(&state);
+    manager.create_project(&name).map_err(CommandError::from)
+}
+
+#[tauri::command]
 fn record_project_sample_selection(
     project_id: Option<String>,
     sample_id: i64,
@@ -307,6 +316,17 @@ fn list_project_used_sample_ids(
     let manager = get_manager(&state);
     manager
         .list_project_used_sample_ids(project_id.as_deref())
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+fn list_other_project_used_sample_ids(
+    project_id: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<i64>, CommandError> {
+    let manager = get_manager(&state);
+    manager
+        .list_other_project_used_sample_ids(project_id.as_deref())
         .map_err(CommandError::from)
 }
 
@@ -1012,6 +1032,7 @@ fn main() {
         get_sample,
         list_projects,
         get_default_project,
+        create_project,
         record_project_sample_selection,
         record_project_sample_export,
         add_project_collection_sample,
@@ -1019,6 +1040,7 @@ fn main() {
         list_project_collection_sample_ids,
         list_project_usage_events,
         list_project_used_sample_ids,
+        list_other_project_used_sample_ids,
         list_all_sample_paths,
         delete_sample,
         clear_all_samples,

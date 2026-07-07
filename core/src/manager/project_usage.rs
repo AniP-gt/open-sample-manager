@@ -11,6 +11,10 @@ impl SampleManager {
         Ok(operations::get_default_project(&self.conn)?)
     }
 
+    pub fn create_project(&self, name: &str) -> Result<ProjectRow, ManagerError> {
+        Ok(operations::create_project(&self.conn, name)?)
+    }
+
     pub fn record_project_sample_selection(
         &self,
         project_id: Option<&str>,
@@ -86,6 +90,16 @@ impl SampleManager {
         project_id: Option<&str>,
     ) -> Result<Vec<i64>, ManagerError> {
         Ok(operations::list_project_used_sample_ids(
+            &self.conn,
+            project_id.unwrap_or(DEFAULT_PROJECT_ID),
+        )?)
+    }
+
+    pub fn list_other_project_used_sample_ids(
+        &self,
+        project_id: Option<&str>,
+    ) -> Result<Vec<i64>, ManagerError> {
+        Ok(operations::list_other_project_used_sample_ids(
             &self.conn,
             project_id.unwrap_or(DEFAULT_PROJECT_ID),
         )?)

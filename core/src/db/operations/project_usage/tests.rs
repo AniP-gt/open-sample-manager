@@ -1,7 +1,8 @@
 use rusqlite::Connection;
 
 use crate::db::operations::{
-    add_project_collection_sample, get_default_project, list_project_collection_sample_ids,
+    add_project_collection_sample, clear_all_samples, create_project, delete_sample,
+    get_default_project, list_other_project_used_sample_ids, list_project_collection_sample_ids,
     list_project_usage_events, list_project_used_sample_ids, record_project_sample_export,
     record_project_sample_selection, DEFAULT_PROJECT_ID,
 };
@@ -70,6 +71,59 @@ fn collection_is_idempotent_and_used_ids_include_events_and_collection() {
 
     assert_eq!(collection, vec![1]);
     assert_eq!(used, vec![1, 2]);
+}
+
+#[test]
+fn creates_projects_with_unique_ids_and_tracks_other_project_usage() {
+    let conn = setup_db();
+
+    let first = create_project(&conn, "Song A").expect("create first project");
+    let second = create_project(&conn, "Song A").expect("create second project");
+
+    assert_eq!(first.id, "song-a");
+    assert_eq!(second.id, "song-a-2");
+
+    record_project_sample_selection(&conn, &first.id, 1).expect("first project selection");
+    add_project_collection_sample(&conn, &second.id, 2).expect("second project collection");
+
+    let first_other_used =
+        list_other_project_used_sample_ids(&conn, &first.id).expect("other used for first");
+    let second_other_used =
+        list_other_project_used_sample_ids(&conn, &second.id).expect("other used for second");
+
+    assert_eq!(first_other_used, vec![2]);
+    assert_eq!(second_other_used, vec![1]);
+}
+
+#[test]
+fn sample_delete_and_clear_remove_project_usage_rows() {
+    let conn = setup_db();
+
+    record_project_sample_selection(&conn, DEFAULT_PROJECT_ID, 1).expect("selection");
+    add_project_collection_sample(&conn, DEFAULT_PROJECT_ID, 1).expect("collection");
+    delete_sample(&conn, "/samples/kick.wav").expect("delete sample");
+
+    assert!(list_project_used_sample_ids(&conn, DEFAULT_PROJECT_ID)
+        .expect("used after delete")
+        .is_empty());
+    assert!(
+        list_project_collection_sample_ids(&conn, DEFAULT_PROJECT_ID)
+            .expect("collection after delete")
+            .is_empty()
+    );
+
+    record_project_sample_selection(&conn, DEFAULT_PROJECT_ID, 2).expect("selection after delete");
+    add_project_collection_sample(&conn, DEFAULT_PROJECT_ID, 2).expect("collection after delete");
+    clear_all_samples(&conn).expect("clear samples");
+
+    assert!(list_project_used_sample_ids(&conn, DEFAULT_PROJECT_ID)
+        .expect("used after clear")
+        .is_empty());
+    assert!(
+        list_project_collection_sample_ids(&conn, DEFAULT_PROJECT_ID)
+            .expect("collection after clear")
+            .is_empty()
+    );
 }
 
 #[test]

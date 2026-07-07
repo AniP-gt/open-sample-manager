@@ -12,6 +12,25 @@ pub fn list_projects(conn: &Connection) -> Result<Vec<ProjectRow>, rusqlite::Err
     rows
 }
 
+pub fn create_project(conn: &Connection, name: &str) -> Result<ProjectRow, rusqlite::Error> {
+    let trimmed_name = name.trim();
+    let project_name = if trimmed_name.is_empty() {
+        "Untitled Project"
+    } else {
+        trimmed_name
+    };
+    let project_id = unique_project_id(conn, project_name)?;
+    conn.execute(
+        "INSERT INTO projects (id, name, is_default) VALUES (?1, ?2, 0)",
+        params![project_id, project_name],
+    )?;
+    conn.query_row(
+        "SELECT id, name, is_default, created_at, updated_at FROM projects WHERE id = ?1",
+        params![project_id],
+        project_from_row,
+    )
+}
+
 pub fn get_default_project(conn: &Connection) -> Result<ProjectRow, rusqlite::Error> {
     let default = conn
         .query_row(
@@ -114,6 +133,22 @@ pub fn list_project_used_sample_ids(
     rows
 }
 
+pub fn list_other_project_used_sample_ids(
+    conn: &Connection,
+    project_id: &str,
+) -> Result<Vec<i64>, rusqlite::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT sample_id FROM project_sample_events WHERE project_id <> ?1
+         UNION
+         SELECT sample_id FROM project_collections WHERE project_id <> ?1
+         ORDER BY sample_id",
+    )?;
+    let rows = stmt
+        .query_map(params![project_id], |row| row.get(0))?
+        .collect();
+    rows
+}
+
 fn insert_project_sample_event(
     conn: &Connection,
     project_id: &str,
@@ -149,6 +184,48 @@ fn event_from_row(row: &rusqlite::Row<'_>) -> Result<ProjectSampleEventRow, rusq
         metadata_json: row.get(5)?,
         created_at: row.get(6)?,
     })
+}
+
+fn unique_project_id(conn: &Connection, name: &str) -> Result<String, rusqlite::Error> {
+    let slug = project_slug(name);
+    let mut candidate = slug.clone();
+    let mut suffix = 2;
+    while project_exists(conn, &candidate)? {
+        candidate = format!("{slug}-{suffix}");
+        suffix += 1;
+    }
+    Ok(candidate)
+}
+
+fn project_slug(name: &str) -> String {
+    let mut slug = String::new();
+    let mut last_dash = false;
+    for ch in name.chars().flat_map(char::to_lowercase) {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch);
+            last_dash = false;
+        } else if !last_dash && !slug.is_empty() {
+            slug.push('-');
+            last_dash = true;
+        }
+    }
+    let trimmed = slug.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        "project".to_string()
+    } else {
+        trimmed
+    }
+}
+
+fn project_exists(conn: &Connection, project_id: &str) -> Result<bool, rusqlite::Error> {
+    let found = conn
+        .query_row(
+            "SELECT 1 FROM projects WHERE id = ?1",
+            params![project_id],
+            |_| Ok(()),
+        )
+        .optional()?;
+    Ok(found.is_some())
 }
 
 #[cfg(test)]
