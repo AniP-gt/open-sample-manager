@@ -36,6 +36,7 @@ const defaultFilters: FilterState = {
   filterBpmMax: "",
   filterInstrumentType: "",
   favoritesOnly: false,
+  hideDuplicates: false,
   filterKey: "",
   directoryPath: "",
 };
