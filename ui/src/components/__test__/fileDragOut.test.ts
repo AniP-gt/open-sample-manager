@@ -187,6 +187,8 @@ describe("fileDragOut", () => {
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
 
     vi.runOnlyPendingTimers();
     await Promise.resolve();
@@ -221,6 +223,8 @@ describe("fileDragOut", () => {
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
 
     vi.runOnlyPendingTimers();
     await Promise.resolve();
@@ -229,4 +233,46 @@ describe("fileDragOut", () => {
     expect(invoke).toHaveBeenCalledWith("delete_file", { path: "/tmp/processed.wav" });
     expect(preparedPathsRef.current["edited-reject-cleanup"]).toBeUndefined();
   });
+
+  it("logs raw export only after native drag succeeds", async () => {
+    const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: {} };
+    const event = { preventDefault: vi.fn() } as unknown as React.DragEvent;
+    const onExportSuccess = vi.fn();
+
+    startFileDrag(
+      event,
+      "/samples/kick.wav",
+      "raw",
+      preparedPathsRef,
+      "/tmp/icon.png",
+      "[test]",
+      undefined,
+      { sampleId: 9, onExportSuccess },
+    );
+    await Promise.resolve();
+
+    expect(onExportSuccess).toHaveBeenCalledWith(9, "raw");
+  });
+
+  it("does not log export when native drag rejects", async () => {
+    const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: {} };
+    vi.mocked(startDrag).mockRejectedValueOnce(new Error("drag failed"));
+    const event = { preventDefault: vi.fn() } as unknown as React.DragEvent;
+    const onExportSuccess = vi.fn();
+
+    startFileDrag(
+      event,
+      "/samples/kick.wav",
+      "raw-reject",
+      preparedPathsRef,
+      "/tmp/icon.png",
+      "[test]",
+      undefined,
+      { sampleId: 9, onExportSuccess },
+    );
+    await Promise.resolve();
+
+    expect(onExportSuccess).not.toHaveBeenCalled();
+  });
+
 });

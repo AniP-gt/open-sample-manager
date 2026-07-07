@@ -1,4 +1,5 @@
 import type { Sample, FilterState, SortState, SampleProcessingSettings } from "../../types/sample";
+import type { ProjectSampleExportVariant } from "../../types/projectUsage";
 
 export interface SampleListProps {
   samples: Sample[];
@@ -24,6 +25,13 @@ export interface SampleListProps {
   canLoadPrevious?: boolean;
   instrumentColorCoding?: boolean;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  activeProjectName?: string;
+  avoidReuse?: boolean;
+  onAvoidReuseChange?: (avoidReuse: boolean) => void;
+  usedSampleIds?: Set<number>;
+  collectionSampleIds?: Set<number>;
+  onProjectCollectionToggle?: (sampleId: number) => void;
+  onProjectExportSuccess?: (sampleId: number, variant: ProjectSampleExportVariant) => void;
 }
 
 export type SampleListHandle = {
