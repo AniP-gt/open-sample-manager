@@ -1,5 +1,3 @@
-import { ProjectSyncControls } from "../ProjectSyncControls/ProjectSyncControls";
-
 interface HeaderProps {
   sampleCount: number;
   scanned: boolean;
@@ -12,30 +10,9 @@ interface HeaderProps {
   // View mode toggle
   viewMode: 'sample' | 'midi';
   onViewModeChange: (mode: 'sample' | 'midi') => void;
-  projectSync?: {
-    projectBpm: string;
-    setProjectBpm: (value: string) => void;
-    projectKey: string;
-    setProjectKey: (value: string) => void;
-    tempoSync: boolean;
-    setTempoSync: (value: boolean) => void;
-    keySync: boolean;
-    setKeySync: (value: boolean) => void;
-  };
 }
 
-const defaultProjectSync = {
-  projectBpm: "120",
-  setProjectBpm: () => {},
-  projectKey: "C",
-  setProjectKey: () => {},
-  tempoSync: false,
-  setTempoSync: () => {},
-  keySync: false,
-  setKeySync: () => {},
-};
-
-export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, viewMode, onViewModeChange, projectSync = defaultProjectSync }: HeaderProps) {
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, viewMode, onViewModeChange }: HeaderProps) {
   return (
     <div
       style={{
@@ -88,17 +65,6 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <ProjectSyncControls
-          projectBpm={projectSync.projectBpm}
-          projectKey={projectSync.projectKey}
-          tempoSync={projectSync.tempoSync}
-          keySync={projectSync.keySync}
-          onProjectBpmChange={projectSync.setProjectBpm}
-          onProjectKeyChange={projectSync.setProjectKey}
-          onTempoSyncChange={projectSync.setTempoSync}
-          onKeySyncChange={projectSync.setKeySync}
-        />
-
         {/* Sample/MIDI View Toggle */}
         <div style={{ display: "flex", gap: "2px", background: "#1f2937", padding: "2px", borderRadius: "4px" }}>
           <button
