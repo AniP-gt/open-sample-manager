@@ -185,10 +185,60 @@ impl SampleManager {
             sample_type: Some(sample_type),
             waveform_peaks: row.waveform_peaks,
             embedding: row.embedding,
+            source: row.source,
+            pack_name: row.pack_name,
+            license: row.license,
+            license_url: row.license_url,
+            license_memo: row.license_memo,
+            imported_at: row.imported_at,
+            peak_db: row.peak_db,
+            rms_db: row.rms_db,
+            leading_silence_ms: row.leading_silence_ms,
+            clipping_count: row.clipping_count,
+            channel_count: row.channel_count,
+            bit_depth: row.bit_depth,
+            quality_flags: row.quality_flags,
             playback_type: Some(pt),
             instrument_type: Some(it),
             musical_key: row.musical_key,
         };
         Ok(operations::update_sample(&self.conn, &input)?)
     }
+
+    pub fn update_sample_license_metadata(
+        &self,
+        path: &str,
+        source: Option<String>,
+        pack_name: Option<String>,
+        license: Option<String>,
+        license_url: Option<String>,
+        license_memo: Option<String>,
+    ) -> Result<usize, ManagerError> {
+        let source = normalize_blank(source);
+        let pack_name = normalize_blank(pack_name);
+        let license = normalize_blank(license);
+        let license_url = normalize_blank(license_url);
+        let license_memo = normalize_blank(license_memo);
+
+        Ok(operations::update_sample_license_metadata(
+            &self.conn,
+            path,
+            source.as_deref(),
+            pack_name.as_deref(),
+            license.as_deref(),
+            license_url.as_deref(),
+            license_memo.as_deref(),
+        )?)
+    }
+}
+
+fn normalize_blank(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
 }

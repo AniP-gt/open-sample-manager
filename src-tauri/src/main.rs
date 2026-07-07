@@ -720,6 +720,38 @@ fn update_sample_classification(
     }
     Ok(rows)
 }
+
+#[tauri::command]
+fn update_sample_license_metadata(
+    path: String,
+    source: Option<String>,
+    pack_name: Option<String>,
+    license: Option<String>,
+    license_url: Option<String>,
+    license_memo: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = get_manager(&state);
+    let rows = manager
+        .update_sample_license_metadata(
+            &path,
+            source,
+            pack_name,
+            license,
+            license_url,
+            license_memo,
+        )
+        .map_err(CommandError::from)?;
+    if rows == 0 {
+        return Err(CommandError {
+            code: "not_found".to_string(),
+            message: format!("no sample found at path '{}'; 0 rows updated", path),
+            details: Some("The sample may have been deleted or the path is incorrect.".to_string()),
+        });
+    }
+    Ok(rows)
+}
+
 struct AppState {
     manager: Arc<Mutex<SampleManager>>,
     prepared_temp_paths: PreparedTempRegistry,
@@ -919,6 +951,7 @@ fn main() {
         move_sample,
         send_to_trash,
         update_sample_classification,
+        update_sample_license_metadata,
         get_instrument_types,
         add_instrument_type,
         delete_instrument_type,
