@@ -1,5 +1,6 @@
 use crate::db::operations::{
-    get_sample_by_path, insert_sample, search_samples, update_sample, SampleInput,
+    get_sample_by_path, insert_sample, list_duplicate_groups, search_samples, update_sample,
+    SampleInput,
 };
 
 use super::{make_input, setup_db};
@@ -44,8 +45,40 @@ fn test_insert_sample_with_nulls() {
         playback_type: None,
         instrument_type: None,
         musical_key: None,
+        content_hash: None,
     };
     assert!(insert_sample(&conn, &input).expect("insert with nulls failed") > 0);
+}
+
+#[test]
+fn test_list_duplicate_groups_by_content_hash() {
+    let conn = setup_db();
+    let first = SampleInput {
+        content_hash: Some("abc123".to_string()),
+        file_size: Some(10),
+        ..make_input("/samples/a.wav", "a.wav")
+    };
+    let second = SampleInput {
+        content_hash: Some("abc123".to_string()),
+        file_size: Some(10),
+        ..make_input("/other/a-copy.wav", "a-copy.wav")
+    };
+    let unique = SampleInput {
+        content_hash: Some("unique".to_string()),
+        ..make_input("/samples/unique.wav", "unique.wav")
+    };
+
+    insert_sample(&conn, &first).expect("insert first");
+    insert_sample(&conn, &second).expect("insert second");
+    insert_sample(&conn, &unique).expect("insert unique");
+
+    let groups = list_duplicate_groups(&conn).expect("list duplicate groups");
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].content_hash, "abc123");
+    assert_eq!(groups[0].sample_count, 2);
+    assert_eq!(groups[0].total_file_size, 20);
+    assert_eq!(groups[0].samples.len(), 2);
+    assert_eq!(groups[0].samples[0].duplicate_count, 2);
 }
 
 #[test]
