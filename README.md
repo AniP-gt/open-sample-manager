@@ -21,6 +21,7 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
 - **Full-text search** — fast FTS5-powered search over filenames and metadata
 - **Similarity search** — embedding-based "find similar samples" lookup
+- **Random discovery**: pick a random sample from the current result set, step back through random picks, or jump to a random similar sample. See [Random Inspiration](docs/random-inspiration.md).
 - **Filter sidebar** — filter by instrument type, sample type, BPM range
 - **Waveform display** — inline waveform preview in the detail panel
 - **Drag to DAW** — drag samples directly from the app into your DAW
