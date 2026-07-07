@@ -100,6 +100,40 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             FOREIGN KEY (tag_id) REFERENCES midi_tags(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS collections (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS collection_samples (
+            collection_id INTEGER NOT NULL,
+            sample_id INTEGER NOT NULL,
+            added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (collection_id, sample_id),
+            FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+            FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS saved_searches (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            search TEXT NOT NULL DEFAULT '',
+            filter_type TEXT NOT NULL DEFAULT 'all',
+            filter_bpm_min TEXT NOT NULL DEFAULT '',
+            filter_bpm_max TEXT NOT NULL DEFAULT '',
+            filter_instrument_type TEXT NOT NULL DEFAULT '',
+            favorites_only INTEGER NOT NULL DEFAULT 0,
+            filter_key TEXT NOT NULL DEFAULT '',
+            directory_path TEXT NOT NULL DEFAULT '',
+            sort_field TEXT NOT NULL DEFAULT 'id',
+            sort_direction TEXT NOT NULL DEFAULT 'asc',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
 
@@ -109,6 +143,8 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE INDEX IF NOT EXISTS idx_midis_tempo ON midis(tempo);
         CREATE INDEX IF NOT EXISTS idx_midis_track_count ON midis(track_count);
         CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);
+        CREATE INDEX IF NOT EXISTS idx_collection_samples_sample ON collection_samples(sample_id);
+        CREATE INDEX IF NOT EXISTS idx_saved_searches_name ON saved_searches(name);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS samples_fts USING fts5(file_name);
         CREATE VIRTUAL TABLE IF NOT EXISTS midis_fts USING fts5(file_name);
@@ -230,6 +266,42 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     // Migration: add musical_key column to samples
     let _ = conn.execute("ALTER TABLE samples ADD COLUMN musical_key TEXT", []);
+
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS collections (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS collection_samples (
+            collection_id INTEGER NOT NULL,
+            sample_id INTEGER NOT NULL,
+            added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (collection_id, sample_id),
+            FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+            FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS saved_searches (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            search TEXT NOT NULL DEFAULT '',
+            filter_type TEXT NOT NULL DEFAULT 'all',
+            filter_bpm_min TEXT NOT NULL DEFAULT '',
+            filter_bpm_max TEXT NOT NULL DEFAULT '',
+            filter_instrument_type TEXT NOT NULL DEFAULT '',
+            favorites_only INTEGER NOT NULL DEFAULT 0,
+            filter_key TEXT NOT NULL DEFAULT '',
+            directory_path TEXT NOT NULL DEFAULT '',
+            sort_field TEXT NOT NULL DEFAULT 'id',
+            sort_direction TEXT NOT NULL DEFAULT 'asc',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_collection_samples_sample ON collection_samples(sample_id);
+        CREATE INDEX IF NOT EXISTS idx_saved_searches_name ON saved_searches(name);",
+    );
 
     Ok(())
 }
