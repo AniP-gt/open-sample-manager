@@ -15,6 +15,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={vi.fn()}
         onDatabaseImport={vi.fn()}
         databaseMigrationBusy={false}
@@ -36,6 +38,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={vi.fn()}
         onDatabaseImport={vi.fn()}
         databaseMigrationBusy={false}
@@ -62,6 +66,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={vi.fn()}
         onDatabaseImport={vi.fn()}
         databaseMigrationBusy={false}
@@ -87,6 +93,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={onChangeMock}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={vi.fn()}
         onDatabaseImport={vi.fn()}
         databaseMigrationBusy={false}
@@ -112,6 +120,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={onChangeMock}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={vi.fn()}
         onDatabaseImport={vi.fn()}
         databaseMigrationBusy={false}
@@ -120,6 +130,33 @@ describe("SettingsModal", () => {
     );
 
     const toggle = screen.getByRole("switch", { name: "Directory click filtering" });
+    fireEvent.click(toggle);
+    expect(onChangeMock).toHaveBeenCalledWith(false);
+  });
+
+  it("toggles sample metadata and quality UI", () => {
+    const onChangeMock = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        sampleCount={0}
+        autoPlayOnSelect={false}
+        onAutoPlayChange={vi.fn()}
+        instrumentColorCoding={false}
+        onInstrumentColorCodingChange={vi.fn()}
+        directoryClickFiltering={true}
+        onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={onChangeMock}
+        onDatabaseExport={vi.fn()}
+        onDatabaseImport={vi.fn()}
+        databaseMigrationBusy={false}
+        databaseMigrationStatus={null}
+      />
+    );
+
+    const toggle = screen.getByRole("switch", { name: "Sample metadata and quality UI" });
     fireEvent.click(toggle);
     expect(onChangeMock).toHaveBeenCalledWith(false);
   });
@@ -137,6 +174,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={vi.fn()}
         onDatabaseImport={vi.fn()}
         databaseMigrationBusy={false}
@@ -162,6 +201,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={vi.fn()}
         onDatabaseImport={vi.fn()}
         databaseMigrationBusy={false}
@@ -193,6 +234,8 @@ describe("SettingsModal", () => {
         onInstrumentColorCodingChange={vi.fn()}
         directoryClickFiltering={true}
         onDirectoryClickFilteringChange={vi.fn()}
+        showSampleMetadataQuality={true}
+        onShowSampleMetadataQualityChange={vi.fn()}
         onDatabaseExport={onDatabaseExport}
         onDatabaseImport={onDatabaseImport}
         databaseMigrationBusy={false}

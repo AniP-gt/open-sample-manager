@@ -37,6 +37,7 @@ interface SampleListListViewProps {
   canLoadMore?: boolean;
   onLoadMore?: () => Promise<void>;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  showSampleMetadataQuality?: boolean;
 }
 
 export function SampleListListView({
@@ -73,6 +74,7 @@ export function SampleListListView({
   canLoadMore,
   onLoadMore,
   getSampleProcessingSettings,
+  showSampleMetadataQuality = true,
 }: SampleListListViewProps) {
   return (
     <>
@@ -84,6 +86,7 @@ export function SampleListListView({
         draggedColumnRef={draggedColumnRef}
         activeResize={activeResize}
         headerRefs={headerRefs}
+        showSampleMetadataQuality={showSampleMetadataQuality}
       />
       {(externalIsDragOver || isDragOver) && (
           <div
@@ -123,6 +126,7 @@ export function SampleListListView({
                 isFavorite={favorites.has(s.id)}
                 instrumentColorCoding={instrumentColorCoding}
                 processingSettings={getSampleProcessingSettings?.(s, samplePaths[s.id])}
+                showSampleMetadataQuality={showSampleMetadataQuality}
                 dragIconPath={dragIconPath}
                 preparedPathsRef={preparedPathsRef}
                 onSampleSelect={onSampleSelect}

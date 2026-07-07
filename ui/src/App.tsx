@@ -68,6 +68,8 @@ export function App() {
   const setInstrumentColorCoding = useSettingsStore((s) => s.setInstrumentColorCoding);
   const directoryClickFiltering = useSettingsStore((s) => s.directoryClickFiltering);
   const setDirectoryClickFiltering = useSettingsStore((s) => s.setDirectoryClickFiltering);
+  const showSampleMetadataQuality = useSettingsStore((s) => s.showSampleMetadataQuality);
+  const setShowSampleMetadataQuality = useSettingsStore((s) => s.setShowSampleMetadataQuality);
   const favorites = useFavoritesStore((s) => s.favorites);
   const midiFavorites = useMidiFavoritesStore((s) => s.favorites);
   const addRecent = useRecentStore((s) => s.addRecent);
@@ -155,6 +157,32 @@ export function App() {
     midiState.directoryPath,
     sampleState.handleFilterChange,
     midiState.setDirectoryPath,
+  ]);
+
+  useEffect(() => {
+    if (showSampleMetadataQuality) return;
+
+    const updates: Partial<FilterState> = {};
+    if (sampleState.filters.filterLicense) updates.filterLicense = "";
+    if (sampleState.filters.qualityIssuesOnly) updates.qualityIssuesOnly = false;
+    if (Object.keys(updates).length > 0) {
+      sampleState.handleFilterChange(updates);
+    }
+    if (["license", "source", "quality_flags"].includes(sampleState.sort.field)) {
+      sampleState.setSort({ field: "id", direction: "asc" });
+    }
+    if (sampleState.metadataModalOpen) {
+      sampleState.setMetadataModalOpen(false);
+    }
+  }, [
+    showSampleMetadataQuality,
+    sampleState.filters.filterLicense,
+    sampleState.filters.qualityIssuesOnly,
+    sampleState.sort.field,
+    sampleState.handleFilterChange,
+    sampleState.setSort,
+    sampleState.metadataModalOpen,
+    sampleState.setMetadataModalOpen,
   ]);
 
   const displayedSamples = useDisplayedSamples(
@@ -276,6 +304,7 @@ export function App() {
         filteredMidis={filteredMidis}
         instrumentColorCoding={instrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
+        showSampleMetadataQuality={showSampleMetadataQuality}
         handleSampleSelectWithRecent={handleSampleSelectWithRecent}
         getSampleProcessingSettings={sampleProcessingState.getSettingsForSample}
       />
@@ -307,6 +336,8 @@ export function App() {
         onInstrumentColorCodingChange={setInstrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
         onDirectoryClickFilteringChange={setDirectoryClickFiltering}
+        showSampleMetadataQuality={showSampleMetadataQuality}
+        onShowSampleMetadataQualityChange={setShowSampleMetadataQuality}
         onDatabaseExport={() => {
           void libraryMigration.handleExportDatabase();
         }}

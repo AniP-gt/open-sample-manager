@@ -8,6 +8,8 @@ interface SettingsState {
   setInstrumentColorCoding: (value: boolean) => void;
   directoryClickFiltering: boolean;
   setDirectoryClickFiltering: (value: boolean) => void;
+  showSampleMetadataQuality: boolean;
+  setShowSampleMetadataQuality: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -19,6 +21,8 @@ export const useSettingsStore = create<SettingsState>()(
       setInstrumentColorCoding: (value) => set({ instrumentColorCoding: value }),
       directoryClickFiltering: true,
       setDirectoryClickFiltering: (value) => set({ directoryClickFiltering: value }),
+      showSampleMetadataQuality: true,
+      setShowSampleMetadataQuality: (value) => set({ showSampleMetadataQuality: value }),
     }),
     {
       name: "osm_settings",

@@ -23,6 +23,8 @@ export const mockSamples: Sample[] = [
     waveform_peaks: null,
     sample_rate: 44100,
     musical_key: 'C',
+    license: 'CC0',
+    source: 'Factory Pack',
     quality_flags: [],
   },
   {
@@ -41,7 +43,8 @@ export const mockSamples: Sample[] = [
     waveform_peaks: null,
     sample_rate: 48000,
     musical_key: 'A',
-    quality_flags: [],
+    quality_flags: ['clipping'],
+    clipping_count: 2,
   },
 ];
 

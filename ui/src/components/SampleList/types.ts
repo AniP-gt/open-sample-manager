@@ -25,6 +25,7 @@ export interface SampleListProps {
   isLoadingPrevious?: boolean;
   canLoadPrevious?: boolean;
   instrumentColorCoding?: boolean;
+  showSampleMetadataQuality?: boolean;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
 }
 

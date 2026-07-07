@@ -6,9 +6,10 @@ interface GridViewProps {
   selectedId: number | null;
   onSelect: (sample: Sample, isShift?: boolean) => void;
   onMetadataClick?: (sample: Sample) => void;
+  showSampleMetadataQuality?: boolean;
 }
 
-export function GridView({ samples, selectedId, onSelect, onMetadataClick }: GridViewProps) {
+export function GridView({ samples, selectedId, onSelect, onMetadataClick, showSampleMetadataQuality = true }: GridViewProps) {
   return (
     <div
       style={{
@@ -70,24 +71,26 @@ export function GridView({ samples, selectedId, onSelect, onMetadataClick }: Gri
               </span>
               <span>{s.duration ? `${s.duration.toFixed(2)}s` : "—"}</span>
             </div>
-            <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); onMetadataClick?.(s); }}
-              style={{
-                background: "#080a0f",
-                border: "1px solid #1f2937",
-                borderRadius: "2px",
-                color: s.license ? "#22d3ee" : "#374151",
-                cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "10px",
-                letterSpacing: "0.08em",
-                padding: "4px 6px",
-                textAlign: "left",
-              }}
-            >
-              {(s.license ?? "NO LIC").toUpperCase()} {s.quality_flags.length > 0 ? ` / QC ${s.quality_flags.length}` : ""}
-            </button>
+            {showSampleMetadataQuality && (
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); onMetadataClick?.(s); }}
+                style={{
+                  background: "#080a0f",
+                  border: "1px solid #1f2937",
+                  borderRadius: "2px",
+                  color: s.license ? "#22d3ee" : "#374151",
+                  cursor: "pointer",
+                  fontFamily: "'Courier New', monospace",
+                  fontSize: "10px",
+                  letterSpacing: "0.08em",
+                  padding: "4px 6px",
+                  textAlign: "left",
+                }}
+              >
+                {(s.license ?? "NO LIC").toUpperCase()} {s.quality_flags.length > 0 ? ` / QC ${s.quality_flags.length}` : ""}
+              </button>
+            )}
             {s.musical_key && (
               <div
                 style={{

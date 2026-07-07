@@ -216,6 +216,7 @@ function renderPane(overrides: {
       filteredMidis={[midi]}
       instrumentColorCoding={true}
       directoryClickFiltering={overrides.directoryClickFiltering ?? true}
+      showSampleMetadataQuality={true}
       handleSampleSelectWithRecent={handleSampleSelectWithRecent}
     />
   );

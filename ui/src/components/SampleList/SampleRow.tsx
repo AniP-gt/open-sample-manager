@@ -24,6 +24,7 @@ interface SampleRowProps {
   onTypeClick?: (sample: Sample) => void;
   onMetadataClick?: (sample: Sample) => void;
   onTrashSample?: (id: number) => void;
+  showSampleMetadataQuality?: boolean;
 }
 
 export function SampleRow({
@@ -43,6 +44,7 @@ export function SampleRow({
   onTypeClick,
   onMetadataClick,
   onTrashSample,
+  showSampleMetadataQuality = true,
 }: SampleRowProps) {
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
   const dragKey = `${s.id}:${sampleProcessingSignature(processingSettings)}`;
@@ -184,43 +186,47 @@ export function SampleRow({
       >
         {s.musical_key ?? "-"}
       </div>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onMetadataClick?.(s); }}
-        onMouseDown={(e) => e.stopPropagation()}
-        title={[s.license, s.source, s.pack_name].filter(Boolean).join(" / ") || "Edit license metadata"}
-        style={{
-          minWidth: 0,
-          background: "transparent",
-          border: "none",
-          padding: 0,
-          textAlign: "left",
-          cursor: "pointer",
-          fontFamily: "'Courier New', monospace",
-        }}
-      >
-        <div style={{ fontSize: "11px", color: s.license ? "#22d3ee" : "#374151", fontWeight: 700, letterSpacing: "0.08em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {s.license ?? "NO LIC"}
-        </div>
-        <div style={{ fontSize: "10px", color: s.source || s.pack_name ? "#6b7280" : "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {s.pack_name ?? s.source ?? "source"}
-        </div>
-      </button>
-      <div
-        title={s.quality_flags.length > 0 ? s.quality_flags.join(", ") : "No quality issues"}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "4px",
-          fontSize: "11px",
-          fontFamily: "'Courier New', monospace",
-          color: s.quality_flags.length > 0 ? "#f97316" : "#374151",
-          fontWeight: 700,
-        }}
-      >
-        <span>{s.quality_flags.length > 0 ? "!" : "OK"}</span>
-        {s.clipping_count !== undefined && s.clipping_count > 0 && <span>CLIP</span>}
-      </div>
+      {showSampleMetadataQuality && (
+        <>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onMetadataClick?.(s); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            title={[s.license, s.source, s.pack_name].filter(Boolean).join(" / ") || "Edit license metadata"}
+            style={{
+              minWidth: 0,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              textAlign: "left",
+              cursor: "pointer",
+              fontFamily: "'Courier New', monospace",
+            }}
+          >
+            <div style={{ fontSize: "11px", color: s.license ? "#22d3ee" : "#374151", fontWeight: 700, letterSpacing: "0.08em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {s.license ?? "NO LIC"}
+            </div>
+            <div style={{ fontSize: "10px", color: s.source || s.pack_name ? "#6b7280" : "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {s.pack_name ?? s.source ?? "source"}
+            </div>
+          </button>
+          <div
+            title={s.quality_flags.length > 0 ? s.quality_flags.join(", ") : "No quality issues"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              fontSize: "11px",
+              fontFamily: "'Courier New', monospace",
+              color: s.quality_flags.length > 0 ? "#f97316" : "#374151",
+              fontWeight: 700,
+            }}
+          >
+            <span>{s.quality_flags.length > 0 ? "!" : "OK"}</span>
+            {s.clipping_count !== undefined && s.clipping_count > 0 && <span>CLIP</span>}
+          </div>
+        </>
+      )}
       <SampleRowActions
         samplePath={samplePath}
         onOpenFolder={async () => {

@@ -14,6 +14,7 @@ describe("persisted UI stores", () => {
       autoPlayOnSelect: false,
       instrumentColorCoding: false,
       directoryClickFiltering: true,
+      showSampleMetadataQuality: true,
     });
   });
 
@@ -63,9 +64,11 @@ describe("persisted UI stores", () => {
     useSettingsStore.getState().setAutoPlayOnSelect(true);
     useSettingsStore.getState().setInstrumentColorCoding(true);
     useSettingsStore.getState().setDirectoryClickFiltering(false);
+    useSettingsStore.getState().setShowSampleMetadataQuality(false);
 
     expect(useSettingsStore.getState().autoPlayOnSelect).toBe(true);
     expect(useSettingsStore.getState().instrumentColorCoding).toBe(true);
     expect(useSettingsStore.getState().directoryClickFiltering).toBe(false);
+    expect(useSettingsStore.getState().showSampleMetadataQuality).toBe(false);
   });
 });

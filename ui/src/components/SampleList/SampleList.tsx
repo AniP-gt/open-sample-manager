@@ -65,6 +65,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     isLoadingPrevious,
     canLoadPrevious,
     instrumentColorCoding = false,
+    showSampleMetadataQuality = true,
     getSampleProcessingSettings,
   } = props;
 
@@ -84,6 +85,10 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const { colWidths, startColumnResize, draggedColumnRef, activeResize } = useColumnResize([
     "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "96px", "70px", "88px"
   ]);
+  const visibleColWidths = useMemo(() => {
+    if (showSampleMetadataQuality) return colWidths;
+    return colWidths.filter((_, index) => index !== 8 && index !== 9);
+  }, [colWidths, showSampleMetadataQuality]);
 
   const {
     isDragOver,
@@ -324,26 +329,30 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             <option key={key || "all"} value={key}>{key || "KEY"}</option>
           ))}
         </select>
-        <select
-          value={filters.filterLicense}
-          onChange={(e) => onFilterChange({ filterLicense: e.target.value })}
-          aria-label="Sample license filter"
-          style={{ ...controlStyle, width: "94px" }}
-        >
-          <option value="">LIC</option>
-          {licenseOptions.map((license) => (
-            <option key={license} value={license}>{license}</option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => onFilterChange({ qualityIssuesOnly: !filters.qualityIssuesOnly })}
-          aria-pressed={filters.qualityIssuesOnly}
-          title="Show samples with quality flags"
-          style={{ ...controlStyle, width: "74px", cursor: "pointer", color: filters.qualityIssuesOnly ? "#f97316" : "#6b7280", borderColor: filters.qualityIssuesOnly ? "#f97316" : "#1f2937" }}
-        >
-          QC
-        </button>
+        {showSampleMetadataQuality && (
+          <>
+            <select
+              value={filters.filterLicense}
+              onChange={(e) => onFilterChange({ filterLicense: e.target.value })}
+              aria-label="Sample license filter"
+              style={{ ...controlStyle, width: "94px" }}
+            >
+              <option value="">LIC</option>
+              {licenseOptions.map((license) => (
+                <option key={license} value={license}>{license}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => onFilterChange({ qualityIssuesOnly: !filters.qualityIssuesOnly })}
+              aria-pressed={filters.qualityIssuesOnly}
+              title="Show samples with quality flags"
+              style={{ ...controlStyle, width: "74px", cursor: "pointer", color: filters.qualityIssuesOnly ? "#f97316" : "#6b7280", borderColor: filters.qualityIssuesOnly ? "#f97316" : "#1f2937" }}
+            >
+              QC
+            </button>
+          </>
+        )}
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
@@ -358,7 +367,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       </div>
 
       {viewMode === "grid" ? (
-        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} onMetadataClick={onMetadataClick} />
+        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} onMetadataClick={onMetadataClick} showSampleMetadataQuality={showSampleMetadataQuality} />
       ) : (
         <div
           style={{ flex: 1, overflowY: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}
@@ -372,7 +381,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             samplePaths={samplePaths}
             selectedSample={selectedSample}
             selectedIds={props.selectedIds}
-            colWidths={colWidths}
+            colWidths={visibleColWidths}
             rowHeight={rowHeight}
             sort={sort}
             onSortChange={onSortChange}
@@ -383,6 +392,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onToggleFavorite={toggleFavorite}
             favorites={favSet}
             instrumentColorCoding={instrumentColorCoding}
+            showSampleMetadataQuality={showSampleMetadataQuality}
             dragIconPath={dragIconPathRef.current}
             preparedPathsRef={preparedPathsRef}
             headerRefs={headerRefs}
