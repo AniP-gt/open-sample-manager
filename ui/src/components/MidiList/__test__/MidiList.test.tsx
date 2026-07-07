@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MidiList } from '../MidiList';
 import { Midi } from '../../../types/midi';
 import { useMidiFavoritesStore } from '../../../store/useMidiFavoritesStore';
+import { KEY_FILTER_OPTIONS } from '../../../utils/keyOptions';
 
 vi.mock('../../../store/useMidiFavoritesStore');
 
@@ -261,6 +262,26 @@ describe('MidiList', () => {
     expect(onTempoMaxChange).toHaveBeenCalledWith('140');
     expect(onFilterKeyChange).toHaveBeenCalledWith('C');
     expect(onTagFilterChange).toHaveBeenCalledWith(null);
+  });
+
+  test('uses shared key values and full tag options from props', () => {
+    render(
+      <MidiList
+        midis={[mockMidis[0]]}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        midiTags={[
+          { id: 1, name: 'bass', created_at: '2023-01-01T00:00:00Z' },
+          { id: 2, name: 'drums', created_at: '2023-01-01T00:00:00Z' },
+        ]}
+      />
+    );
+
+    const keySelect = screen.getByLabelText('MIDI key filter') as HTMLSelectElement;
+    const tagSelect = screen.getByLabelText('MIDI tag filter') as HTMLSelectElement;
+
+    expect(Array.from(keySelect.options).map((option) => option.value)).toEqual([...KEY_FILTER_OPTIONS]);
+    expect(Array.from(tagSelect.options).map((option) => option.textContent)).toEqual(['TAG', 'bass', 'drums']);
   });
 
   test('calls onMidiSelect when row is clicked', () => {
