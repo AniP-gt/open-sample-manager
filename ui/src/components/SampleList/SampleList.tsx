@@ -78,8 +78,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   } = useDragDropList(props.onImportPaths);
 
   const filtered = useMemo(() => {
-    return samples.filter((sample) => matchesSampleFilters(sample, filters));
-  }, [samples, filters]);
+    return samples.filter((sample) => matchesSampleFilters(sample, filters, favSet.has(sample.id)));
+  }, [samples, filters, favSet]);
 
   const instrumentTypeOptions = useMemo(() => {
     return Array.from(new Set(samples.map((sample) => sample.instrument_type).filter(Boolean))).sort();
