@@ -1,5 +1,5 @@
 import type { Sample, FilterState, SortState, SampleProcessingSettings } from "../../types/sample";
-import type { ProjectSampleExportVariant } from "../../types/projectUsage";
+import type { ProjectRow, ProjectSampleExportVariant } from "../../types/projectUsage";
 
 export interface SampleListProps {
   samples: Sample[];
@@ -25,7 +25,11 @@ export interface SampleListProps {
   canLoadPrevious?: boolean;
   instrumentColorCoding?: boolean;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  projects?: ProjectRow[];
+  activeProjectId?: string;
   activeProjectName?: string;
+  onProjectChange?: (projectId: string) => void;
+  onProjectCreate?: (name: string) => void;
   avoidReuse?: boolean;
   onAvoidReuseChange?: (avoidReuse: boolean) => void;
   usedSampleIds?: Set<number>;

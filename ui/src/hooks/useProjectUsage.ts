@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ProjectRow, ProjectSampleExportVariant } from "../types/projectUsage";
 import {
   addProjectCollectionSample,
+  createProject,
   getDefaultProject,
   listProjectCollectionSampleIds,
+  listOtherProjectUsedSampleIds,
   listProjectUsedSampleIds,
   listProjects,
   recordProjectSampleExport,
@@ -20,15 +22,18 @@ export function useProjectUsage({ setError }: UseProjectUsageParams) {
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [activeProject, setActiveProject] = useState<ProjectRow | null>(null);
   const [usedSampleIds, setUsedSampleIds] = useState<number[]>([]);
+  const [otherProjectUsedSampleIds, setOtherProjectUsedSampleIds] = useState<number[]>([]);
   const [collectionSampleIds, setCollectionSampleIds] = useState<number[]>([]);
   const [avoidReuse, setAvoidReuse] = useState(false);
 
   const refreshProjectSampleIds = useCallback(async (projectId: string) => {
-    const [usedIds, collectionIds] = await Promise.all([
+    const [usedIds, otherProjectUsedIds, collectionIds] = await Promise.all([
       listProjectUsedSampleIds(projectId),
+      listOtherProjectUsedSampleIds(projectId),
       listProjectCollectionSampleIds(projectId),
     ]);
     setUsedSampleIds(usedIds);
+    setOtherProjectUsedSampleIds(otherProjectUsedIds);
     setCollectionSampleIds(collectionIds);
   }, []);
 
@@ -52,7 +57,31 @@ export function useProjectUsage({ setError }: UseProjectUsageParams) {
   }, [refreshProjectSampleIds, setError]);
 
   const usedSampleIdSet = useMemo(() => new Set(usedSampleIds), [usedSampleIds]);
+  const otherProjectUsedSampleIdSet = useMemo(() => new Set(otherProjectUsedSampleIds), [otherProjectUsedSampleIds]);
   const collectionSampleIdSet = useMemo(() => new Set(collectionSampleIds), [collectionSampleIds]);
+
+  const selectProject = useCallback(async (projectId: string) => {
+    const project = projects.find((candidate) => candidate.id === projectId);
+    if (!project) return;
+    setActiveProject(project);
+    try {
+      await refreshProjectSampleIds(project.id);
+    } catch (error) {
+      setError(getErrorMessage(error));
+    }
+  }, [projects, refreshProjectSampleIds, setError]);
+
+  const createAndSelectProject = useCallback(async (name: string) => {
+    try {
+      const project = await createProject(name);
+      const loadedProjects = await listProjects();
+      setProjects(loadedProjects);
+      setActiveProject(project);
+      await refreshProjectSampleIds(project.id);
+    } catch (error) {
+      setError(getErrorMessage(error));
+    }
+  }, [refreshProjectSampleIds, setError]);
 
   const recordSelection = useCallback(async (sampleId: number) => {
     if (!activeProject) return;
@@ -93,10 +122,14 @@ export function useProjectUsage({ setError }: UseProjectUsageParams) {
     activeProject,
     usedSampleIds,
     usedSampleIdSet,
+    otherProjectUsedSampleIds,
+    otherProjectUsedSampleIdSet,
     collectionSampleIds,
     collectionSampleIdSet,
     avoidReuse,
     setAvoidReuse,
+    selectProject,
+    createAndSelectProject,
     recordSelection,
     recordExport,
     toggleCollectionSample,

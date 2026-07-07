@@ -41,6 +41,8 @@ vi.mock("../..", async () => {
         React.createElement("button", { key: "more", onClick: () => getCallback(props, "onLoadMore")() }, "sample more"),
         React.createElement("button", { key: "prev", onClick: () => getCallback(props, "onLoadPrevious")() }, "sample prev"),
         React.createElement("button", { key: "play", onClick: () => getCallback(props, "onTogglePlayback")() }, "sample play"),
+        React.createElement("button", { key: "project", onClick: () => getCallback(props, "onProjectChange")("song-a") }, "sample project"),
+        React.createElement("button", { key: "create-project", onClick: () => getCallback(props, "onProjectCreate")("Song B") }, "sample create project"),
       ]);
     }),
     MidiList: React.forwardRef((_props: Record<string, unknown>, _ref) => {
@@ -202,6 +204,8 @@ function renderPane(overrides: {
   const playerBarRef = { current: { stop: vi.fn() } as unknown as PlayerBarHandle };
 
   const handleSampleSelectWithRecent = vi.fn();
+  const onProjectChange = vi.fn();
+  const onProjectCreate = vi.fn();
   const { container } = render(
     <AppMainPane
       uiState={uiState}
@@ -216,7 +220,11 @@ function renderPane(overrides: {
       instrumentColorCoding={true}
       directoryClickFiltering={overrides.directoryClickFiltering ?? true}
       handleSampleSelectWithRecent={handleSampleSelectWithRecent}
+      projects={[{ id: "default", name: "Default Project", is_default: true, created_at: "", updated_at: "" }]}
+      activeProjectId="default"
       activeProjectName="Default Project"
+      onProjectChange={onProjectChange}
+      onProjectCreate={onProjectCreate}
       avoidReuse={false}
       onAvoidReuseChange={vi.fn()}
       usedSampleIds={new Set()}
@@ -226,7 +234,7 @@ function renderPane(overrides: {
     />
   );
 
-  return { uiState, scanState, sampleState, midiState, playerBarRef, handleSampleSelectWithRecent, container };
+  return { uiState, scanState, sampleState, midiState, playerBarRef, handleSampleSelectWithRecent, onProjectChange, onProjectCreate, container };
 }
 
 describe("AppMainPane", () => {
@@ -270,7 +278,7 @@ describe("AppMainPane", () => {
   });
 
   test("wires sample list and detail actions", () => {
-    const { sampleState, scanState, handleSampleSelectWithRecent } = renderPane({ selectedSample: sample });
+    const { sampleState, scanState, handleSampleSelectWithRecent, onProjectChange, onProjectCreate } = renderPane({ selectedSample: sample });
 
     fireEvent.click(screen.getByText("sample filter"));
     expect(sampleState.handleFilterChange).toHaveBeenCalledWith({ search: "kick" });
@@ -290,6 +298,10 @@ describe("AppMainPane", () => {
     expect(sampleState.loadPrevious).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByText("sample play"));
     expect(sampleState.togglePlayback).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText("sample project"));
+    expect(onProjectChange).toHaveBeenCalledWith("song-a");
+    fireEvent.click(screen.getByText("sample create project"));
+    expect(onProjectCreate).toHaveBeenCalledWith("Song B");
     fireEvent.click(screen.getByText("detail error"));
     expect(scanState.setError).toHaveBeenCalledWith("detail failed");
     fireEvent.click(screen.getByText("detail select"));

@@ -9,6 +9,10 @@ export function getDefaultProject() {
   return invoke<ProjectRow>("get_default_project");
 }
 
+export function createProject(name: string) {
+  return invoke<ProjectRow>("create_project", { name });
+}
+
 export function recordProjectSampleSelection(projectId: string, sampleId: number) {
   return invoke<number>("record_project_sample_selection", { projectId, sampleId });
 }
@@ -39,4 +43,8 @@ export function listProjectUsageEvents(projectId: string) {
 
 export function listProjectUsedSampleIds(projectId: string) {
   return invoke<number[]>("list_project_used_sample_ids", { projectId });
+}
+
+export function listOtherProjectUsedSampleIds(projectId: string) {
+  return invoke<number[]>("list_other_project_used_sample_ids", { projectId });
 }

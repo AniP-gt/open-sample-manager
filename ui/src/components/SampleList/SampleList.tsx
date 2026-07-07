@@ -51,7 +51,11 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     canLoadPrevious,
     instrumentColorCoding = false,
     getSampleProcessingSettings,
+    projects = [],
+    activeProjectId,
     activeProjectName,
+    onProjectChange,
+    onProjectCreate,
     avoidReuse = false,
     onAvoidReuseChange,
     usedSampleIds,
@@ -68,6 +72,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const preparedPathsRef = useRef<Record<string, string>>({});
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [newProjectName, setNewProjectName] = useState("");
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
@@ -217,6 +222,13 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     },
   }), [sorted, virtualizer, selectedSample]);
 
+  const handleProjectCreate = useCallback(() => {
+    const trimmedName = newProjectName.trim();
+    if (!trimmedName || !onProjectCreate) return;
+    onProjectCreate(trimmedName);
+    setNewProjectName("");
+  }, [newProjectName, onProjectCreate]);
+
   return (
     <div
       style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
@@ -292,9 +304,37 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           />
           AVOID USED
         </label>
-        <span style={{ fontSize: "12px", color: "#4b5563", letterSpacing: "0.08em" }}>
-          PROJECT: {activeProjectName ?? "-"}
-        </span>
+        <select
+          value={activeProjectId ?? ""}
+          onChange={(e) => onProjectChange?.(e.target.value)}
+          aria-label="Active project"
+          disabled={!onProjectChange || projects.length === 0}
+          title={activeProjectName ? `Active project: ${activeProjectName}` : "Active project"}
+          style={{ ...controlStyle, width: "150px" }}
+        >
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>{project.name}</option>
+          ))}
+        </select>
+        <input
+          value={newProjectName}
+          onChange={(e) => setNewProjectName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleProjectCreate();
+          }}
+          placeholder="NEW PROJECT"
+          aria-label="New project name"
+          disabled={!onProjectCreate}
+          style={{ ...controlStyle, width: "120px" }}
+        />
+        <button
+          type="button"
+          onClick={handleProjectCreate}
+          disabled={!onProjectCreate || newProjectName.trim().length === 0}
+          style={{ ...controlStyle, cursor: onProjectCreate && newProjectName.trim() ? "pointer" : "not-allowed" }}
+        >
+          ADD PROJECT
+        </button>
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>

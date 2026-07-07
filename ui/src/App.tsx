@@ -164,7 +164,7 @@ export function App() {
     sampleState.samples,
     sampleState.filters,
     favorites,
-    projectUsage.avoidReuse ? projectUsage.usedSampleIdSet : undefined
+    projectUsage.avoidReuse ? projectUsage.otherProjectUsedSampleIdSet : undefined
   );
 
   const filteredMidis = useMemo(() => {
@@ -284,7 +284,15 @@ export function App() {
         directoryClickFiltering={directoryClickFiltering}
         handleSampleSelectWithRecent={handleSampleSelectWithRecent}
         getSampleProcessingSettings={sampleProcessingState.getSettingsForSample}
+        projects={projectUsage.projects}
+        activeProjectId={projectUsage.activeProject?.id}
         activeProjectName={projectUsage.activeProject?.name}
+        onProjectChange={(projectId) => {
+          void projectUsage.selectProject(projectId);
+        }}
+        onProjectCreate={(name) => {
+          void projectUsage.createAndSelectProject(name);
+        }}
         avoidReuse={projectUsage.avoidReuse}
         onAvoidReuseChange={projectUsage.setAvoidReuse}
         usedSampleIds={projectUsage.usedSampleIdSet}

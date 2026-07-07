@@ -1,7 +1,7 @@
 import React from "react";
 import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
-import type { ProjectSampleExportVariant } from "../../types/projectUsage";
+import type { ProjectRow, ProjectSampleExportVariant } from "../../types/projectUsage";
 import type { Midi } from "../../types/midi";
 import type { SampleListHandle } from "../SampleList/types";
 import type { MidiListHandle, PlayerBarHandle } from "..";
@@ -27,7 +27,11 @@ interface AppMainPaneProps {
   directoryClickFiltering: boolean;
   handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  projects: ProjectRow[];
+  activeProjectId?: string;
   activeProjectName?: string;
+  onProjectChange: (projectId: string) => void;
+  onProjectCreate: (name: string) => void;
   avoidReuse: boolean;
   onAvoidReuseChange: (avoidReuse: boolean) => void;
   usedSampleIds: Set<number>;
@@ -50,7 +54,11 @@ export function AppMainPane({
   directoryClickFiltering,
   handleSampleSelectWithRecent,
   getSampleProcessingSettings,
+  projects,
+  activeProjectId,
   activeProjectName,
+  onProjectChange,
+  onProjectCreate,
   avoidReuse,
   onAvoidReuseChange,
   usedSampleIds,
@@ -215,7 +223,11 @@ export function AppMainPane({
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
           getSampleProcessingSettings={getSampleProcessingSettings}
+          projects={projects}
+          activeProjectId={activeProjectId}
           activeProjectName={activeProjectName}
+          onProjectChange={onProjectChange}
+          onProjectCreate={onProjectCreate}
           avoidReuse={avoidReuse}
           onAvoidReuseChange={onAvoidReuseChange}
           usedSampleIds={usedSampleIds}
