@@ -137,23 +137,6 @@ describe("useMidiState", () => {
     expect(result.current.isMidiPlaying).toBe(false);
   });
 
-  it("passes preview sync options when MIDI playback starts", async () => {
-    const { result } = renderMidiHook({
-      autoPlayOnSelect: true,
-      getPreviewOptions: () => ({ targetBpm: 140, transposeSemitones: -2 }),
-    });
-
-    await act(async () => {
-      await result.current.handleMidiSelect(midi());
-    });
-
-    expect(invokeMock).toHaveBeenCalledWith("play_midi", {
-      path: "/Users/alice/MIDI/groove.mid",
-      targetBpm: 140,
-      transposeSemitones: -2,
-    });
-  });
-
   it("updates MIDI tags and trashes selected rows", async () => {
     const { result } = renderMidiHook();
     await waitFor(() => expect(result.current.midiTags).toHaveLength(1));

@@ -1,4 +1,5 @@
 import type { MidiTagRow } from "../../../types/midi";
+import { KEY_FILTER_OPTIONS } from "../../../utils/keyOptions";
 
 interface MidiListSearchProps {
   midiSearch: string;
@@ -15,8 +16,6 @@ interface MidiListSearchProps {
   filteredCount: number;
   totalCount: number;
 }
-
-const keyOptions = ["", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 const controlStyle = {
   height: "26px",
@@ -80,7 +79,7 @@ export function MidiListSearch({
         aria-label="MIDI key filter"
         style={{ ...controlStyle, width: "74px" }}
       >
-        {keyOptions.map((key) => (
+        {KEY_FILTER_OPTIONS.map((key) => (
           <option key={key || "all"} value={key}>{key || "KEY"}</option>
         ))}
       </select>

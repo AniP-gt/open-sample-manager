@@ -3,22 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { FilterState, Sample } from "../../types/sample";
 import { useRecentStore } from "../../store/useRecentStore";
 import { loadDragIconPath, prepareDragFile, startFileDrag } from "../fileDragOut";
-
-const KEY_OPTIONS = [
-  "All",
-  "C",
-  "C#",
-  "D",
-  "D#",
-  "E",
-  "F",
-  "F#",
-  "G",
-  "G#",
-  "A",
-  "A#",
-  "B",
-];
+import { KEY_FILTER_OPTIONS } from "../../utils/keyOptions";
 
 interface FilterSidebarProps {
   scannedPaths: string[];
@@ -417,10 +402,9 @@ export function FilterSidebar({
             KEY
           </div>
           <select
-            value={filterKey === "" ? "All" : filterKey}
+            value={filterKey ?? ""}
             onChange={(e) => {
-              const v = e.target.value;
-              onFilterChange({ filterKey: v === "All" ? "" : v });
+              onFilterChange({ filterKey: e.target.value });
             }}
             style={{
               width: "100%",
@@ -433,9 +417,9 @@ export function FilterSidebar({
               fontSize: "12px",
             }}
           >
-            {KEY_OPTIONS.map((k) => (
+            {KEY_FILTER_OPTIONS.map((k) => (
               <option key={k} value={k}>
-                {k}
+                {k || "All"}
               </option>
             ))}
           </select>
