@@ -158,11 +158,14 @@ export function App() {
     midiState.setDirectoryPath,
   ]);
 
-  const displayedSamples = useDisplayedSamples(
+  const filteredDisplayedSamples = useDisplayedSamples(
     sampleState.samples,
     sampleState.filters,
     favorites
   );
+  const displayedSamples = sampleState.activeCollectionId === null
+    ? filteredDisplayedSamples
+    : sampleState.samples;
 
   const filteredMidis = useMemo(() => {
     if (!midiState.favoritesOnly) return midiState.midis;

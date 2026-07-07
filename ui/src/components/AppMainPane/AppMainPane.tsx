@@ -1,5 +1,6 @@
 import React from "react";
 import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
+import { CollectionsSavedSearchesPanel } from "../CollectionsSavedSearchesPanel/CollectionsSavedSearchesPanel";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import type { Midi } from "../../types/midi";
 import type { SampleListHandle } from "../SampleList/types";
@@ -45,6 +46,7 @@ export function AppMainPane({
 }: AppMainPaneProps) {
   const { favorites: sampleFavorites } = useFavoritesStore();
   const { favorites: midiFavorites } = useMidiFavoritesStore();
+  const activeCollectionId = sampleState.activeCollectionId ?? null;
   
   return (
     <div
@@ -170,6 +172,7 @@ export function AppMainPane({
       />
 
       {uiState.viewMode === "sample" ? (
+        <>
         <SampleList
           ref={sampleListRef}
           samples={displayedSamples}
@@ -189,18 +192,39 @@ export function AppMainPane({
           }}
           onTypeClick={sampleState.handleTypeClick}
           onImportPaths={scanState.handleImportPaths}
-          onLoadMore={sampleState.loadMore}
+          onLoadMore={activeCollectionId === null ? sampleState.loadMore : async () => {}}
           isLoadingMore={sampleState.isLoadingMore}
           canLoadMore={
-            sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit
+            activeCollectionId === null && (sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit)
           }
-          onLoadPrevious={sampleState.loadPrevious}
+          onLoadPrevious={activeCollectionId === null ? sampleState.loadPrevious : async () => {}}
           isLoadingPrevious={sampleState.isLoadingPrevious}
-          canLoadPrevious={sampleState.canLoadPrevious}
+          canLoadPrevious={activeCollectionId === null && sampleState.canLoadPrevious}
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
           getSampleProcessingSettings={getSampleProcessingSettings}
         />
+        <CollectionsSavedSearchesPanel
+          collections={sampleState.collections}
+          savedSearches={sampleState.savedSearches}
+          activeCollectionId={activeCollectionId}
+          selectedIds={sampleState.selectedIds}
+          onCreateCollection={sampleState.createCollection}
+          onUpdateCollection={sampleState.updateCollection}
+          onDeleteCollection={sampleState.deleteCollection}
+          onOpenCollection={sampleState.loadCollectionSamples}
+          onClearCollection={async () => {
+            await sampleState.clearCollectionMode();
+            await sampleState.handleSearch(sampleState.filters.search);
+          }}
+          onAddSelected={sampleState.addSelectedToCollection}
+          onRemoveSelected={sampleState.removeSelectedFromCollection}
+          onCreateSavedSearch={sampleState.createSavedSearch}
+          onUpdateSavedSearch={sampleState.updateSavedSearch}
+          onDeleteSavedSearch={sampleState.deleteSavedSearch}
+          onApplySavedSearch={sampleState.applySavedSearch}
+        />
+        </>
       ) : (
         <>
           <MidiList
