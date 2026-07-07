@@ -11,11 +11,12 @@ use rusqlite::{params, Connection};
 use super::types::SampleInput;
 
 pub use embedding::search_by_embedding;
+pub(in crate::db::operations) use queries::SAMPLE_COLUMNS;
 pub use queries::{
     get_all_sample_paths, get_sample_by_id, get_sample_by_path, list_samples_around_id,
     list_samples_paginated,
 };
-pub(in crate::db::operations::samples) use row_mapping::row_to_sample;
+pub(in crate::db::operations) use row_mapping::row_to_sample;
 pub use search::{search_samples, search_samples_paginated};
 
 pub fn insert_sample(conn: &Connection, input: &SampleInput) -> Result<i64, rusqlite::Error> {

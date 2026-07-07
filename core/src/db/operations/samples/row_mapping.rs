@@ -1,6 +1,6 @@
 use crate::db::operations::types::SampleRow;
 
-pub(in crate::db::operations::samples) fn row_to_sample(
+pub(in crate::db::operations) fn row_to_sample(
     row: &rusqlite::Row<'_>,
 ) -> Result<SampleRow, rusqlite::Error> {
     let tag_names = optional_tag_names(row)?;

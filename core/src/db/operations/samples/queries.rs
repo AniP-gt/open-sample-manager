@@ -4,7 +4,7 @@ use crate::db::operations::types::SampleRow;
 
 use super::{row_to_sample, OptionalExt};
 
-const SAMPLE_COLUMNS: &str = "id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key, COALESCE((SELECT GROUP_CONCAT(name, char(31)) FROM (SELECT t.name AS name FROM sample_tags st JOIN tags t ON t.id = st.tag_id WHERE st.sample_id = samples.id ORDER BY t.name)), '') AS tag_names";
+pub(in crate::db::operations) const SAMPLE_COLUMNS: &str = "id, path, file_name, duration, bpm, periodicity, sample_rate, file_size, artist, low_ratio, attack_slope, decay_time, sample_type, waveform_peaks, embedding, is_online, playback_type, instrument_type, musical_key, COALESCE((SELECT GROUP_CONCAT(name, char(31)) FROM (SELECT t.name AS name FROM sample_tags st JOIN tags t ON t.id = st.tag_id WHERE st.sample_id = samples.id ORDER BY t.name)), '') AS tag_names";
 
 pub fn get_sample_by_path(
     conn: &Connection,
