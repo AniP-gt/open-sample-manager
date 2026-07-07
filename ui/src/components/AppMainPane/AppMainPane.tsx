@@ -46,6 +46,7 @@ export function AppMainPane({
   const { favorites: sampleFavorites } = useFavoritesStore();
   const { favorites: midiFavorites } = useMidiFavoritesStore();
   const duplicateSampleCount = sampleState.samples.filter((sample) => (sample.duplicate_count ?? 1) > 1).length;
+  const instrumentTypeOptions = sampleState.instrumentTypes.map((type) => type.name) as Sample["instrument_type"][];
   
   return (
     <div
@@ -176,6 +177,7 @@ export function AppMainPane({
         <SampleList
           ref={sampleListRef}
           samples={displayedSamples}
+          instrumentTypeOptions={instrumentTypeOptions}
           samplePaths={sampleState.samplePaths}
           filters={sampleState.filters}
           sort={sampleState.sort}
@@ -287,7 +289,7 @@ export function AppMainPane({
           filters={sampleState.filters}
           onFilterChange={sampleState.handleFilterChange}
           allInstrumentTypeNames={
-            sampleState.instrumentTypes.map((t) => t.name) as import("../../types/sample").InstrumentType[]
+            instrumentTypeOptions
           }
           onError={(message) => {
             scanState.setError(message);
