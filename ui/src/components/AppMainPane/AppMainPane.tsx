@@ -1,6 +1,7 @@
 import React from "react";
 import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
+import type { ProjectSampleExportVariant } from "../../types/projectUsage";
 import type { Midi } from "../../types/midi";
 import type { SampleListHandle } from "../SampleList/types";
 import type { MidiListHandle, PlayerBarHandle } from "..";
@@ -26,6 +27,13 @@ interface AppMainPaneProps {
   directoryClickFiltering: boolean;
   handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  activeProjectName?: string;
+  avoidReuse: boolean;
+  onAvoidReuseChange: (avoidReuse: boolean) => void;
+  usedSampleIds: Set<number>;
+  collectionSampleIds: Set<number>;
+  onProjectCollectionToggle: (sampleId: number) => void;
+  onProjectExportSuccess: (sampleId: number, variant: ProjectSampleExportVariant) => void;
 }
 
 export function AppMainPane({
@@ -42,6 +50,13 @@ export function AppMainPane({
   directoryClickFiltering,
   handleSampleSelectWithRecent,
   getSampleProcessingSettings,
+  activeProjectName,
+  avoidReuse,
+  onAvoidReuseChange,
+  usedSampleIds,
+  collectionSampleIds,
+  onProjectCollectionToggle,
+  onProjectExportSuccess,
 }: AppMainPaneProps) {
   const { favorites: sampleFavorites } = useFavoritesStore();
   const { favorites: midiFavorites } = useMidiFavoritesStore();
@@ -200,6 +215,13 @@ export function AppMainPane({
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
           getSampleProcessingSettings={getSampleProcessingSettings}
+          activeProjectName={activeProjectName}
+          avoidReuse={avoidReuse}
+          onAvoidReuseChange={onAvoidReuseChange}
+          usedSampleIds={usedSampleIds}
+          collectionSampleIds={collectionSampleIds}
+          onProjectCollectionToggle={onProjectCollectionToggle}
+          onProjectExportSuccess={onProjectExportSuccess}
         />
       ) : (
         <>

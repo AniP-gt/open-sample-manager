@@ -26,23 +26,23 @@ Feature guides:
 
 <img width="747" height="671" alt="Similar-list" src="https://github.com/user-attachments/assets/8dda7943-d2e2-4651-b1b6-075ec5665582" />
 
-- **Directory scanning** — recursively scan folders and index WAV, MP3, FLAC, and Ogg files
-- **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
-- **Full-text search** — fast FTS5-powered search over filenames and metadata
-- **Similarity search** — embedding-based "find similar samples" lookup
-- **Filter sidebar** — filter by instrument type, sample type, BPM range
-- **Waveform display** — inline waveform preview in the detail panel
-- **Drag to DAW** — drag samples directly from the app into your DAW
-- **Processed drag export** — with auto-play off, open `CONTROLS` in the player bar to set trim, fade, and gain before dragging a rendered WAV into your DAW
+- **Directory scanning**: recursively scan folders and index WAV, MP3, FLAC, and Ogg files
+- **Automatic analysis**: BPM estimation, kick detection, loop/one-shot classification, waveform peaks
+- **Full-text search**: fast FTS5-powered search over filenames and metadata
+- **Similarity search**: embedding-based "find similar samples" lookup
+- **Filter sidebar**: filter by instrument type, sample type, BPM range
+- **Waveform display**: inline waveform preview in the detail panel
+- **Drag to DAW**: drag samples directly from the app into your DAW
+- **Processed drag export**: with auto-play off, open `CONTROLS` in the player bar to set trim, fade, and gain before dragging a rendered WAV into your DAW
 
 ### MIDI File Management
 
 <img width="1680" height="989" alt="MIDI-list" src="https://github.com/user-attachments/assets/7758e236-b832-48d2-8635-45e1a527de1a" />
 
-- **MIDI directory scanning** — index MIDI files alongside audio samples
-- **MIDI playback** — play MIDI files via TiMidity++ (see [MIDI Playback Setup](#midi-playback-setup))
-- **Tag system** — create and assign custom tags to MIDI files
-- **Search** — full-text search over MIDI filenames
+- **MIDI directory scanning**: index MIDI files alongside audio samples
+- **MIDI playback**: play MIDI files via TiMidity++ (see [MIDI Playback Setup](#midi-playback-setup))
+- **Tag system**: create and assign custom tags to MIDI files
+- **Search**: full-text search over MIDI filenames
 
 ### Project Preview Sync
 
@@ -50,11 +50,21 @@ Feature guides:
 - **Synced sample previews**: preview audio samples at a playback rate that matches the project BPM, with optional pitch shift to the project key
 - **Synced MIDI previews**: preview MIDI files with tempo rewrite and note transposition before bringing them into a track
 
+
+### Project Usage History
+
+- **Selection history**: the app records selected samples for the default project in SQLite
+- **Export history**: successful raw and processed DAW drags are stored after the native drag starts
+- **Project collection**: mark candidate samples with the `P` row button and keep them with the project
+- **Avoid Reuse**: hide samples already selected, exported, or added to the project collection
+
+See [Project Usage History](docs/project-usage-history.md) for the stored data and UI flow.
+
 ### Organization
-- **Instrument type management** — define and edit custom instrument type labels
-- **Classification editing** — override auto-detected playback type and instrument type per sample
-- **Persistent SQLite database** — all metadata stored locally, no cloud dependency
-- **Library migration** — export the local metadata database from Settings and import it on another PC
+- **Instrument type management**: define and edit custom instrument type labels
+- **Classification editing**: override auto-detected playback type and instrument type per sample
+- **Persistent SQLite database**: all metadata stored locally, no cloud dependency
+- **Library migration**: export the local metadata database from Settings and import it on another PC
 
 ---
 
@@ -207,17 +217,17 @@ sudo dnf install timidity++
 sudo pacman -S timidity++
 ```
 
-**Windows — Chocolatey**
+**Windows: Chocolatey**
 ```powershell
 choco install timidity
 ```
 
-**Windows — MSYS2**
+**Windows: MSYS2**
 ```bash
 pacman -S mingw-w64-x86_64-timidity++
 ```
 
-**Windows — manual**: download a Windows build from [TiMidity++ SourceForge](https://sourceforge.net/projects/timidity/) and add the install directory to your `PATH`.
+**Windows: manual**: download a Windows build from [TiMidity++ SourceForge](https://sourceforge.net/projects/timidity/) and add the install directory to your `PATH`.
 
 ---
 
@@ -245,12 +255,12 @@ soundfont /path/to/your/soundfont.sf2
 
 | Platform | Config path |
 |---|---|
-| macOS — Homebrew (Apple Silicon) | `/opt/homebrew/etc/timidity/timidity.cfg` |
-| macOS — Homebrew (Intel) | `/usr/local/etc/timidity/timidity.cfg` |
-| macOS — MacPorts | `/opt/local/etc/timidity.cfg` |
+| macOS: Homebrew (Apple Silicon) | `/opt/homebrew/etc/timidity/timidity.cfg` |
+| macOS: Homebrew (Intel) | `/usr/local/etc/timidity/timidity.cfg` |
+| macOS: MacPorts | `/opt/local/etc/timidity.cfg` |
 | Linux | `/etc/timidity/timidity.cfg` or `/etc/timidity.cfg` |
-| Windows — Chocolatey | `C:\ProgramData\timidity\timidity.cfg` |
-| Windows — MSYS2 | `C:\msys64\mingw64\etc\timidity\timidity.cfg` |
+| Windows: Chocolatey | `C:\ProgramData\timidity\timidity.cfg` |
+| Windows: MSYS2 | `C:\msys64\mingw64\etc\timidity\timidity.cfg` |
 
 **Minimal `timidity.cfg` example:**
 
@@ -321,16 +331,16 @@ If `JUCE_SOURCE_DIR` is not provided, CMake creates a stub target. Full plugin f
 
 ```
 open-sample-manager/
-├── core/        # Rust library — analysis, scanning, SQLite, FFI
-├── src-tauri/   # Tauri shell — IPC command layer, app state
+├── core/        # Rust library: analysis, scanning, SQLite, FFI
+├── src-tauri/   # Tauri shell: IPC command layer, app state
 ├── ui/          # React + TypeScript frontend
 ├── plugin/      # JUCE CMake scaffold (stub)
 └── scripts/     # Bootstrap tooling
 ```
 
-- **core** — pure Rust library exposing `SampleManager` as the orchestration entry point. Also provides a C FFI interface for future plugin use.
-- **src-tauri** — thin Tauri command layer wrapping core APIs. All long-running work runs in `tokio::task::spawn_blocking`.
-- **ui** — React SPA communicating with Tauri via typed `invoke()` calls. No generated types; mapping is explicit in `App.tsx`.
+- **core**: pure Rust library exposing `SampleManager` as the orchestration entry point. Also provides a C FFI interface for future plugin use.
+- **src-tauri**: thin Tauri command layer wrapping core APIs. All long-running work runs in `tokio::task::spawn_blocking`.
+- **ui**: React SPA communicating with Tauri via typed `invoke()` calls. No generated types; mapping is explicit in `App.tsx`.
 
 ---
 

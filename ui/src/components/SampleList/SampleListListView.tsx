@@ -1,5 +1,6 @@
 import type { MutableRefObject } from "react";
 import type { Sample, SortState, SampleProcessingSettings } from "../../types/sample";
+import type { ProjectSampleExportVariant } from "../../types/projectUsage";
 import { SampleListHeader } from "./SampleListHeader";
 import { SampleRow } from "./SampleRow";
 
@@ -36,6 +37,10 @@ interface SampleListListViewProps {
   canLoadMore?: boolean;
   onLoadMore?: () => Promise<void>;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  usedSampleIds?: Set<number>;
+  collectionSampleIds?: Set<number>;
+  onProjectCollectionToggle?: (sampleId: number) => void;
+  onProjectExportSuccess?: (sampleId: number, variant: ProjectSampleExportVariant) => void;
 }
 
 export function SampleListListView({
@@ -71,6 +76,10 @@ export function SampleListListView({
   canLoadMore,
   onLoadMore,
   getSampleProcessingSettings,
+  usedSampleIds,
+  collectionSampleIds,
+  onProjectCollectionToggle,
+  onProjectExportSuccess,
 }: SampleListListViewProps) {
   return (
     <>
@@ -121,12 +130,16 @@ export function SampleListListView({
                 isFavorite={favorites.has(s.id)}
                 instrumentColorCoding={instrumentColorCoding}
                 processingSettings={getSampleProcessingSettings?.(s, samplePaths[s.id])}
+                isUsedInProject={usedSampleIds?.has(s.id)}
+                isInProjectCollection={collectionSampleIds?.has(s.id)}
                 dragIconPath={dragIconPath}
                 preparedPathsRef={preparedPathsRef}
                 onSampleSelect={onSampleSelect}
                 onToggleFavorite={onToggleFavorite}
                 onTypeClick={onTypeClick}
                 onTrashSample={onTrashSample}
+                onProjectCollectionToggle={onProjectCollectionToggle}
+                onProjectExportSuccess={onProjectExportSuccess}
               />
             );
           })}

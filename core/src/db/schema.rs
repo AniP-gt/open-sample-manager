@@ -100,6 +100,35 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             FOREIGN KEY (tag_id) REFERENCES midi_tags(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS project_sample_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id TEXT NOT NULL,
+            sample_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            variant TEXT,
+            metadata_json TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS project_collections (
+            project_id TEXT NOT NULL,
+            sample_id INTEGER NOT NULL,
+            added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (project_id, sample_id),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_bpm ON samples(bpm);
         CREATE INDEX IF NOT EXISTS idx_type ON samples(sample_type);
 
@@ -109,6 +138,9 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE INDEX IF NOT EXISTS idx_midis_tempo ON midis(tempo);
         CREATE INDEX IF NOT EXISTS idx_midis_track_count ON midis(track_count);
         CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);
+        CREATE INDEX IF NOT EXISTS idx_project_events_project_sample ON project_sample_events(project_id, sample_id);
+        CREATE INDEX IF NOT EXISTS idx_project_events_project_type_date ON project_sample_events(project_id, event_type, created_at);
+        CREATE INDEX IF NOT EXISTS idx_project_collections_sample ON project_collections(sample_id);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS samples_fts USING fts5(file_name);
         CREATE VIRTUAL TABLE IF NOT EXISTS midis_fts USING fts5(file_name);
@@ -122,7 +154,8 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     // Seed default MIDI tags
     seed_midi_tags(conn)?;
-    // Seed default instrument types
+
+    seed_default_project(conn)?;
 
     Ok(())
 }
@@ -231,6 +264,38 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     // Migration: add musical_key column to samples
     let _ = conn.execute("ALTER TABLE samples ADD COLUMN musical_key TEXT", []);
 
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS project_sample_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id TEXT NOT NULL,
+            sample_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            variant TEXT,
+            metadata_json TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS project_collections (
+            project_id TEXT NOT NULL,
+            sample_id INTEGER NOT NULL,
+            added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (project_id, sample_id),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_project_events_project_sample ON project_sample_events(project_id, sample_id);
+        CREATE INDEX IF NOT EXISTS idx_project_events_project_type_date ON project_sample_events(project_id, event_type, created_at);
+        CREATE INDEX IF NOT EXISTS idx_project_collections_sample ON project_collections(sample_id);",
+    );
+
     Ok(())
 }
 
@@ -254,6 +319,18 @@ fn seed_instrument_types(conn: &Connection) -> Result<(), rusqlite::Error> {
         )?;
     }
 
+    Ok(())
+}
+
+fn seed_default_project(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "INSERT OR IGNORE INTO projects (id, name, is_default) VALUES ('default', 'Default Project', 1)",
+        [],
+    )?;
+    conn.execute(
+        "UPDATE projects SET is_default = CASE WHEN id = 'default' THEN 1 ELSE is_default END",
+        [],
+    )?;
     Ok(())
 }
 

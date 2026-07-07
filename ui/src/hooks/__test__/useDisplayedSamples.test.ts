@@ -98,4 +98,10 @@ describe("display hooks", () => {
     expect(result.current).toEqual(samples);
   });
 
+  test("hides used samples when avoid reuse ids are supplied", () => {
+    const { result } = renderHook(() => useDisplayedSamples(samples, filters, [], new Set([1])));
+
+    expect(result.current).toEqual([samples[1]]);
+  });
+
 });

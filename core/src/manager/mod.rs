@@ -28,6 +28,7 @@ mod midi_tags;
 mod migration;
 mod migration_io;
 mod processed_drag;
+mod project_usage;
 mod samples;
 mod scan;
 

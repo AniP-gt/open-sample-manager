@@ -216,6 +216,13 @@ function renderPane(overrides: {
       instrumentColorCoding={true}
       directoryClickFiltering={overrides.directoryClickFiltering ?? true}
       handleSampleSelectWithRecent={handleSampleSelectWithRecent}
+      activeProjectName="Default Project"
+      avoidReuse={false}
+      onAvoidReuseChange={vi.fn()}
+      usedSampleIds={new Set()}
+      collectionSampleIds={new Set()}
+      onProjectCollectionToggle={vi.fn()}
+      onProjectExportSuccess={vi.fn()}
     />
   );
 

@@ -51,6 +51,13 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     canLoadPrevious,
     instrumentColorCoding = false,
     getSampleProcessingSettings,
+    activeProjectName,
+    avoidReuse = false,
+    onAvoidReuseChange,
+    usedSampleIds,
+    collectionSampleIds,
+    onProjectCollectionToggle,
+    onProjectExportSuccess,
   } = props;
 
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -276,6 +283,18 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             <option key={key || "all"} value={key}>{key || "KEY"}</option>
           ))}
         </select>
+        <label style={{ display: "flex", alignItems: "center", gap: "4px", color: "#6b7280", fontSize: "11px", letterSpacing: "0.08em" }}>
+          <input
+            type="checkbox"
+            checked={avoidReuse}
+            onChange={(e) => onAvoidReuseChange?.(e.target.checked)}
+            disabled={!onAvoidReuseChange}
+          />
+          AVOID USED
+        </label>
+        <span style={{ fontSize: "12px", color: "#4b5563", letterSpacing: "0.08em" }}>
+          PROJECT: {activeProjectName ?? "-"}
+        </span>
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
@@ -328,6 +347,10 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             canLoadMore={canLoadMore}
             onLoadMore={onLoadMore}
             getSampleProcessingSettings={getSampleProcessingSettings}
+            usedSampleIds={usedSampleIds}
+            collectionSampleIds={collectionSampleIds}
+            onProjectCollectionToggle={onProjectCollectionToggle}
+            onProjectExportSuccess={onProjectExportSuccess}
           />
         </div>
       )}

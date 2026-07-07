@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { prepareDragFile, startFileDrag } from "../fileDragOut";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
+import type { ProjectSampleExportVariant } from "../../types/projectUsage";
 import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
 import { SampleRowActions } from "./SampleRowActions";
 import { sampleProcessingSignature } from "../../utils/sampleProcessing";
@@ -19,7 +20,11 @@ interface SampleRowProps {
   dragIconPath: string;
   preparedPathsRef: React.MutableRefObject<Record<string, string>>;
   processingSettings?: SampleProcessingSettings;
+  isUsedInProject?: boolean;
+  isInProjectCollection?: boolean;
   onSampleSelect: (sample: Sample, isShift?: boolean) => void;
+  onProjectCollectionToggle?: (sampleId: number) => void;
+  onProjectExportSuccess?: (sampleId: number, variant: ProjectSampleExportVariant) => void;
   onToggleFavorite: (id: number) => void;
   onTypeClick?: (sample: Sample) => void;
   onTrashSample?: (id: number) => void;
@@ -37,7 +42,11 @@ export function SampleRow({
   dragIconPath,
   preparedPathsRef,
   processingSettings,
+  isUsedInProject = false,
+  isInProjectCollection = false,
   onSampleSelect,
+  onProjectCollectionToggle,
+  onProjectExportSuccess,
   onToggleFavorite,
   onTypeClick,
   onTrashSample,
@@ -87,7 +96,10 @@ export function SampleRow({
         }
       }}
       onDragStart={(e) => {
-        startFileDrag(e, samplePath, dragKey, preparedPathsRef, dragIconPath, "[dragout-debug]", processingSettings);
+        startFileDrag(e, samplePath, dragKey, preparedPathsRef, dragIconPath, "[dragout-debug]", processingSettings, {
+          sampleId: s.id,
+          onExportSuccess: onProjectExportSuccess,
+        });
       }}
       onClick={(e) => onSampleSelect(s, e.shiftKey)}
     >
@@ -121,6 +133,16 @@ export function SampleRow({
         >
           {s.file_name}
         </div>
+        {(isUsedInProject || isInProjectCollection) && (
+          <div style={{ display: "flex", gap: "4px", marginBottom: "3px" }}>
+            {isUsedInProject && (
+              <span style={{ fontSize: "10px", color: "#22d3ee", letterSpacing: "0.08em" }}>USED</span>
+            )}
+            {isInProjectCollection && (
+              <span style={{ fontSize: "10px", color: "#f97316", letterSpacing: "0.08em" }}>PROJECT</span>
+            )}
+          </div>
+        )}
         <div style={{ display: "flex", gap: "4px", overflow: "hidden" }}>
           {s.tags.map((t) => (
             <span
@@ -182,6 +204,30 @@ export function SampleRow({
       >
         {s.musical_key ?? "-"}
       </div>
+      {onProjectCollectionToggle && (
+        <button
+          type="button"
+          title={isInProjectCollection ? "Remove from project collection" : "Add to project collection"}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onProjectCollectionToggle(s.id);
+          }}
+          style={{
+            width: "24px",
+            height: "24px",
+            borderRadius: "2px",
+            border: "1px solid #1f2937",
+            background: isInProjectCollection ? "#1f2937" : "transparent",
+            color: isInProjectCollection ? "#f97316" : "#4b5563",
+            cursor: "pointer",
+            fontFamily: "'Courier New', monospace",
+            fontSize: "12px",
+          }}
+        >
+          P
+        </button>
+      )}
       <SampleRowActions
         samplePath={samplePath}
         onOpenFolder={async () => {

@@ -142,3 +142,23 @@ pub struct MidiTagRow {
     pub name: String,
     pub created_at: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProjectRow {
+    pub id: String,
+    pub name: String,
+    pub is_default: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ProjectSampleEventRow {
+    pub id: i64,
+    pub project_id: String,
+    pub sample_id: i64,
+    pub event_type: String,
+    pub variant: Option<String>,
+    pub metadata_json: Option<String>,
+    pub created_at: String,
+}

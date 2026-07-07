@@ -2,10 +2,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import type React from "react";
 import type { SampleProcessingSettings } from "../types/sample";
+import type { ProjectSampleExportVariant } from "../types/projectUsage";
 import { hasSampleProcessingEdits, toProcessedDragParams } from "../utils/sampleProcessing";
 
 const FALLBACK_DRAG_ICON = "/tmp/osm_drag_icon.png";
 const PREPARED_FILE_CLEANUP_DELAY_MS = 1500;
+
+interface FileDragUsageOptions {
+  sampleId: number;
+  onExportSuccess?: (sampleId: number, variant: ProjectSampleExportVariant) => void;
+}
 
 export function loadDragIconPath(dragIconPathRef: React.MutableRefObject<string>) {
   void invoke<string>("get_drag_icon_path").then((path) => {
@@ -42,6 +48,7 @@ export function startFileDrag(
   dragIconPath: string,
   logPrefix: string,
   processingSettings?: SampleProcessingSettings,
+  usage?: FileDragUsageOptions,
 ) {
   if (!path) {
     event.preventDefault();
@@ -60,6 +67,9 @@ export function startFileDrag(
       if (!processedPath) return;
       preparedPathsRef.current[key] = processedPath;
       return startDrag({ item: [processedPath], icon: dragIconPath || FALLBACK_DRAG_ICON })
+        .then(() => {
+          usage?.onExportSuccess?.(usage.sampleId, "processed");
+        })
         .catch((err) => {
           console.warn(`${logPrefix} startDrag failed:`, err);
         })
@@ -72,7 +82,9 @@ export function startFileDrag(
     return;
   }
 
-  void startDrag({ item: [preparedPath || path], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
+  void startDrag({ item: [preparedPath || path], icon: dragIconPath || FALLBACK_DRAG_ICON }).then(() => {
+    usage?.onExportSuccess?.(usage.sampleId, hasEdits ? "processed" : "raw");
+  }).catch((err) => {
     console.warn(`${logPrefix} startDrag failed:`, err);
   });
 

@@ -26,6 +26,7 @@ import { useRecentStore } from "./store/useRecentStore";
 import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
 import { useProjectSyncState } from "./hooks/useProjectSyncState";
 import { useSampleProcessingState } from "./hooks/useSampleProcessingState";
+import { useProjectUsage } from "./hooks/useProjectUsage";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -96,6 +97,7 @@ export function App() {
   });
 
   const projectSyncState = useProjectSyncState();
+  const projectUsage = useProjectUsage({ setError: scanState.setError });
 
   const midiState = useMidiState({
     setError: scanState.setError,
@@ -161,7 +163,8 @@ export function App() {
   const displayedSamples = useDisplayedSamples(
     sampleState.samples,
     sampleState.filters,
-    favorites
+    favorites,
+    projectUsage.avoidReuse ? projectUsage.usedSampleIdSet : undefined
   );
 
   const filteredMidis = useMemo(() => {
@@ -198,6 +201,7 @@ export function App() {
 
   const handleSampleSelectWithRecent = async (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => {
     addRecent(sample.id);
+    void projectUsage.recordSelection(sample.id);
     await sampleState.handleSampleSelect(sample, isShift, rangeIds);
   };
 
@@ -280,6 +284,17 @@ export function App() {
         directoryClickFiltering={directoryClickFiltering}
         handleSampleSelectWithRecent={handleSampleSelectWithRecent}
         getSampleProcessingSettings={sampleProcessingState.getSettingsForSample}
+        activeProjectName={projectUsage.activeProject?.name}
+        avoidReuse={projectUsage.avoidReuse}
+        onAvoidReuseChange={projectUsage.setAvoidReuse}
+        usedSampleIds={projectUsage.usedSampleIdSet}
+        collectionSampleIds={projectUsage.collectionSampleIdSet}
+        onProjectCollectionToggle={(sampleId) => {
+          void projectUsage.toggleCollectionSample(sampleId);
+        }}
+        onProjectExportSuccess={(sampleId, variant) => {
+          void projectUsage.recordExport(sampleId, variant);
+        }}
       />
 
       {sampleState.selected && (

@@ -23,6 +23,9 @@ const REQUIRED_TABLES: &[&str] = &[
     "midis",
     "midi_tags",
     "midi_file_tags",
+    "projects",
+    "project_sample_events",
+    "project_collections",
     "samples_fts",
     "midis_fts",
 ];
@@ -104,7 +107,6 @@ impl SampleManager {
 
         {
             let staged_conn = Connection::open(&staged_path)?;
-            validate_export_database(&staged_conn)?;
             init_database(&staged_conn)?;
             validate_export_database(&staged_conn)?;
         }
