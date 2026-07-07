@@ -1,3 +1,4 @@
+use std::io::Read as _;
 use std::path::Path;
 
 use crate::analysis::bpm::estimate_bpm;
@@ -171,6 +172,7 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
     let waveform_peaks = compute_waveform_peaks(&decoded.samples, 64);
     let sample_rate = decoded.sample_rate as i64;
     let file_size = std::fs::metadata(file_path).ok().map(|m| m.len() as i64);
+    let content_hash = hash_file_contents(file_path)?;
 
     let emb_vec = crate::embedding::generate_embedding(&decoded.samples, decoded.sample_rate);
     let mut emb_bytes: Vec<u8> = Vec::with_capacity(emb_vec.len() * 4);
@@ -196,7 +198,30 @@ pub(super) fn analyze(file_path: &Path) -> Result<SampleInput, ManagerError> {
         playback_type: Some(playback_type.to_string()),
         instrument_type: Some(instrument_type.to_string()),
         musical_key,
+        content_hash: Some(content_hash),
     })
+}
+
+fn hash_file_contents(file_path: &Path) -> Result<String, ManagerError> {
+    const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+
+    let mut hash = FNV_OFFSET;
+
+    let mut file = std::fs::File::open(file_path)?;
+    let mut buffer = [0_u8; 8192];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        for byte in &buffer[..read] {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+    }
+
+    Ok(format!("{hash:016x}"))
 }
 
 /// Analyze a file and insert the result into the database.
