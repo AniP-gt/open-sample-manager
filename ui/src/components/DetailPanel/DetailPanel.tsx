@@ -1,4 +1,5 @@
 import type { Sample, FilterState, InstrumentType } from "../../types/sample";
+import { getErrorMessage, mapEmbeddingRowToSample, type EmbeddingSampleRow } from "../../utils/sampleMapper";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
 import { EmbeddingResultsModal } from "../EmbeddingResultsModal/EmbeddingResultsModal";
 import { useState, useMemo } from "react";
@@ -56,25 +57,10 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   }, [samples]);
   const getTypeCount = (type: FilterTypeOption) => typeCounts[type];
 
-  // Embedding search handler removed per user request.
   // Local types for embedding results modal
   interface EmbeddingResult {
     similarity: number;
-    row: {
-      id: number;
-      path: string;
-      file_name: string;
-      duration: number | null;
-      bpm: number | null;
-      periodicity: number | null;
-      low_ratio: number | null;
-      attack_slope: number | null;
-      decay_time: number | null;
-      sample_type: string | null;
-      waveform_peaks: string | null;
-      playback_type: string;
-      instrument_type: string;
-    };
+    row: EmbeddingSampleRow;
   }
 
   const [resultsOpen, setResultsOpen] = useState(false);
@@ -85,16 +71,10 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
   // sample path and a small k (top-k) default. Results are stored in
   // local state and forwarded to the results modal.
   const handleRunEmbeddingSearch = async () => {
-    // Ensure we have a path to query
     if (!path) {
       propsOnSelect?.(sample, path);
-      // Surface a user-facing error if provided
-      // Prefer the parent's onError handler if available
-      if (typeof propsOnError === "function") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (propsOnError as any)("Sample path missing for embedding search");
-      } else {
-        // Fallback: open modal with empty results
+      propsOnError?.("Sample path missing for embedding search");
+      if (!propsOnError) {
         setResultsOpen(true);
       }
       return;
@@ -106,14 +86,36 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
       setEmbeddingResults(rows ?? []);
       setResultsOpen(true);
     } catch (e) {
-      // Surface error to parent if provided, otherwise open modal empty
-      const msg = e instanceof Error ? e.message : String(e);
-      if (typeof propsOnError === "function") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (propsOnError as any)(msg);
-      }
+      propsOnError?.(getErrorMessage(e));
       setEmbeddingResults([]);
       setResultsOpen(true);
+    }
+  };
+
+  const chooseRandomSimilarResult = (results: EmbeddingResult[]) => {
+    const usableResults = results.filter((result) => result.row.path && result.row.id !== sample.id);
+    const candidates = usableResults.length > 0 ? usableResults : results.filter((result) => result.row.path);
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  };
+
+  const handleRunRandomSimilar = async () => {
+    if (!path) {
+      propsOnError?.("Sample path missing for embedding search");
+      return;
+    }
+
+    try {
+      const rows = await invoke<EmbeddingResult[]>("search_by_embedding", { path, k: 24 });
+      const selectedResult = chooseRandomSimilarResult(rows ?? []);
+      if (!selectedResult) {
+        propsOnError?.("No similar samples found");
+        return;
+      }
+
+      propsOnSelect?.(mapEmbeddingRowToSample(selectedResult.row), selectedResult.row.path);
+    } catch (e) {
+      propsOnError?.(getErrorMessage(e));
     }
   };
   const handleSelectResult = (s: Sample, p?: string) => {
@@ -179,7 +181,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         )}
 
         <div style={{ display: "flex", justifyContent: "flex-start", overflow: "visible" }}>
-          <div style={{ position: "relative", display: "inline-flex", overflow: "visible", zIndex: 2, width: "100%" }}>
+          <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: "8px", overflow: "visible", zIndex: 2, width: "100%" }}>
             <button
               type="button"
               onClick={handleRunEmbeddingSearch}
@@ -206,6 +208,27 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
               }}
             >
               Find similar samples
+            </button>
+            <button
+              type="button"
+              onClick={handleRunRandomSimilar}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                padding: "8px 12px",
+                background: "transparent",
+                color: "#22d3ee",
+                border: "1px solid #164e63",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontFamily: "'Courier New', monospace",
+                fontSize: "13px",
+                fontWeight: 600,
+              }}
+            >
+              Random similar sample
             </button>
           <div
             id={tooltipId}
