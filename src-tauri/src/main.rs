@@ -219,6 +219,14 @@ fn list_all_sample_paths(state: tauri::State<'_, AppState>) -> Result<Vec<String
 }
 
 #[tauri::command]
+fn list_duplicate_groups(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::DuplicateGroup>, CommandError> {
+    let manager = get_manager(&state);
+    manager.list_duplicate_groups().map_err(CommandError::from)
+}
+
+#[tauri::command]
 fn delete_sample(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
     manager.delete_sample(&path).map_err(CommandError::from)
@@ -913,6 +921,7 @@ fn main() {
         search_by_embedding,
         get_sample,
         list_all_sample_paths,
+        list_duplicate_groups,
         delete_sample,
         clear_all_samples,
         re_scan_all_samples,
