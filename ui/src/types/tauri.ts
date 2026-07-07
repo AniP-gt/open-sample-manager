@@ -14,6 +14,19 @@ export type TauriSampleRow = {
   playback_type: string;
   instrument_type: string;
   musical_key: string | null;
+  source: string | null;
+  pack_name: string | null;
+  license: string | null;
+  license_url: string | null;
+  license_memo: string | null;
+  imported_at: string | null;
+  peak_db: number | null;
+  rms_db: number | null;
+  leading_silence_ms: number | null;
+  clipping_count: number | null;
+  channel_count: number | null;
+  bit_depth: number | null;
+  quality_flags: string | null;
   tags: string[];
 };
 

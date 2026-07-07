@@ -12,6 +12,27 @@ export const normalizeSampleType = (
   return "one-shot";
 };
 
+
+const parseQualityFlags = (value: string | null): string[] => {
+  if (!value) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((flag): flag is string => typeof flag === "string" && flag.trim() !== "");
+  } catch {
+    return [];
+  }
+};
+
+const nullableString = (value: string | null): string | undefined => {
+  if (value === null) return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+};
+
+const nullableNumber = (value: number | null): number | undefined => value ?? undefined;
+
 export const mapRowToSample = (row: TauriSampleRow): Sample => {
   let waveformPeaks: number[] | null = null;
   if (row.waveform_peaks) {
@@ -49,6 +70,19 @@ export const mapRowToSample = (row: TauriSampleRow): Sample => {
     playback_type: playbackType,
     instrument_type: instrumentType,
     musical_key: row.musical_key ?? undefined,
+    source: nullableString(row.source),
+    pack_name: nullableString(row.pack_name),
+    license: nullableString(row.license),
+    license_url: nullableString(row.license_url),
+    license_memo: nullableString(row.license_memo),
+    imported_at: nullableString(row.imported_at),
+    peak_db: nullableNumber(row.peak_db),
+    rms_db: nullableNumber(row.rms_db),
+    leading_silence_ms: nullableNumber(row.leading_silence_ms),
+    clipping_count: nullableNumber(row.clipping_count),
+    channel_count: nullableNumber(row.channel_count),
+    bit_depth: nullableNumber(row.bit_depth),
+    quality_flags: parseQualityFlags(row.quality_flags),
   };
 };
 

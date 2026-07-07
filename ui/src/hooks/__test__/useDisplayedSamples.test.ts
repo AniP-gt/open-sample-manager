@@ -20,6 +20,7 @@ const samples: Sample[] = [
     playback_type: "oneshot",
     instrument_type: "kick",
     musical_key: "C",
+    quality_flags: [],
   },
   {
     id: 2,
@@ -37,6 +38,7 @@ const samples: Sample[] = [
     playback_type: "oneshot",
     instrument_type: "snare",
     musical_key: "D",
+    quality_flags: [],
   },
 ];
 
@@ -47,6 +49,8 @@ const filters: FilterState = {
   filterBpmMax: "",
   filterInstrumentType: "",
   filterKey: "All",
+  filterLicense: "",
+  qualityIssuesOnly: false,
   favoritesOnly: false,
 };
 

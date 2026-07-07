@@ -33,6 +33,8 @@ const initialFilters: FilterState = {
   filterInstrumentType: "",
   favoritesOnly: false,
   filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
   directoryPath: "",
 };
 

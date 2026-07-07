@@ -44,6 +44,7 @@ function createSample(overrides: Partial<Sample> = {}): Sample {
     waveform_peaks: null,
     playback_type: 'oneshot',
     instrument_type: 'kick',
+    quality_flags: [],
     ...overrides,
   };
 }

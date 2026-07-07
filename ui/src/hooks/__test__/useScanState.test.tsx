@@ -29,6 +29,8 @@ const filters: FilterState = {
   filterInstrumentType: "",
   favoritesOnly: false,
   filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
 };
 
 const renderScanHook = (overrides: Partial<Parameters<typeof useScanState>[0]> = {}) => {

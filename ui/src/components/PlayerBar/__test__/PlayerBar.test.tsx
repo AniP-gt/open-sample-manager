@@ -63,6 +63,7 @@ describe("PlayerBar", () => {
     playback_type: "oneshot",
     instrument_type: "kick",
     musical_key: "C",
+    quality_flags: [],
   };
 
   beforeEach(() => {
