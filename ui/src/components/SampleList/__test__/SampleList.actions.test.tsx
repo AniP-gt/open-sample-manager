@@ -52,8 +52,9 @@ describe('SampleList row actions', () => {
     const onTypeClick = vi.fn();
     renderSampleList({ onTypeClick });
 
-    const typeBadge = screen.getByText('one-shot');
-    fireEvent.click(typeBadge);
+    const typeBadge = screen.getAllByText('one-shot').find((node) => node.tagName.toLowerCase() === 'span');
+    expect(typeBadge).toBeDefined();
+    fireEvent.click(typeBadge as HTMLElement);
     expect(onTypeClick).toHaveBeenCalledWith(mockSamples[0]);
   });
 

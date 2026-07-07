@@ -10,11 +10,11 @@ import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { SampleListListView } from "./SampleListListView";
 import { matchesSampleFilters } from "../../utils/sampleFilter";
+import { KEY_FILTER_OPTIONS } from "../../utils/keyOptions";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 export type { SampleListHandle, SampleListProps } from "./types";
 
-const keyOptions = ["", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const sampleTypeOptions: Array<SampleType | "all"> = ["all", "loop", "one-shot"];
 
 const controlStyle = {
@@ -33,6 +33,7 @@ const controlStyle = {
 export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
   const {
     samples,
+    instrumentTypeOptions: fullInstrumentTypeOptions,
     samplePaths,
     filters,
     sort,
@@ -78,12 +79,15 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   } = useDragDropList(props.onImportPaths);
 
   const filtered = useMemo(() => {
-    return samples.filter((sample) => matchesSampleFilters(sample, filters));
-  }, [samples, filters]);
+    return samples.filter((sample) => matchesSampleFilters(sample, filters, favSet.has(sample.id)));
+  }, [samples, filters, favSet]);
 
   const instrumentTypeOptions = useMemo(() => {
+    if (fullInstrumentTypeOptions && fullInstrumentTypeOptions.length > 0) {
+      return Array.from(new Set(fullInstrumentTypeOptions.filter(Boolean))).sort();
+    }
     return Array.from(new Set(samples.map((sample) => sample.instrument_type).filter(Boolean))).sort();
-  }, [samples]);
+  }, [fullInstrumentTypeOptions, samples]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
@@ -272,7 +276,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           aria-label="Sample key filter"
           style={{ ...controlStyle, width: "74px" }}
         >
-          {keyOptions.map((key) => (
+          {KEY_FILTER_OPTIONS.map((key) => (
             <option key={key || "all"} value={key}>{key || "KEY"}</option>
           ))}
         </select>

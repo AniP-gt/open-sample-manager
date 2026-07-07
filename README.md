@@ -28,7 +28,7 @@ Feature guides:
 
 - **Directory scanning** — recursively scan folders and index WAV, MP3, FLAC, and Ogg files
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
-- **Full-text search** — fast FTS5-powered search over filenames and metadata
+- **Advanced search DSL** — combine free text with filters such as `bpm:120-180`, `type:oneshot`, `tag:metal`, `key:Am`, `instrument:kick`, and negative terms like `-rimshot`
 - **Similarity search** — embedding-based "find similar samples" lookup
 - **Filter sidebar** — filter by instrument type, sample type, BPM range
 - **Waveform display** — inline waveform preview in the detail panel
@@ -44,17 +44,13 @@ Feature guides:
 - **Tag system** — create and assign custom tags to MIDI files
 - **Search** — full-text search over MIDI filenames
 
-### Project Preview Sync
-
-- **Project BPM and key controls**: set the target tempo and key from the header before auditioning sounds
-- **Synced sample previews**: preview audio samples at a playback rate that matches the project BPM, with optional pitch shift to the project key
-- **Synced MIDI previews**: preview MIDI files with tempo rewrite and note transposition before bringing them into a track
-
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency
 - **Library migration** — export the local metadata database from Settings and import it on another PC
+
+See [Advanced Search DSL](docs/advanced_search_dsl.md) for the supported sample search syntax and examples.
 
 ---
 
