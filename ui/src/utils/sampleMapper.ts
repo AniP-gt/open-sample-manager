@@ -1,6 +1,9 @@
 import type { Sample } from "../types/sample";
 import type { TauriSampleRow } from "../types/tauri";
 
+export type EmbeddingSampleRow = Omit<TauriSampleRow, "sample_rate" | "musical_key" | "tags"> &
+  Partial<Pick<TauriSampleRow, "sample_rate" | "musical_key" | "tags">>;
+
 export const normalizeSampleType = (
   playbackType: string | null,
   sampleType: string | null,
@@ -10,6 +13,41 @@ export const normalizeSampleType = (
   }
 
   return "one-shot";
+};
+
+const normalizeInstrumentType = (instrumentType: string | null, sampleType: string | null): Sample["instrument_type"] => {
+  const normalized = typeof instrumentType === "string" && instrumentType.trim() !== ""
+    ? instrumentType.toLowerCase()
+    : "other";
+
+  if (
+    normalized === "kick" ||
+    normalized === "snare" ||
+    normalized === "hihat" ||
+    normalized === "bass" ||
+    normalized === "synth" ||
+    normalized === "fx" ||
+    normalized === "vocal" ||
+    normalized === "percussion" ||
+    normalized === "other"
+  ) {
+    if (normalized === "other" && sampleType === "kick") {
+      return "kick";
+    }
+
+    return normalized;
+  }
+
+  return sampleType === "kick" ? "kick" : "other";
+};
+
+export const mapEmbeddingRowToSample = (row: EmbeddingSampleRow): Sample => {
+  return mapRowToSample({
+    ...row,
+    sample_rate: row.sample_rate ?? null,
+    musical_key: row.musical_key ?? null,
+    tags: row.tags ?? [],
+  });
 };
 
 export const mapRowToSample = (row: TauriSampleRow): Sample => {
@@ -24,14 +62,7 @@ export const mapRowToSample = (row: TauriSampleRow): Sample => {
 
   const playbackType = row.playback_type === "loop" ? "loop" : "oneshot";
 
-  let instrumentType =
-    typeof row.instrument_type === "string" && row.instrument_type.trim() !== ""
-      ? (row.instrument_type.toLowerCase() as Sample["instrument_type"])
-      : "other";
-
-  if (instrumentType === "other" && row.sample_type === "kick") {
-    instrumentType = "kick";
-  }
+  const instrumentType = normalizeInstrumentType(row.instrument_type, row.sample_type);
 
   return {
     id: row.id,
