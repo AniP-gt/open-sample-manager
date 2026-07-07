@@ -7,7 +7,6 @@ interface PitchShiftControlProps {
   /** When true, the slider is disabled — adjusting pitch during playback
    *  causes audible glitches because the worklet graph is being rewired. */
   isPlaying: boolean;
-  syncSemitones?: number;
 }
 
 // Internal-API shape we care about on the WebAudioPlayer that WaveSurfer
@@ -66,7 +65,6 @@ export function PitchShiftControl({
   audioElement,
   wavesurfer,
   isPlaying,
-  syncSemitones = 0,
 }: PitchShiftControlProps) {
   const [semitones, setSemitones] = useState(0);
   const [ready, setReady] = useState(false);
@@ -235,10 +233,6 @@ export function PitchShiftControl({
       setReady(false);
     };
   }, [audioElement, canUseHtmlAudioPipeline, wavesurfer]);
-
-  useEffect(() => {
-    setSemitones(syncSemitones);
-  }, [syncSemitones]);
 
   // Push pitchFactor changes to the worklet via its message port.
   useEffect(() => {
