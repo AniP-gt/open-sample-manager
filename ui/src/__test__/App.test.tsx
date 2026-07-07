@@ -123,6 +123,13 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
 }));
 
 describe('App Integration', () => {
+  const findSampleTypeBadge = async () => {
+    const matches = await screen.findAllByText('one-shot');
+    const badge = matches.find((element) => element.tagName !== 'OPTION');
+    if (!badge) throw new Error('sample type badge not found');
+    return badge;
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     const { invoke } = await import('@tauri-apps/api/core');
@@ -217,7 +224,7 @@ describe('App Integration', () => {
 
   test('opens classification modal from sample row and closes it', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = await findSampleTypeBadge();
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
     const cancelBtn = screen.getByText('CANCEL');
@@ -265,7 +272,7 @@ describe('App Integration', () => {
 
   test('saves changes in classification modal', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = await findSampleTypeBadge();
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
 
@@ -276,7 +283,7 @@ describe('App Integration', () => {
 
   test('opens and closes instrument type management modal', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = await findSampleTypeBadge();
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
 
@@ -337,7 +344,7 @@ describe('App Integration', () => {
 
   test('changes instrument type in classification modal', async () => {
     await act(async () => render(<App />));
-    const typeBadge = await screen.findByText('one-shot');
+    const typeBadge = await findSampleTypeBadge();
     await act(async () => fireEvent.click(typeBadge));
     expect(await screen.findByText('EDIT CLASSIFICATION')).toBeInTheDocument();
 

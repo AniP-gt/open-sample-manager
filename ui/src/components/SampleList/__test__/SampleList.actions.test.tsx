@@ -52,7 +52,8 @@ describe('SampleList row actions', () => {
     const onTypeClick = vi.fn();
     renderSampleList({ onTypeClick });
 
-    const typeBadge = screen.getByText('one-shot');
+    const typeBadge = screen.getAllByText('one-shot').find((element) => element.tagName !== 'OPTION');
+    if (!typeBadge) throw new Error('type badge not found');
     fireEvent.click(typeBadge);
     expect(onTypeClick).toHaveBeenCalledWith(mockSamples[0]);
   });
