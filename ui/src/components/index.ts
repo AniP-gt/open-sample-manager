@@ -4,7 +4,6 @@ export { TypeBadge } from "./TypeBadge/TypeBadge";
 export { AnalysisBar } from "./AnalysisBar/AnalysisBar";
 export { ScannerOverlay } from "./ScannerOverlay/ScannerOverlay";
 export { Header } from "./Header/Header";
-export { ProjectSyncControls } from "./ProjectSyncControls/ProjectSyncControls";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { SampleList } from "./SampleList/SampleList";
 export { MidiList } from "./MidiList/MidiList";
