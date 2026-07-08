@@ -1,22 +1,9 @@
 import type { Sample } from "../../types/sample";
+import { mapEmbeddingRowToSample, type EmbeddingSampleRow } from "../../utils/sampleMapper";
 
 interface EmbeddingResult {
   similarity: number;
-  row: {
-    id: number;
-    path: string;
-    file_name: string;
-    duration: number | null;
-    bpm: number | null;
-    periodicity: number | null;
-    low_ratio: number | null;
-    attack_slope: number | null;
-    decay_time: number | null;
-    sample_type: string | null;
-    waveform_peaks: string | null;
-    playback_type: string;
-    instrument_type: string;
-  };
+  row: EmbeddingSampleRow;
 }
 
 interface Props {
@@ -71,24 +58,7 @@ export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Pr
           {sortedResults.map((r) => (
             <div
               key={r.row.id}
-              onClick={() => onSelect(
-                {
-                  id: r.row.id,
-                  file_name: r.row.file_name,
-                  duration: r.row.duration ?? 0,
-                  bpm: r.row.bpm ?? null,
-                  periodicity: r.row.periodicity ?? 0,
-                  low_ratio: r.row.low_ratio ?? 0,
-                  attack_slope: r.row.attack_slope ?? 0,
-                  decay_time: r.row.decay_time ?? null,
-                  sample_type: (r.row.sample_type as any) ?? null,
-                  tags: [],
-                  waveform_peaks: r.row.waveform_peaks ? JSON.parse(r.row.waveform_peaks) : null,
-                  playback_type: r.row.playback_type as any,
-                  instrument_type: r.row.instrument_type as any,
-                },
-                r.row.path,
-              )}
+              onClick={() => onSelect(mapEmbeddingRowToSample(r.row), r.row.path)}
               style={{
                 display: "flex",
                 justifyContent: "space-between",

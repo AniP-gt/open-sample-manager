@@ -11,6 +11,7 @@ interface SampleListHeaderProps {
   draggedColumnRef: React.MutableRefObject<number | null>;
   activeResize: React.MutableRefObject<ActiveResizeState>;
   headerRefs: React.MutableRefObject<Array<HTMLDivElement | null>>;
+  showSampleMetadataQuality?: boolean;
 }
 
 export function SampleListHeader({
@@ -21,6 +22,7 @@ export function SampleListHeader({
   draggedColumnRef,
   activeResize,
   headerRefs,
+  showSampleMetadataQuality = true,
 }: SampleListHeaderProps) {
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
 
@@ -147,15 +149,34 @@ export function SampleListHeader({
         {renderResizer(7)}
       </div>
 
-      <div
-        style={{ position: "relative" }}
-        ref={(el) => (headerRefs.current[8] = el)}
-        onMouseDown={(e) => handleMouseDown(8, e)}
-        onMouseMove={(e) => handleMouseMove(8, e)}
-        onMouseLeave={() => handleMouseLeave(8)}
-      >
+      {showSampleMetadataQuality && (
+        <>
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[8] = el)}
+            onMouseDown={(e) => handleMouseDown(8, e)}
+            onMouseMove={(e) => handleMouseMove(8, e)}
+            onMouseLeave={() => handleMouseLeave(8)}
+          >
+            <SortHeader field="license" currentSort={sort} onSort={onSortChange} columnIndex={8} draggedColumnRef={draggedColumnRef}>LIC</SortHeader>
+            {renderResizer(8)}
+          </div>
+
+          <div
+            style={{ position: "relative" }}
+            ref={(el) => (headerRefs.current[9] = el)}
+            onMouseDown={(e) => handleMouseDown(9, e)}
+            onMouseMove={(e) => handleMouseMove(9, e)}
+            onMouseLeave={() => handleMouseLeave(9)}
+          >
+            <SortHeader field="quality_flags" currentSort={sort} onSort={onSortChange} columnIndex={9} draggedColumnRef={draggedColumnRef}>QC</SortHeader>
+            {renderResizer(9)}
+          </div>
+        </>
+      )}
+
+      <div style={{ position: "relative" }} ref={(el) => (headerRefs.current[10] = el)}>
         <div />
-        {renderResizer(8)}
       </div>
     </div>
   );

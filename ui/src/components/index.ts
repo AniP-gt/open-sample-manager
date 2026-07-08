@@ -4,7 +4,6 @@ export { TypeBadge } from "./TypeBadge/TypeBadge";
 export { AnalysisBar } from "./AnalysisBar/AnalysisBar";
 export { ScannerOverlay } from "./ScannerOverlay/ScannerOverlay";
 export { Header } from "./Header/Header";
-export { ProjectSyncControls } from "./ProjectSyncControls/ProjectSyncControls";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { CollectionsSavedSearchesPanel } from "./CollectionsSavedSearchesPanel/CollectionsSavedSearchesPanel";
 export { SampleList } from "./SampleList/SampleList";
@@ -18,6 +17,7 @@ export { ResizeHandle } from "./ResizeHandle/ResizeHandle";
 
 export { SettingsModal } from "./SettingsModal/SettingsModal";
 export { ClassificationEditModal } from "./ClassificationEditModal/ClassificationEditModal";
+export { SampleMetadataEditModal } from "./SampleMetadataEditModal/SampleMetadataEditModal";
 export { ConfirmModal } from "./ConfirmModal/ConfirmModal";
 export { InstrumentTypeManagementModal } from "./InstrumentTypeManagementModal/InstrumentTypeManagementModal";
 export { MidiTagManagementModal } from "./MidiTagManagementModal/MidiTagManagementModal";

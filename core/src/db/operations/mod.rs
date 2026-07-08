@@ -4,6 +4,7 @@ mod instrument_types;
 mod midi;
 mod samples;
 mod saved_searches;
+mod search_dsl;
 mod types;
 
 pub use collections::{
@@ -22,14 +23,15 @@ pub use midi::{
 };
 pub use samples::{
     clear_all_samples, delete_sample, get_all_sample_paths, get_sample_by_id, get_sample_by_path,
-    insert_sample, list_samples_around_id, list_samples_paginated, move_sample_path,
-    search_by_embedding, search_samples, search_samples_paginated, update_sample,
+    insert_sample, list_duplicate_groups, list_samples_around_id, list_samples_paginated,
+    move_sample_path, search_by_embedding, search_samples, search_samples_paginated, update_sample,
+    update_sample_license_metadata,
 };
 pub use saved_searches::{
     create_saved_search, delete_saved_search, get_saved_search, list_saved_searches,
     update_saved_search,
 };
 pub use types::{
-    CollectionInput, CollectionRow, EmbeddingSearchResult, InstrumentTypeRow, MidiInput, MidiRow,
-    MidiTagRow, SampleInput, SampleRow, SavedSearchInput, SavedSearchRow,
+    CollectionInput, CollectionRow, DuplicateGroup, EmbeddingSearchResult, InstrumentTypeRow,
+    MidiInput, MidiRow, MidiTagRow, SampleInput, SampleRow, SavedSearchInput, SavedSearchRow,
 };

@@ -34,6 +34,21 @@ export interface Sample {
   instrument_type: InstrumentType;
   /** Detected musical key (pitch class only: "C", "C#", ..., "B"). */
   musical_key?: string;
+  source?: string;
+  pack_name?: string;
+  license?: string;
+  license_url?: string;
+  license_memo?: string;
+  imported_at?: string;
+  peak_db?: number;
+  rms_db?: number;
+  leading_silence_ms?: number;
+  clipping_count?: number;
+  channel_count?: number;
+  bit_depth?: number;
+  quality_flags: string[];
+  content_hash?: string;
+  duplicate_count?: number;
 }
 
 export interface SampleProcessingSettings {
@@ -51,12 +66,15 @@ export interface FilterState {
   filterBpmMax: string;
   filterInstrumentType: InstrumentType | "";
   favoritesOnly: boolean;
+  hideDuplicates?: boolean;
   /** Pitch class filter (e.g. "C", "C#"); empty string = no filter. */
   filterKey: string;
+  filterLicense: string;
+  qualityIssuesOnly: boolean;
   directoryPath?: string;
 }
 
-export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate" | "musical_key";
+export type SortField = "id" | "file_name" | "sample_type" | "instrument_type" | "bpm" | "duration" | "sample_rate" | "musical_key" | "license" | "source" | "quality_flags";
 export type SortDirection = "asc" | "desc";
 
 export interface SortState {

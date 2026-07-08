@@ -10,11 +10,12 @@ import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { SampleListListView } from "./SampleListListView";
 import { matchesSampleFilters } from "../../utils/sampleFilter";
+import { appendPreviousRandomSelection, chooseRandomSample, popRandomHistory } from "./randomSelection";
+import { KEY_FILTER_OPTIONS } from "../../utils/keyOptions";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 export type { SampleListHandle, SampleListProps } from "./types";
 
-const keyOptions = ["", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const sampleTypeOptions: Array<SampleType | "all"> = ["all", "loop", "one-shot"];
 
 const controlStyle = {
@@ -30,9 +31,22 @@ const controlStyle = {
   boxSizing: "border-box" as const,
 };
 
+const randomButtonStyle = (disabled: boolean) => ({
+  background: disabled ? "#0f1117" : "#111827",
+  border: "1px solid #1f2937",
+  color: disabled ? "#374151" : "#f97316",
+  padding: "4px 8px",
+  borderRadius: "2px",
+  cursor: disabled ? "not-allowed" : "pointer",
+  fontFamily: "'Courier New', monospace",
+  fontSize: "12px",
+  letterSpacing: "0.04em",
+});
+
 export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
   const {
     samples,
+    instrumentTypeOptions: fullInstrumentTypeOptions,
     samplePaths,
     filters,
     sort,
@@ -42,6 +56,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     onSortChange,
     onTrashSample,
     onTypeClick,
+    onMetadataClick,
     onTogglePlayback,
     onLoadMore,
     isLoadingMore,
@@ -50,6 +65,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     isLoadingPrevious,
     canLoadPrevious,
     instrumentColorCoding = false,
+    showSampleMetadataQuality = true,
     getSampleProcessingSettings,
   } = props;
 
@@ -61,12 +77,18 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const preparedPathsRef = useRef<Record<string, string>>({});
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [randomHistory, setRandomHistory] = useState<Sample[]>([]);
+  const [lastRandomSample, setLastRandomSample] = useState<Sample | null>(null);
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
   const { colWidths, startColumnResize, draggedColumnRef, activeResize } = useColumnResize([
-    "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "86px", "88px"
+    "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "96px", "70px", "88px"
   ]);
+  const visibleColWidths = useMemo(() => {
+    if (showSampleMetadataQuality) return colWidths;
+    return colWidths.filter((_, index) => index !== 8 && index !== 9);
+  }, [colWidths, showSampleMetadataQuality]);
 
   const {
     isDragOver,
@@ -78,11 +100,18 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   } = useDragDropList(props.onImportPaths);
 
   const filtered = useMemo(() => {
-    return samples.filter((sample) => matchesSampleFilters(sample, filters));
-  }, [samples, filters]);
+    return samples.filter((sample) => matchesSampleFilters(sample, filters, favSet.has(sample.id)));
+  }, [samples, filters, favSet]);
 
   const instrumentTypeOptions = useMemo(() => {
+    if (fullInstrumentTypeOptions && fullInstrumentTypeOptions.length > 0) {
+      return Array.from(new Set(fullInstrumentTypeOptions.filter(Boolean))).sort();
+    }
     return Array.from(new Set(samples.map((sample) => sample.instrument_type).filter(Boolean))).sort();
+  }, [fullInstrumentTypeOptions, samples]);
+
+  const licenseOptions = useMemo(() => {
+    return Array.from(new Set(samples.map((sample) => sample.license).filter((license): license is string => Boolean(license)))).sort();
   }, [samples]);
 
   const sorted = useMemo(() => {
@@ -98,6 +127,9 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         case "duration": return (a.duration - b.duration) * dir;
         case "sample_rate": return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
         case "musical_key": return (a.musical_key ?? "").localeCompare(b.musical_key ?? "") * dir;
+        case "license": return (a.license ?? "").localeCompare(b.license ?? "") * dir;
+        case "source": return (a.source ?? "").localeCompare(b.source ?? "") * dir;
+        case "quality_flags": return (a.quality_flags.length - b.quality_flags.length) * dir;
         default: return 0;
       }
     });
@@ -137,6 +169,27 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     onTogglePlayback,
     listRef
   });
+
+  const handleRandomSample = useCallback(() => {
+    const nextSample = chooseRandomSample(sorted, selectedSample?.id);
+    if (!nextSample) return;
+
+    setRandomHistory((history) => appendPreviousRandomSelection(history, lastRandomSample));
+    setLastRandomSample(nextSample);
+    onSampleSelect(nextSample);
+  }, [sorted, selectedSample, lastRandomSample, onSampleSelect]);
+
+  const handleRandomBack = useCallback(() => {
+    const { previousSample, nextHistory } = popRandomHistory(randomHistory);
+    if (!previousSample) return;
+
+    setRandomHistory(nextHistory);
+    setLastRandomSample(previousSample);
+    onSampleSelect(previousSample);
+  }, [randomHistory, onSampleSelect]);
+
+  const isRandomDisabled = sorted.length === 0;
+  const isRandomBackDisabled = randomHistory.length === 0;
 
   const lastScrolledRef = useRef<number | null>(null);
   useEffect(() => {
@@ -272,13 +325,41 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           aria-label="Sample key filter"
           style={{ ...controlStyle, width: "74px" }}
         >
-          {keyOptions.map((key) => (
+          {KEY_FILTER_OPTIONS.map((key) => (
             <option key={key || "all"} value={key}>{key || "KEY"}</option>
           ))}
         </select>
+        {showSampleMetadataQuality && (
+          <>
+            <select
+              value={filters.filterLicense}
+              onChange={(e) => onFilterChange({ filterLicense: e.target.value })}
+              aria-label="Sample license filter"
+              style={{ ...controlStyle, width: "94px" }}
+            >
+              <option value="">LIC</option>
+              {licenseOptions.map((license) => (
+                <option key={license} value={license}>{license}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => onFilterChange({ qualityIssuesOnly: !filters.qualityIssuesOnly })}
+              aria-pressed={filters.qualityIssuesOnly}
+              title="Show samples with quality flags"
+              style={{ ...controlStyle, width: "74px", cursor: "pointer", color: filters.qualityIssuesOnly ? "#f97316" : "#6b7280", borderColor: filters.qualityIssuesOnly ? "#f97316" : "#1f2937" }}
+            >
+              QC
+            </button>
+          </>
+        )}
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
+        <div style={{ display: "flex", gap: "4px" }}>
+          <button type="button" onClick={handleRandomSample} disabled={isRandomDisabled} title="Select random sample" style={randomButtonStyle(isRandomDisabled)}>Random</button>
+          <button type="button" onClick={handleRandomBack} disabled={isRandomBackDisabled} title="Return to previous random sample" style={randomButtonStyle(isRandomBackDisabled)}>Back</button>
+        </div>
         <div style={{ display: "flex", gap: "4px" }}>
           <button type="button" onClick={() => setViewMode("list")} title="List view" style={{ background: viewMode === "list" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "list" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>☰</button>
           <button type="button" onClick={() => setViewMode("grid")} title="Grid view" style={{ background: viewMode === "grid" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "grid" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>▦</button>
@@ -286,7 +367,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       </div>
 
       {viewMode === "grid" ? (
-        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} />
+        <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} onMetadataClick={onMetadataClick} showSampleMetadataQuality={showSampleMetadataQuality} />
       ) : (
         <div
           style={{ flex: 1, overflowY: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}
@@ -300,16 +381,18 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             samplePaths={samplePaths}
             selectedSample={selectedSample}
             selectedIds={props.selectedIds}
-            colWidths={colWidths}
+            colWidths={visibleColWidths}
             rowHeight={rowHeight}
             sort={sort}
             onSortChange={onSortChange}
             onSampleSelect={handleSampleSelectInternal}
             onTypeClick={onTypeClick}
+            onMetadataClick={onMetadataClick}
             onTrashSample={onTrashSample}
             onToggleFavorite={toggleFavorite}
             favorites={favSet}
             instrumentColorCoding={instrumentColorCoding}
+            showSampleMetadataQuality={showSampleMetadataQuality}
             dragIconPath={dragIconPathRef.current}
             preparedPathsRef={preparedPathsRef}
             headerRefs={headerRefs}

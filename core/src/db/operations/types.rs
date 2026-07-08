@@ -33,6 +33,19 @@ pub struct SampleRow {
     pub waveform_peaks: Option<String>,
     /// Feature embedding blob.
     pub embedding: Option<Vec<u8>>,
+    pub source: Option<String>,
+    pub pack_name: Option<String>,
+    pub license: Option<String>,
+    pub license_url: Option<String>,
+    pub license_memo: Option<String>,
+    pub imported_at: Option<String>,
+    pub peak_db: Option<f64>,
+    pub rms_db: Option<f64>,
+    pub leading_silence_ms: Option<f64>,
+    pub clipping_count: Option<i64>,
+    pub channel_count: Option<i64>,
+    pub bit_depth: Option<i64>,
+    pub quality_flags: Option<String>,
     /// Whether the file is currently accessible.
     pub is_online: bool,
     /// Playback type: "loop" or "oneshot".
@@ -41,7 +54,19 @@ pub struct SampleRow {
     pub instrument_type: String,
     /// Detected musical key (pitch class only: "C", "C#", ..., "B").
     pub musical_key: Option<String>,
+    /// Stable hash of the original file bytes for exact duplicate detection.
+    pub content_hash: Option<String>,
+    /// Number of indexed rows sharing this content hash. One means no known duplicate.
+    pub duplicate_count: i64,
     pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DuplicateGroup {
+    pub content_hash: String,
+    pub sample_count: i64,
+    pub total_file_size: i64,
+    pub samples: Vec<SampleRow>,
 }
 
 /// Result of an embedding search: similarity score + sample row.
@@ -82,12 +107,27 @@ pub struct SampleInput {
     pub decay_time: Option<f64>,
     /// Feature embedding blob.
     pub embedding: Option<Vec<u8>>,
+    pub source: Option<String>,
+    pub pack_name: Option<String>,
+    pub license: Option<String>,
+    pub license_url: Option<String>,
+    pub license_memo: Option<String>,
+    pub imported_at: Option<String>,
+    pub peak_db: Option<f64>,
+    pub rms_db: Option<f64>,
+    pub leading_silence_ms: Option<f64>,
+    pub clipping_count: Option<i64>,
+    pub channel_count: Option<i64>,
+    pub bit_depth: Option<i64>,
+    pub quality_flags: Option<String>,
     /// Playback type: "loop" or "oneshot".
     pub playback_type: Option<String>,
     /// Instrument type: "kick", "snare", etc.
     pub instrument_type: Option<String>,
     /// Detected musical key (pitch class only: "C", "C#", ..., "B").
     pub musical_key: Option<String>,
+    /// Stable hash of the original file bytes for exact duplicate detection.
+    pub content_hash: Option<String>,
 }
 
 /// A row from the `midis` table.

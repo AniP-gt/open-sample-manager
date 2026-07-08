@@ -11,6 +11,15 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 
 ## Features
 
+Feature guides:
+
+- [Feature overview](docs/features/README.md)
+- [Audio sample management](docs/features/audio-sample-management.md)
+- [MIDI file management](docs/features/midi-file-management.md)
+- [Search and organization](docs/features/search-and-organization.md)
+- [Preview sync and drag export](docs/features/preview-sync-and-drag-export.md)
+- [Settings and local data](docs/features/settings-and-local-data.md)
+
 ### Audio Sample Management
 
 <img width="1680" height="981" alt="Sample-List" src="https://github.com/user-attachments/assets/06af7071-a93a-4733-b5d0-454d84d90860" />
@@ -19,9 +28,13 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 
 - **Directory scanning** — recursively scan folders and index WAV, MP3, FLAC, and Ogg files
 - **Automatic analysis** — BPM estimation, kick detection, loop/one-shot classification, waveform peaks
+- **Sample quality checks**: peak, RMS, leading silence, clipping, channel count, and bit depth flags are captured during scan
 - **Full-text search** — fast FTS5-powered search over filenames and metadata
+- **Advanced search DSL** — combine free text with filters such as `bpm:120-180`, `type:oneshot`, `tag:metal`, `key:Am`, `instrument:kick`, and negative terms like `-rimshot`
 - **Similarity search** — embedding-based "find similar samples" lookup
-- **Filter sidebar** — filter by instrument type, sample type, BPM range
+- **Duplicate detection** — group exact duplicate audio files by content hash and hide duplicate rows from the sample list
+- **Random discovery**: pick a random sample from the current result set, step back through random picks, or jump to a random similar sample. See [Random Inspiration](docs/random-inspiration.md).
+- **Filter sidebar** — filter by instrument type, sample type, BPM range, and duplicate status
 - **Waveform display** — inline waveform preview in the detail panel
 - **Drag to DAW** — drag samples directly from the app into your DAW
 - **Processed drag export** — with auto-play off, open `CONTROLS` in the player bar to set trim, fade, and gain before dragging a rendered WAV into your DAW
@@ -35,18 +48,18 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 - **Tag system** — create and assign custom tags to MIDI files
 - **Search** — full-text search over MIDI filenames
 
-### Project Preview Sync
-
-- **Project BPM and key controls**: set the target tempo and key from the header before auditioning sounds
-- **Synced sample previews**: preview audio samples at a playback rate that matches the project BPM, with optional pitch shift to the project key
-- **Synced MIDI previews**: preview MIDI files with tempo rewrite and note transposition before bringing them into a track
-
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
 - **Collections and saved searches** — group hand-picked samples into persistent collections and save reusable search/filter presets; see [Collections and Saved Searches](docs/collections-saved-searches.md)
+- **License and source metadata**: track source, pack name, license, license URL, memo, and import date for each sample
+- **Duplicate visibility controls** — keep every scanned file in the library while hiding repeated content from day-to-day browsing
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency
 - **Library migration** — export the local metadata database from Settings and import it on another PC
+
+See [Sample Metadata and Quality Checks](docs/sample_metadata_quality.md) for the stored fields, UI behavior, and analysis notes.
+For implementation details, see [Duplicate Detection](docs/duplicate-detection.md).
+See [Advanced Search DSL](docs/advanced_search_dsl.md) for the supported sample search syntax and examples.
 
 ---
 

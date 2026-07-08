@@ -24,7 +24,6 @@ import { useFavoritesStore } from "./store/useFavoritesStore";
 import { useMidiFavoritesStore } from "./store/useMidiFavoritesStore";
 import { useRecentStore } from "./store/useRecentStore";
 import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
-import { useProjectSyncState } from "./hooks/useProjectSyncState";
 import { useSampleProcessingState } from "./hooks/useSampleProcessingState";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
@@ -36,7 +35,10 @@ const defaultFilters: FilterState = {
   filterBpmMax: "",
   filterInstrumentType: "",
   favoritesOnly: false,
+  hideDuplicates: false,
   filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
   directoryPath: "",
 };
 
@@ -66,6 +68,8 @@ export function App() {
   const setInstrumentColorCoding = useSettingsStore((s) => s.setInstrumentColorCoding);
   const directoryClickFiltering = useSettingsStore((s) => s.directoryClickFiltering);
   const setDirectoryClickFiltering = useSettingsStore((s) => s.setDirectoryClickFiltering);
+  const showSampleMetadataQuality = useSettingsStore((s) => s.showSampleMetadataQuality);
+  const setShowSampleMetadataQuality = useSettingsStore((s) => s.setShowSampleMetadataQuality);
   const favorites = useFavoritesStore((s) => s.favorites);
   const midiFavorites = useMidiFavoritesStore((s) => s.favorites);
   const addRecent = useRecentStore((s) => s.addRecent);
@@ -95,15 +99,12 @@ export function App() {
     },
   });
 
-  const projectSyncState = useProjectSyncState();
-
   const midiState = useMidiState({
     setError: scanState.setError,
     pageLimit: uiState.pageLimit,
     midiListRef,
     viewMode: uiState.viewMode,
     autoPlayOnSelect,
-    getPreviewOptions: (midi) => projectSyncState.getMidiPreviewOptions(midi),
   });
 
   const sampleState = useSampleState({
@@ -156,6 +157,32 @@ export function App() {
     midiState.directoryPath,
     sampleState.handleFilterChange,
     midiState.setDirectoryPath,
+  ]);
+
+  useEffect(() => {
+    if (showSampleMetadataQuality) return;
+
+    const updates: Partial<FilterState> = {};
+    if (sampleState.filters.filterLicense) updates.filterLicense = "";
+    if (sampleState.filters.qualityIssuesOnly) updates.qualityIssuesOnly = false;
+    if (Object.keys(updates).length > 0) {
+      sampleState.handleFilterChange(updates);
+    }
+    if (["license", "source", "quality_flags"].includes(sampleState.sort.field)) {
+      sampleState.setSort({ field: "id", direction: "asc" });
+    }
+    if (sampleState.metadataModalOpen) {
+      sampleState.setMetadataModalOpen(false);
+    }
+  }, [
+    showSampleMetadataQuality,
+    sampleState.filters.filterLicense,
+    sampleState.filters.qualityIssuesOnly,
+    sampleState.sort.field,
+    sampleState.handleFilterChange,
+    sampleState.setSort,
+    sampleState.metadataModalOpen,
+    sampleState.setMetadataModalOpen,
   ]);
 
   const filteredDisplayedSamples = useDisplayedSamples(
@@ -241,7 +268,6 @@ export function App() {
         onReload={() => {
           void sampleState.handleSearch(sampleState.filters.search);
         }}
-        projectSync={projectSyncState}
       />
 
       <RescanPrompt
@@ -281,6 +307,7 @@ export function App() {
         filteredMidis={filteredMidis}
         instrumentColorCoding={instrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
+        showSampleMetadataQuality={showSampleMetadataQuality}
         handleSampleSelectWithRecent={handleSampleSelectWithRecent}
         getSampleProcessingSettings={sampleProcessingState.getSettingsForSample}
       />
@@ -291,8 +318,6 @@ export function App() {
           sample={sampleState.selected}
           path={selectedSamplePath}
           autoPlay={autoPlayOnSelect}
-          playbackRate={projectSyncState.getSamplePlaybackRate(sampleState.selected)}
-          syncPitchShift={projectSyncState.getSamplePitchShift(sampleState.selected)}
           processingSettings={sampleProcessingState.selectedSettings}
           onProcessingSettingsChange={sampleProcessingState.updateSelectedSettings}
           onProcessingSettingsReset={sampleProcessingState.resetSelectedSettings}
@@ -314,6 +339,8 @@ export function App() {
         onInstrumentColorCodingChange={setInstrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
         onDirectoryClickFilteringChange={setDirectoryClickFiltering}
+        showSampleMetadataQuality={showSampleMetadataQuality}
+        onShowSampleMetadataQualityChange={setShowSampleMetadataQuality}
         onDatabaseExport={() => {
           void libraryMigration.handleExportDatabase();
         }}

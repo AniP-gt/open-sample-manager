@@ -153,3 +153,86 @@ fn test_midis_columns() {
     assert!(columns.contains(&"channel_count".to_string()));
     assert!(columns.contains(&"key_estimate".to_string()));
 }
+
+#[test]
+fn test_samples_license_and_quality_columns() {
+    let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
+    init_database(&conn).expect("Failed to initialize database");
+
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(samples)")
+        .expect("Failed to prepare statement");
+
+    let columns: Vec<String> = stmt
+        .query_map([], |row| row.get(1))
+        .expect("Failed to query columns")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Failed to collect columns");
+
+    for column in [
+        "source",
+        "pack_name",
+        "license",
+        "license_url",
+        "license_memo",
+        "imported_at",
+        "peak_db",
+        "rms_db",
+        "leading_silence_ms",
+        "clipping_count",
+        "channel_count",
+        "bit_depth",
+        "quality_flags",
+        "content_hash",
+    ] {
+        assert!(columns.contains(&column.to_string()), "missing {column}");
+    }
+}
+
+#[test]
+fn init_database_migrates_legacy_samples_before_content_hash_index() {
+    let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
+    conn.execute_batch(
+        "
+        CREATE TABLE samples (
+            id INTEGER PRIMARY KEY,
+            path TEXT UNIQUE NOT NULL,
+            file_name TEXT NOT NULL,
+            duration REAL,
+            bpm REAL,
+            periodicity REAL,
+            low_ratio REAL,
+            sample_rate INTEGER,
+            file_size INTEGER,
+            artist TEXT,
+            attack_slope REAL,
+            decay_time REAL,
+            sample_type TEXT,
+            waveform_peaks TEXT,
+            embedding BLOB,
+            is_online INTEGER DEFAULT 1
+        );
+        ",
+    )
+    .expect("Failed to create legacy samples table");
+
+    init_database(&conn).expect("Failed to migrate legacy database");
+
+    let has_content_hash: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM pragma_table_info('samples') WHERE name = 'content_hash'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("Failed to inspect samples columns");
+    let has_content_hash_index: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type = 'index' AND name = 'idx_content_hash'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("Failed to inspect content hash index");
+
+    assert!(has_content_hash);
+    assert!(has_content_hash_index);
+}

@@ -25,6 +25,7 @@ interface AppMainPaneProps {
   filteredMidis: Midi[];
   instrumentColorCoding: boolean;
   directoryClickFiltering: boolean;
+  showSampleMetadataQuality: boolean;
   handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
 }
@@ -41,12 +42,15 @@ export function AppMainPane({
   filteredMidis,
   instrumentColorCoding,
   directoryClickFiltering,
+  showSampleMetadataQuality,
   handleSampleSelectWithRecent,
   getSampleProcessingSettings,
 }: AppMainPaneProps) {
   const { favorites: sampleFavorites } = useFavoritesStore();
   const { favorites: midiFavorites } = useMidiFavoritesStore();
   const activeCollectionId = sampleState.activeCollectionId ?? null;
+  const duplicateSampleCount = sampleState.samples.filter((sample) => (sample.duplicate_count ?? 1) > 1).length;
+  const instrumentTypeOptions = sampleState.instrumentTypes.map((type) => type.name) as Sample["instrument_type"][];
   
   return (
     <div
@@ -123,6 +127,8 @@ export function AppMainPane({
         }
         favoritesOnly={uiState.viewMode === "midi" ? midiState.favoritesOnly : sampleState.filters.favoritesOnly}
         favoritesCount={uiState.viewMode === "midi" ? midiFavorites.length : sampleFavorites.length}
+        hideDuplicates={uiState.viewMode === "sample" ? sampleState.filters.hideDuplicates : false}
+        duplicateCount={uiState.viewMode === "sample" ? duplicateSampleCount : 0}
         filterKey={uiState.viewMode === "midi" ? midiState.midiFilterKey : sampleState.filters.filterKey}
         samples={sampleState.samples}
         onFilterChange={(filters) => {
@@ -176,6 +182,7 @@ export function AppMainPane({
         <SampleList
           ref={sampleListRef}
           samples={displayedSamples}
+          instrumentTypeOptions={instrumentTypeOptions}
           samplePaths={sampleState.samplePaths}
           filters={sampleState.filters}
           sort={sampleState.sort}
@@ -191,6 +198,7 @@ export function AppMainPane({
             sampleState.requestTrash(id);
           }}
           onTypeClick={sampleState.handleTypeClick}
+          onMetadataClick={showSampleMetadataQuality ? sampleState.handleMetadataClick : undefined}
           onImportPaths={scanState.handleImportPaths}
           onLoadMore={activeCollectionId === null ? sampleState.loadMore : async () => {}}
           isLoadingMore={sampleState.isLoadingMore}
@@ -202,6 +210,7 @@ export function AppMainPane({
           canLoadPrevious={activeCollectionId === null && sampleState.canLoadPrevious}
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
+          showSampleMetadataQuality={showSampleMetadataQuality}
           getSampleProcessingSettings={getSampleProcessingSettings}
         />
         <CollectionsSavedSearchesPanel
@@ -308,7 +317,7 @@ export function AppMainPane({
           filters={sampleState.filters}
           onFilterChange={sampleState.handleFilterChange}
           allInstrumentTypeNames={
-            sampleState.instrumentTypes.map((t) => t.name) as import("../../types/sample").InstrumentType[]
+            instrumentTypeOptions
           }
           onError={(message) => {
             scanState.setError(message);

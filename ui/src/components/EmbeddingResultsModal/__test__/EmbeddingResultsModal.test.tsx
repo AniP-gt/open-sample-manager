@@ -20,6 +20,8 @@ describe("EmbeddingResultsModal", () => {
         waveform_peaks: "[0.1, 0.2]",
         playback_type: "loop",
         instrument_type: "kick",
+        content_hash: null,
+        duplicate_count: null,
       },
     },
     {
@@ -38,6 +40,8 @@ describe("EmbeddingResultsModal", () => {
         waveform_peaks: null,
         playback_type: "oneshot",
         instrument_type: "snare",
+        content_hash: null,
+        duplicate_count: null,
       },
     },
   ];

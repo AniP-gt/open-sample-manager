@@ -41,6 +41,20 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             sample_type TEXT,
             waveform_peaks TEXT,
             embedding BLOB,
+            source TEXT,
+            pack_name TEXT,
+            license TEXT,
+            license_url TEXT,
+            license_memo TEXT,
+            imported_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            peak_db REAL,
+            rms_db REAL,
+            leading_silence_ms REAL,
+            clipping_count INTEGER,
+            channel_count INTEGER,
+            bit_depth INTEGER,
+            quality_flags TEXT,
+            content_hash TEXT,
             is_online INTEGER DEFAULT 1
         );
 
@@ -303,7 +317,49 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE INDEX IF NOT EXISTS idx_saved_searches_name ON saved_searches(name);",
     );
 
+    for (name, definition) in [
+        ("source", "source TEXT"),
+        ("pack_name", "pack_name TEXT"),
+        ("license", "license TEXT"),
+        ("license_url", "license_url TEXT"),
+        ("license_memo", "license_memo TEXT"),
+        ("imported_at", "imported_at TEXT"),
+        ("peak_db", "peak_db REAL"),
+        ("rms_db", "rms_db REAL"),
+        ("leading_silence_ms", "leading_silence_ms REAL"),
+        ("clipping_count", "clipping_count INTEGER"),
+        ("channel_count", "channel_count INTEGER"),
+        ("bit_depth", "bit_depth INTEGER"),
+        ("quality_flags", "quality_flags TEXT"),
+    ] {
+        add_samples_column_if_missing(conn, name, definition);
+    }
+
+    let _ = conn.execute(
+        "UPDATE samples SET imported_at = CURRENT_TIMESTAMP WHERE imported_at IS NULL",
+        [],
+    );
+
+    add_samples_column_if_missing(conn, "content_hash", "content_hash TEXT");
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_content_hash ON samples(content_hash)",
+        [],
+    )?;
     Ok(())
+}
+
+fn add_samples_column_if_missing(conn: &Connection, name: &str, definition: &str) {
+    let has_column: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM PRAGMA table_info(samples) WHERE name = ?1",
+            params![name],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+
+    if !has_column {
+        let _ = conn.execute(&format!("ALTER TABLE samples ADD COLUMN {definition}"), []);
+    }
 }
 
 fn seed_instrument_types(conn: &Connection) -> Result<(), rusqlite::Error> {

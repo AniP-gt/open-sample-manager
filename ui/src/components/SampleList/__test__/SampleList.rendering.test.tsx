@@ -2,6 +2,7 @@ import './mockSampleListDependencies';
 import { describe, expect, test, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { defaultFilters, mockSamples, renderSampleList } from './sampleListTestHelpers';
+import { KEY_FILTER_OPTIONS } from '../../../utils/keyOptions';
 
 describe('SampleList rendering, search, and sort', () => {
   test('renders list headers and virtual items', () => {
@@ -69,6 +70,55 @@ describe('SampleList rendering, search, and sort', () => {
 
     fireEvent.change(screen.getByLabelText('Sample key filter'), { target: { value: 'C#' } });
     expect(handleFilterChange).toHaveBeenCalledWith({ filterKey: 'C#' });
+
+    fireEvent.change(screen.getByLabelText('Sample license filter'), { target: { value: 'CC0' } });
+    expect(handleFilterChange).toHaveBeenCalledWith({ filterLicense: 'CC0' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'QC' }));
+    expect(handleFilterChange).toHaveBeenCalledWith({ qualityIssuesOnly: true });
+  });
+
+  test('shows sample metadata and quality UI by default', () => {
+    renderSampleList();
+
+    expect(screen.getByLabelText('Sample license filter')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'QC' })).toBeInTheDocument();
+    expect(screen.getAllByText('LIC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CC0').length).toBeGreaterThan(0);
+    expect(screen.getByText('Factory Pack')).toBeInTheDocument();
+    expect(screen.getByText('CLIP')).toBeInTheDocument();
+  });
+
+  test('hides sample metadata and quality UI when disabled', () => {
+    renderSampleList({ showSampleMetadataQuality: false });
+
+    expect(screen.queryByLabelText('Sample license filter')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'QC' })).not.toBeInTheDocument();
+    expect(screen.queryByText('LIC')).not.toBeInTheDocument();
+    expect(screen.queryByText('CC0')).not.toBeInTheDocument();
+    expect(screen.queryByText('Factory Pack')).not.toBeInTheDocument();
+    expect(screen.queryByText('CLIP')).not.toBeInTheDocument();
+  });
+
+  test('renders instrument options from the full option list when provided', () => {
+    renderSampleList({
+      samples: [{ ...mockSamples[0], instrument_type: 'kick' }],
+      instrumentTypeOptions: ['kick', 'snare', 'bass'],
+    });
+
+    const select = screen.getByLabelText('Sample instrument type filter') as HTMLSelectElement;
+    const values = Array.from(select.options).map((option) => option.value);
+
+    expect(values).toEqual(['', 'bass', 'kick', 'snare']);
+  });
+
+  test('uses the shared key filter values', () => {
+    renderSampleList();
+
+    const select = screen.getByLabelText('Sample key filter') as HTMLSelectElement;
+    const values = Array.from(select.options).map((option) => option.value);
+
+    expect(values).toEqual([...KEY_FILTER_OPTIONS]);
   });
 
   test('applies local filter combinations', () => {
@@ -80,6 +130,8 @@ describe('SampleList rendering, search, and sort', () => {
         filterBpmMax: '130',
         filterInstrumentType: 'kick',
         filterKey: 'C',
+        filterLicense: '',
+        qualityIssuesOnly: false,
         favoritesOnly: false,
       },
     });

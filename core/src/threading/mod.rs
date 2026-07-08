@@ -78,9 +78,23 @@ fn analysis_result_to_sample_input(result: &AnalysisResult) -> SampleInput {
         sample_type,
         waveform_peaks: None,
         embedding: None,
+        source: None,
+        pack_name: None,
+        license: None,
+        license_url: None,
+        license_memo: None,
+        imported_at: None,
+        peak_db: None,
+        rms_db: None,
+        leading_silence_ms: None,
+        clipping_count: None,
+        channel_count: None,
+        bit_depth: None,
+        quality_flags: None,
         playback_type: None,
         instrument_type: None,
         musical_key: None,
+        content_hash: None,
     }
 }
 

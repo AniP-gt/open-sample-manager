@@ -219,6 +219,14 @@ fn list_all_sample_paths(state: tauri::State<'_, AppState>) -> Result<Vec<String
 }
 
 #[tauri::command]
+fn list_duplicate_groups(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<open_sample_manager_core::db::operations::DuplicateGroup>, CommandError> {
+    let manager = get_manager(&state);
+    manager.list_duplicate_groups().map_err(CommandError::from)
+}
+
+#[tauri::command]
 fn delete_sample(path: String, state: tauri::State<'_, AppState>) -> Result<usize, CommandError> {
     let manager = get_manager(&state);
     manager.delete_sample(&path).map_err(CommandError::from)
@@ -829,6 +837,37 @@ fn delete_saved_search(id: i64, state: tauri::State<'_, AppState>) -> Result<usi
         .map_err(CommandError::from)
 }
 
+#[tauri::command]
+fn update_sample_license_metadata(
+    path: String,
+    source: Option<String>,
+    pack_name: Option<String>,
+    license: Option<String>,
+    license_url: Option<String>,
+    license_memo: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, CommandError> {
+    let manager = get_manager(&state);
+    let rows = manager
+        .update_sample_license_metadata(
+            &path,
+            source,
+            pack_name,
+            license,
+            license_url,
+            license_memo,
+        )
+        .map_err(CommandError::from)?;
+    if rows == 0 {
+        return Err(CommandError {
+            code: "not_found".to_string(),
+            message: format!("no sample found at path '{}'; 0 rows updated", path),
+            details: Some("The sample may have been deleted or the path is incorrect.".to_string()),
+        });
+    }
+    Ok(rows)
+}
+
 struct AppState {
     manager: Arc<Mutex<SampleManager>>,
     prepared_temp_paths: PreparedTempRegistry,
@@ -996,7 +1035,13 @@ fn main() {
         };
 
         let db_path_str = db_path.as_ref().map(|p| p.to_string_lossy().to_string());
-        let manager = SampleManager::new(db_path_str.as_deref()).expect("failed to open database");
+        let manager = SampleManager::new(db_path_str.as_deref()).map_err(|error| {
+            eprintln!("failed to open database at {:?}: {error}", db_path_str);
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("failed to open database: {error}"),
+            )
+        })?;
 
         app.manage(AppState {
             manager: Arc::new(Mutex::new(manager)),
@@ -1022,6 +1067,7 @@ fn main() {
         search_by_embedding,
         get_sample,
         list_all_sample_paths,
+        list_duplicate_groups,
         delete_sample,
         clear_all_samples,
         re_scan_all_samples,
@@ -1039,6 +1085,7 @@ fn main() {
         list_saved_searches,
         update_saved_search,
         delete_saved_search,
+        update_sample_license_metadata,
         get_instrument_types,
         add_instrument_type,
         delete_instrument_type,
@@ -1072,9 +1119,10 @@ fn main() {
         set_midi_file_tag,
         get_midi_file_tags,
     ]);
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    if let Err(error) = builder.run(tauri::generate_context!()) {
+        eprintln!("error while running tauri application: {error}");
+        std::process::exit(1);
+    }
 }
 
 #[tauri::command]

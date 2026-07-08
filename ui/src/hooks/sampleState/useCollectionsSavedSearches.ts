@@ -110,6 +110,8 @@ export function useCollectionsSavedSearches({
       filterInstrumentType: savedSearch.filter_instrument_type,
       favoritesOnly: savedSearch.favorites_only,
       filterKey: savedSearch.filter_key,
+      filterLicense: "",
+      qualityIssuesOnly: false,
       directoryPath: savedSearch.directory_path,
     };
     setActiveCollectionId(null);

@@ -28,7 +28,10 @@ const filters: FilterState = {
   filterBpmMax: "",
   filterInstrumentType: "",
   favoritesOnly: false,
+  hideDuplicates: false,
   filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
 };
 
 const renderScanHook = (overrides: Partial<Parameters<typeof useScanState>[0]> = {}) => {

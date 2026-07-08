@@ -3,6 +3,7 @@ import { getErrorMessage } from "../utils/sampleMapper";
 import { useCollectionsSavedSearches } from "./sampleState/useCollectionsSavedSearches";
 import { useInstrumentTypes } from "./sampleState/useInstrumentTypes";
 import { useSampleClassificationState } from "./sampleState/useSampleClassificationState";
+import { useSampleMetadataState } from "./sampleState/useSampleMetadataState";
 import { useSamplePathLoading } from "./sampleState/useSamplePathLoading";
 import { useSampleSearchPagination } from "./sampleState/useSampleSearchPagination";
 import { useSampleSelectionState } from "./sampleState/useSampleSelectionState";
@@ -81,6 +82,16 @@ export function useSampleState({
     onInvokeError: handleInvokeError,
   });
 
+  const metadataState = useSampleMetadataState({
+    samplePaths: searchState.samplePaths,
+    searchQuery: searchState.filters.search,
+    runSearch: searchState.runSearch,
+    fetchAllSamplePaths: searchState.fetchAllSamplePaths,
+    setSelected: selection.setSelected,
+    selectedIds: selection.selectedIds,
+    setError,
+  });
+
   const classificationState = useSampleClassificationState({
     samplePaths: searchState.samplePaths,
     instrumentTypes: instrumentState.instrumentTypes,
@@ -110,6 +121,11 @@ export function useSampleState({
     isLoadingPrevious: searchState.isLoadingPrevious,
     canLoadMore: searchState.canLoadMore,
     canLoadPrevious: searchState.canLoadPrevious,
+    metadataModalOpen: metadataState.metadataModalOpen,
+    setMetadataModalOpen: metadataState.setMetadataModalOpen,
+    metadataSample: metadataState.metadataSample,
+    metadataTargetIds: metadataState.metadataTargetIds,
+    metadataForm: metadataState.metadataForm,
     classificationModalOpen: classificationState.classificationModalOpen,
     setClassificationModalOpen: classificationState.setClassificationModalOpen,
     classificationSample: classificationState.classificationSample,
@@ -136,6 +152,9 @@ export function useSampleState({
     confirmTrash: connectedTrashState.confirmTrash,
     cancelTrash: connectedTrashState.cancelTrash,
     handleRetry: connectedTrashState.handleRetry,
+    handleMetadataClick: metadataState.handleMetadataClick,
+    handleMetadataFieldChange: metadataState.handleMetadataFieldChange,
+    handleMetadataSave: metadataState.handleMetadataSave,
     handleTypeClick: classificationState.handleTypeClick,
     handleSampleTypeSelect: classificationState.handleSampleTypeSelect,
     handleClassificationSave: classificationState.handleClassificationSave,
