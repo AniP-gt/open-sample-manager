@@ -48,7 +48,7 @@ fn build_wav_with_artist(duration_samples: usize, artist: &str) -> Vec<u8> {
 
     let artist_bytes = artist.as_bytes();
     let artist_len = artist_bytes.len() as u32;
-    let iart_size = if (artist_len + 1) % 2 == 0 {
+    let iart_size = if (artist_len + 1).is_multiple_of(2) {
         artist_len + 1
     } else {
         artist_len + 2
@@ -67,7 +67,7 @@ fn build_wav_with_artist(duration_samples: usize, artist: &str) -> Vec<u8> {
     buf.extend_from_slice(&iart_size.to_le_bytes());
     buf.extend_from_slice(artist_bytes);
     buf.push(0u8);
-    if (artist_len + 1) % 2 == 1 {
+    if !(artist_len + 1).is_multiple_of(2) {
         buf.push(0u8);
     }
     buf.extend_from_slice(b"fmt ");
