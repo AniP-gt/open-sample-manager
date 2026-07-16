@@ -67,6 +67,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     instrumentColorCoding = false,
     showSampleMetadataQuality = true,
     getSampleProcessingSettings,
+    preserveOrder = false,
+    onRestoreSearchResults,
   } = props;
 
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -100,8 +102,9 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   } = useDragDropList(props.onImportPaths);
 
   const filtered = useMemo(() => {
+    if (preserveOrder) return samples;
     return samples.filter((sample) => matchesSampleFilters(sample, filters, favSet.has(sample.id)));
-  }, [samples, filters, favSet]);
+  }, [samples, filters, favSet, preserveOrder]);
 
   const instrumentTypeOptions = useMemo(() => {
     if (fullInstrumentTypeOptions && fullInstrumentTypeOptions.length > 0) {
@@ -115,6 +118,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   }, [samples]);
 
   const sorted = useMemo(() => {
+    if (preserveOrder) return filtered;
     const copy = [...filtered];
     const dir = sort.direction === "asc" ? 1 : -1;
     copy.sort((a, b) => {
@@ -134,7 +138,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       }
     });
     return copy;
-  }, [filtered, sort]);
+  }, [filtered, preserveOrder, sort]);
 
   const rowHeight = 48;
   const virtualizer = useVirtualizer({
@@ -356,6 +360,15 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
           {sorted.length}/{samples.length} RESULTS
         </span>
+        {preserveOrder && onRestoreSearchResults && (
+          <button
+            type="button"
+            onClick={onRestoreSearchResults}
+            style={{ background: "transparent", border: "1px solid #1f2937", color: "#f97316", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}
+          >
+            Back to search results
+          </button>
+        )}
         <div style={{ display: "flex", gap: "4px" }}>
           <button type="button" onClick={handleRandomSample} disabled={isRandomDisabled} title="Select random sample" style={randomButtonStyle(isRandomDisabled)}>Random</button>
           <button type="button" onClick={handleRandomBack} disabled={isRandomBackDisabled} title="Return to previous random sample" style={randomButtonStyle(isRandomBackDisabled)}>Back</button>
