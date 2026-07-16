@@ -216,7 +216,7 @@ fn test_decoder_loads_and_downsamples() {
     // Verify samples are in expected range
     for &sample in audio.samples.iter() {
         assert!(
-            sample >= -1.0 && sample <= 1.0,
+            (-1.0..=1.0).contains(&sample),
             "Decoded samples should be in [-1.0, 1.0] range, got: {}",
             sample
         );
