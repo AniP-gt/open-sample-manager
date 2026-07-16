@@ -346,4 +346,57 @@ describe("useSampleState", () => {
     act(() => result.current.togglePlayback());
     expect(playerBarRef.current?.stop).toHaveBeenCalled();
   });
+
+  it("restores the original search snapshot after repeated external result commands", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "get_instrument_types") return [];
+      if (command === "list_all_sample_paths") return [];
+      if (command === "list_samples_paginated") return [sampleRow({ id: 9, file_name: "search-result.wav" })];
+      return 1;
+    });
+    const { result } = renderSampleHook();
+    await waitFor(() => expect(result.current.samples[0]?.id).toBe(9));
+    const normalSample = result.current.samples[0];
+    if (!normalSample) throw new Error("Expected initial search result");
+
+    act(() => {
+      result.current.handleFilterChange({ search: "original query" });
+      result.current.setSort({ field: "file_name", direction: "desc" });
+      result.current.setSelected(normalSample);
+    });
+    await waitFor(() => expect(result.current.filters.search).toBe("original query"));
+
+    const firstExternal = sampleRow({ id: 3, file_name: "three.wav" });
+    const secondExternal = sampleRow({ id: 1, file_name: "one.wav" });
+    act(() => {
+      result.current.showExternalResults({
+        samples: [
+          { ...normalSample, id: 3, file_name: "three.wav" },
+          { ...normalSample, id: 1, file_name: "one.wav" },
+        ],
+        samplePaths: { 3: firstExternal.path, 1: secondExternal.path },
+        selectedId: 1,
+      });
+    });
+    await waitFor(() => expect(result.current.externalResults?.map((sample) => sample.id)).toEqual([3, 1]));
+
+    act(() => {
+      result.current.showExternalResults({
+        samples: [{ ...normalSample, id: 2, file_name: "two.wav" }],
+        samplePaths: { 2: "/Users/alice/Samples/two.wav" },
+        selectedId: 2,
+      });
+    });
+    await waitFor(() => expect(result.current.externalResults?.map((sample) => sample.id)).toEqual([2]));
+
+    act(() => {
+      result.current.restoreSearchResults();
+    });
+
+    expect(result.current.externalResults).toBeNull();
+    expect(result.current.samples.map((sample) => sample.id)).toEqual([9]);
+    expect(result.current.filters.search).toBe("original query");
+    expect(result.current.sort).toEqual({ field: "file_name", direction: "desc" });
+    expect(result.current.selected?.id).toBe(9);
+  });
 });
