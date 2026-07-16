@@ -1,0 +1,7 @@
+{
+  "request_id": "req-similar-001",
+  "operation": "find_similar_samples",
+  "sample_id": 101,
+  "limit": 10,
+  "exclude_duplicates": true
+}
