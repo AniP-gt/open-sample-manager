@@ -5,9 +5,13 @@ import { matchesSampleFilters } from "../utils/sampleFilter";
 export function useDisplayedSamples(
   samples: Sample[],
   filters: FilterState,
-  favorites: number[]
+  favorites: number[],
+  externalResults: Sample[] | null = null,
+  collectionResults: Sample[] | null = null,
 ) {
   return useMemo(() => {
+    if (externalResults) return externalResults;
+    if (collectionResults) return collectionResults;
     let list = samples;
     const favSet = new Set(favorites);
     if (filters.favoritesOnly) {
@@ -24,5 +28,5 @@ export function useDisplayedSamples(
       });
     }
     return list;
-  }, [samples, filters, favorites]);
+  }, [samples, filters, favorites, externalResults, collectionResults]);
 }
