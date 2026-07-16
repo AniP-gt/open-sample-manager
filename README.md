@@ -19,6 +19,7 @@ Feature guides:
 - [Search and organization](docs/features/search-and-organization.md)
 - [Preview sync and drag export](docs/features/preview-sync-and-drag-export.md)
 - [Settings and local data](docs/features/settings-and-local-data.md)
+- [Local API and MCP setup](mcp-server/README.md)
 
 ### Audio Sample Management
 

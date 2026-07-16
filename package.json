@@ -6,6 +6,11 @@
     "dev": "npm run dev --prefix ui",
     "build": "npm run build --prefix ui",
     "build:app": "tauri build",
+    "mcp:typecheck": "npm run typecheck --prefix mcp-server",
+    "mcp:test": "npm run test --prefix mcp-server",
+    "mcp:build": "npm run build --prefix mcp-server",
+    "mcp:ci": "npm run mcp:typecheck && npm run mcp:test && npm run mcp:build",
+    "mcp:smoke": "cargo test -p open-sample-manager built_stdio_mcp_client_calls_all_operations_against_fixed_loopback_api -- --ignored --test-threads=1",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
