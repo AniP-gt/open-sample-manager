@@ -1,0 +1,8 @@
+{
+  "request_id": "req-collection-001",
+  "operation": "add_to_collection",
+  "collection_name": "starter-kicks",
+  "requested_count": 3,
+  "added_count": 3,
+  "created": true
+}
