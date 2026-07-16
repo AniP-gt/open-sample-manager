@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import "./styles/global.css";
 import {
   Header,
@@ -25,6 +25,8 @@ import { useMidiFavoritesStore } from "./store/useMidiFavoritesStore";
 import { useRecentStore } from "./store/useRecentStore";
 import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
 import { useSampleProcessingState } from "./hooks/useSampleProcessingState";
+import { useExternalApiCommands } from "./hooks/useExternalApiCommands";
+import { useCollections } from "./hooks/useCollections";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -45,7 +47,8 @@ const defaultFilters: FilterState = {
 export function App() {
   const sampleListRef = useRef<SampleListHandle>(null);
   const midiListRef = useRef<MidiListHandle>(null);
-  const playerBarRef = useRef<PlayerBarHandle>(null);
+  const [playerBar, setPlayerBar] = useState<PlayerBarHandle | null>(null);
+  const playerBarRef = useMemo(() => ({ current: playerBar }), [playerBar]);
   const scanImportHandlerRef = useRef<((paths: string[]) => Promise<void>) | null>(null);
   const sampleApiRef = useRef<{
     allSamplePaths: string[];
@@ -118,6 +121,21 @@ export function App() {
     fetchAllMidiPaths: midiState.fetchAllMidiPaths,
   });
 
+  const collectionState = useCollections({ onError: scanState.setError });
+
+  const externalApiCommands = useExternalApiCommands({
+    showExternalResults: sampleState.showExternalResults,
+    setViewMode: uiState.setViewMode,
+    setError: scanState.setError,
+    playerBarRef,
+    selectSample: sampleState.handleSampleSelect,
+    refreshCollections: collectionState.refresh,
+  });
+  const setPlayerBarRef = useCallback((playerBar: PlayerBarHandle | null) => {
+    setPlayerBar(playerBar);
+    externalApiCommands.onPlayerBarReady();
+  }, [externalApiCommands.onPlayerBarReady]);
+
   const libraryMigration = useLibraryMigration({
     setError: scanState.setError,
     refreshAfterImport: async () => {
@@ -188,7 +206,9 @@ export function App() {
   const displayedSamples = useDisplayedSamples(
     sampleState.samples,
     sampleState.filters,
-    favorites
+    favorites,
+    sampleState.externalResults,
+    collectionState.isCollectionView ? collectionState.activeMembers : null,
   );
 
   const filteredMidis = useMemo(() => {
@@ -197,7 +217,12 @@ export function App() {
     return midiState.midis.filter(m => favSet.has(m.id));
   }, [midiState.midis, midiState.favoritesOnly, midiFavorites]);
 
-  const selectedSamplePath = sampleState.selected ? sampleState.samplePaths[sampleState.selected.id] : undefined;
+  const displayedSamplePaths = sampleState.externalResults
+    ? sampleState.samplePaths
+    : collectionState.isCollectionView
+      ? collectionState.samplePaths
+      : sampleState.samplePaths;
+  const selectedSamplePath = sampleState.selected ? displayedSamplePaths[sampleState.selected.id] : undefined;
   const sampleProcessingState = useSampleProcessingState(sampleState.selected, selectedSamplePath);
 
   useKeyboardShortcuts({
@@ -301,6 +326,14 @@ export function App() {
         sampleListRef={sampleListRef}
         midiListRef={midiListRef}
         displayedSamples={displayedSamples}
+        samplePaths={displayedSamplePaths}
+        collections={collectionState.collections}
+        activeCollectionId={collectionState.activeCollectionId}
+        isCollectionView={collectionState.isCollectionView}
+        onSelectCollection={(collectionId) => {
+          void collectionState.selectCollection(collectionId);
+        }}
+        onClearCollection={collectionState.clearCollection}
         filteredMidis={filteredMidis}
         instrumentColorCoding={instrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}
@@ -311,10 +344,11 @@ export function App() {
 
       {sampleState.selected && (
         <PlayerBar
-          ref={playerBarRef}
+          key={sampleState.selected.id}
+          ref={setPlayerBarRef}
           sample={sampleState.selected}
           path={selectedSamplePath}
-          autoPlay={autoPlayOnSelect}
+          autoPlay={autoPlayOnSelect && sampleState.selected.id !== externalApiCommands.previewSampleId}
           processingSettings={sampleProcessingState.selectedSettings}
           onProcessingSettingsChange={sampleProcessingState.updateSelectedSettings}
           onProcessingSettingsReset={sampleProcessingState.resetSelectedSettings}
