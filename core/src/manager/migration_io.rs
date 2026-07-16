@@ -15,7 +15,7 @@ pub(super) fn replace_file(source: &Path, target: &Path) -> Result<(), ManagerEr
     #[cfg(unix)]
     {
         fs::rename(source, target)?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(unix))]

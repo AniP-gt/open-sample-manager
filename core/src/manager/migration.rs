@@ -23,6 +23,21 @@ const REQUIRED_TABLES: &[&str] = &[
     "midis",
     "midi_tags",
     "midi_file_tags",
+    "collections",
+    "collection_members",
+    "samples_fts",
+    "midis_fts",
+];
+
+const LEGACY_REQUIRED_TABLES: &[&str] = &[
+    "samples",
+    "tags",
+    "sample_tags",
+    "watched_paths",
+    "instrument_types",
+    "midis",
+    "midi_tags",
+    "midi_file_tags",
     "samples_fts",
     "midis_fts",
 ];
@@ -104,7 +119,7 @@ impl SampleManager {
 
         {
             let staged_conn = Connection::open(&staged_path)?;
-            validate_export_database(&staged_conn)?;
+            validate_legacy_import_database(&staged_conn)?;
             init_database(&staged_conn)?;
             validate_export_database(&staged_conn)?;
         }
@@ -168,6 +183,17 @@ impl SampleManager {
 }
 
 fn validate_export_database(conn: &Connection) -> Result<(), ManagerError> {
+    validate_database_tables(conn, REQUIRED_TABLES)
+}
+
+fn validate_legacy_import_database(conn: &Connection) -> Result<(), ManagerError> {
+    validate_database_tables(conn, LEGACY_REQUIRED_TABLES)
+}
+
+fn validate_database_tables(
+    conn: &Connection,
+    required_tables: &[&str],
+) -> Result<(), ManagerError> {
     let integrity: String = conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     if integrity != "ok" {
         return Err(invalid_data(format!(
@@ -175,7 +201,7 @@ fn validate_export_database(conn: &Connection) -> Result<(), ManagerError> {
         )));
     }
 
-    for table in REQUIRED_TABLES {
+    for table in required_tables {
         if !table_exists(conn, table)? {
             return Err(invalid_data(format!(
                 "database export is missing table {table}"
