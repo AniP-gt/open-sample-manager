@@ -236,3 +236,140 @@ fn init_database_migrates_legacy_samples_before_content_hash_index() {
     assert!(has_content_hash);
     assert!(has_content_hash_index);
 }
+
+#[test]
+fn init_database_records_and_retries_the_collections_migration_for_legacy_databases() {
+    // Given: a database created before collections existed.
+    let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
+    conn.execute_batch(
+        "
+        CREATE TABLE samples (
+            id INTEGER PRIMARY KEY,
+            path TEXT UNIQUE NOT NULL,
+            file_name TEXT NOT NULL,
+            duration REAL,
+            bpm REAL,
+            periodicity REAL,
+            low_ratio REAL,
+            sample_rate INTEGER,
+            file_size INTEGER,
+            artist TEXT,
+            attack_slope REAL,
+            decay_time REAL,
+            sample_type TEXT,
+            waveform_peaks TEXT,
+            embedding BLOB,
+            is_online INTEGER DEFAULT 1
+        );
+        ",
+    )
+    .expect("Failed to create legacy samples table");
+
+    // When: initialization upgrades it twice, as a restart after an interrupted run would.
+    init_database(&conn).expect("Failed to upgrade legacy database");
+    init_database(&conn).expect("Failed to retry completed migration");
+
+    // Then: the collection migration is recorded once and creates its complete schema.
+    let applied_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM schema_migrations WHERE version = ?1",
+            [2_i64],
+            |row| row.get(0),
+        )
+        .expect("Failed to inspect collection migration record");
+    let foreign_keys_enabled: bool = conn
+        .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+        .expect("Failed to inspect foreign keys setting");
+    let collection_tables: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('collections', 'collection_members')",
+            [],
+            |row| row.get(0),
+        )
+        .expect("Failed to inspect collection tables");
+
+    assert_eq!(applied_count, 1);
+    assert!(foreign_keys_enabled);
+    assert_eq!(collection_tables, 2);
+}
+
+#[test]
+fn init_database_repairs_collections_when_a_colliding_migration_version_is_already_recorded() {
+    let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
+    conn.execute_batch(
+        "
+        CREATE TABLE schema_migrations (
+            version INTEGER PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO schema_migrations (version) VALUES (1);
+        ",
+    )
+    .expect("Failed to record colliding historical migration version");
+
+    init_database(&conn).expect("Failed to repair collections schema");
+    init_database(&conn).expect("Failed to retry repaired collections schema");
+
+    let collection_tables: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('collections', 'collection_members')",
+            [],
+            |row| row.get(0),
+        )
+        .expect("Failed to inspect repaired collection tables");
+    assert_eq!(collection_tables, 2);
+}
+
+#[test]
+fn test_init_database_creates_collection_tables() {
+    let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
+    init_database(&conn).expect("Failed to initialize database");
+
+    let mut stmt = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('collections', 'collection_members')")
+        .expect("Failed to prepare table query");
+
+    let tables: Vec<String> = stmt
+        .query_map([], |row| row.get(0))
+        .expect("Failed to query table names")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Failed to collect table names");
+
+    assert!(
+        tables.contains(&"collections".to_string()),
+        "collections table not found"
+    );
+    assert!(
+        tables.contains(&"collection_members".to_string()),
+        "collection_members table not found"
+    );
+}
+
+#[test]
+fn test_init_database_creates_collection_indices() {
+    let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
+    init_database(&conn).expect("Failed to initialize database");
+
+    let mut stmt = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name IN ('idx_collections_name', 'idx_collection_members_collection_id', 'idx_collection_members_sample_id')")
+        .expect("Failed to prepare index query");
+
+    let indexes: Vec<String> = stmt
+        .query_map([], |row| row.get(0))
+        .expect("Failed to query indexes")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Failed to collect indexes");
+
+    assert!(
+        indexes.contains(&"idx_collections_name".to_string()),
+        "idx_collections_name index not found"
+    );
+    assert!(
+        indexes.contains(&"idx_collection_members_collection_id".to_string()),
+        "idx_collection_members_collection_id index not found"
+    );
+    assert!(
+        indexes.contains(&"idx_collection_members_sample_id".to_string()),
+        "idx_collection_members_sample_id index not found"
+    );
+}

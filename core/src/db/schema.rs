@@ -1,5 +1,7 @@
 use rusqlite::{params, Connection};
 
+const COLLECTIONS_MIGRATION_VERSION: i64 = 2;
+
 /// Initialize the database schema with all required tables, indices, and FTS5 virtual table.
 ///
 /// This function creates:
@@ -11,6 +13,8 @@ use rusqlite::{params, Connection};
 /// - `midi_tags` table: user-defined tags for MIDI files (id, name, created_at)
 /// - `samples_fts`: FTS5 virtual table for full-text search on `file_name`
 /// - `midis_fts`: FTS5 virtual table for MIDI file name search
+/// - `collections`: user-defined collections of samples
+/// - `collection_members`: ordered sample membership per collection
 ///
 /// # Arguments
 /// * `conn` - `SQLite` connection to initialize
@@ -21,6 +25,10 @@ use rusqlite::{params, Connection};
 /// # Errors
 /// Returns `rusqlite::Error` if any SQL statement fails during schema initialization.
 pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
+    // Ensure foreign key constraints are enforced for FK-dependent behavior (
+    // cascading deletes and FK-based rollbacks).
+    conn.pragma_update(None, "foreign_keys", true)?;
+
     conn.execute_batch(
         "
         PRAGMA journal_mode = WAL;
@@ -119,7 +127,6 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
 
         CREATE INDEX IF NOT EXISTS idx_sample_tags_sid ON sample_tags(sample_id);
         CREATE INDEX IF NOT EXISTS idx_sample_tags_tid ON sample_tags(tag_id);
-
         CREATE INDEX IF NOT EXISTS idx_midis_tempo ON midis(tempo);
         CREATE INDEX IF NOT EXISTS idx_midis_track_count ON midis(track_count);
         CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);
@@ -242,6 +249,8 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE INDEX IF NOT EXISTS idx_midi_file_tags_mid ON midi_file_tags(midi_id);",
     );
 
+    run_collections_migration(conn)?;
+
     // Migration: add musical_key column to samples
     let _ = conn.execute("ALTER TABLE samples ADD COLUMN musical_key TEXT", []);
 
@@ -275,6 +284,54 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
 
     Ok(())
+}
+
+fn run_collections_migration(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS schema_migrations (
+            version INTEGER PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );",
+    )?;
+
+    let collection_table_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('collections', 'collection_members')",
+        [],
+        |row| row.get(0),
+    )?;
+
+    if collection_table_count == 2 {
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version) VALUES (?1)",
+            [COLLECTIONS_MIGRATION_VERSION],
+        )?;
+        return Ok(());
+    }
+
+    let tx = conn.unchecked_transaction()?;
+    tx.execute_batch(
+        "CREATE TABLE IF NOT EXISTS collections (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS collection_members (
+            collection_id INTEGER NOT NULL,
+            sample_id INTEGER NOT NULL,
+            position INTEGER NOT NULL,
+            PRIMARY KEY (collection_id, sample_id),
+            FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+            FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_collections_name ON collections(name);
+        CREATE INDEX IF NOT EXISTS idx_collection_members_collection_id ON collection_members(collection_id);
+        CREATE INDEX IF NOT EXISTS idx_collection_members_sample_id ON collection_members(sample_id);",
+    )?;
+    tx.execute(
+        "INSERT OR IGNORE INTO schema_migrations (version) VALUES (?1)",
+        [COLLECTIONS_MIGRATION_VERSION],
+    )?;
+    tx.commit()
 }
 
 fn add_samples_column_if_missing(conn: &Connection, name: &str, definition: &str) {
