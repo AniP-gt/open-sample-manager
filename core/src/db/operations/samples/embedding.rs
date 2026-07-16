@@ -20,28 +20,26 @@ pub fn search_by_embedding(
     let rows = stmt.query_map([], row_to_sample)?;
 
     let mut scored: Vec<(f32, SampleRow)> = Vec::new();
-    for r in rows {
-        if let Ok(sample) = r {
-            if let Some(ref blob) = sample.embedding {
-                if blob.len() % 4 != 0 {
-                    continue;
-                }
-                let dim = blob.len() / 4;
-                if dim != query.len() {
-                    continue;
-                }
-                let other: Vec<f32> = (0..dim)
-                    .map(|i| {
-                        f32::from_le_bytes([
-                            blob[i * 4],
-                            blob[i * 4 + 1],
-                            blob[i * 4 + 2],
-                            blob[i * 4 + 3],
-                        ])
-                    })
-                    .collect();
-                scored.push((cos_sim(query, &other), sample));
+    for sample in rows.flatten() {
+        if let Some(ref blob) = sample.embedding {
+            if blob.len() % 4 != 0 {
+                continue;
             }
+            let dim = blob.len() / 4;
+            if dim != query.len() {
+                continue;
+            }
+            let other: Vec<f32> = (0..dim)
+                .map(|i| {
+                    f32::from_le_bytes([
+                        blob[i * 4],
+                        blob[i * 4 + 1],
+                        blob[i * 4 + 2],
+                        blob[i * 4 + 3],
+                    ])
+                })
+                .collect();
+            scored.push((cos_sim(query, &other), sample));
         }
     }
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));

@@ -68,6 +68,29 @@ fn search_by_embedding_skips_malformed_and_wrong_dimension_embeddings() {
 }
 
 #[test]
+fn search_by_embedding_skips_row_mapping_errors() {
+    let conn = setup_db();
+
+    let mut unreadable = make_input("/samples/unreadable.wav", "unreadable.wav");
+    unreadable.embedding = Some(encode_embedding(&[0.0, 1.0, 0.0]));
+    insert_sample(&conn, &unreadable).expect("unreadable insert failed");
+    conn.execute(
+        "UPDATE samples SET duration = 'not a number' WHERE path = ?1",
+        ["/samples/unreadable.wav"],
+    )
+    .expect("corrupting duration failed");
+
+    let mut valid = make_input("/samples/valid.wav", "valid.wav");
+    valid.embedding = Some(encode_embedding(&[0.0, 1.0, 0.0]));
+    insert_sample(&conn, &valid).expect("valid insert failed");
+
+    let results = search_by_embedding(&conn, &[0.0, 1.0, 0.0], 10).expect("search failed");
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].row.path, "/samples/valid.wav");
+}
+
+#[test]
 fn search_by_embedding_returns_empty_for_empty_query_or_missing_embeddings() {
     let conn = setup_db();
     insert_sample(
@@ -82,4 +105,21 @@ fn search_by_embedding_returns_empty_for_empty_query_or_missing_embeddings() {
     assert!(search_by_embedding(&conn, &[1.0, 0.0, 0.0], 10)
         .expect("missing embedding search failed")
         .is_empty());
+}
+#[test]
+fn search_by_embedding_characterizes_source_row_as_top_exact_match() {
+    let conn = setup_db();
+    let mut source = make_input("/samples/source.wav", "source.wav");
+    source.embedding = Some(encode_embedding(&[1.0, 0.0, 0.0]));
+    insert_sample(&conn, &source).expect("source insert failed");
+
+    let mut other = make_input("/samples/other.wav", "other.wav");
+    other.embedding = Some(encode_embedding(&[0.0, 1.0, 0.0]));
+    insert_sample(&conn, &other).expect("other insert failed");
+
+    let results = search_by_embedding(&conn, &[1.0, 0.0, 0.0], 2).expect("search failed");
+
+    assert_eq!(results[0].row.path, "/samples/source.wav");
+    assert!((results[0].similarity - 1.0).abs() < 0.0001);
+    assert_eq!(results[1].row.path, "/samples/other.wav");
 }
