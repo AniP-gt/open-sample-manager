@@ -1,0 +1,6 @@
+{
+  "request_id": "req-show-001",
+  "operation": "show_samples_in_app",
+  "requested_count": 3,
+  "accepted_count": 3
+}
