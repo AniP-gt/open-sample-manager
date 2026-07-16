@@ -1,8 +1,12 @@
 use std::fs::File;
 
+use rusqlite::Connection;
 use tempfile::TempDir;
 
+use crate::db::operations::{insert_sample, SampleInput};
+
 use super::super::audio::extract_artist;
+use super::super::SimilarityError;
 use super::helpers::{make_manager, write_wav, write_wav_with_artist};
 
 #[test]
@@ -243,4 +247,246 @@ fn manager_update_sample_license_metadata_normalizes_blanks() {
     assert_eq!(sample.license.as_deref(), Some("MIT"));
     assert_eq!(sample.license_url, None);
     assert_eq!(sample.license_memo.as_deref(), Some("memo"));
+}
+
+fn encode_embedding(values: &[f32]) -> Vec<u8> {
+    values
+        .iter()
+        .flat_map(|value| value.to_le_bytes())
+        .collect()
+}
+
+fn make_similarity_input(
+    path: &str,
+    file_name: &str,
+    embedding: Option<Vec<u8>>,
+    content_hash: Option<&str>,
+) -> SampleInput {
+    SampleInput {
+        path: path.to_string(),
+        file_name: file_name.to_string(),
+        duration: Some(1.0),
+        bpm: Some(120.0),
+        periodicity: Some(0.5),
+        sample_rate: Some(44_100),
+        file_size: Some(1_024),
+        artist: None,
+        low_ratio: None,
+        attack_slope: None,
+        decay_time: None,
+        sample_type: Some("oneshot".to_string()),
+        waveform_peaks: None,
+        embedding,
+        source: None,
+        pack_name: None,
+        license: None,
+        license_url: None,
+        license_memo: None,
+        imported_at: None,
+        peak_db: None,
+        rms_db: None,
+        leading_silence_ms: None,
+        clipping_count: None,
+        channel_count: Some(1),
+        bit_depth: Some(16),
+        quality_flags: None,
+        playback_type: Some("oneshot".to_string()),
+        instrument_type: Some("other".to_string()),
+        musical_key: None,
+        content_hash: content_hash.map(|value| value.to_string()),
+    }
+}
+
+fn setup_similarity_manager() -> (TempDir, super::super::SampleManager, Connection) {
+    let dir = TempDir::new().expect("tempdir");
+    let db_path = dir.path().join("similarity.db");
+    let manager = super::super::SampleManager::new(Some(db_path.to_str().expect("utf8 db path")))
+        .expect("manager");
+    let conn = Connection::open(&db_path).expect("open shared db");
+    (dir, manager, conn)
+}
+
+fn insert_similarity_sample(
+    conn: &Connection,
+    path: &str,
+    file_name: &str,
+    embedding: Option<Vec<u8>>,
+    content_hash: Option<&str>,
+) -> i64 {
+    insert_sample(
+        conn,
+        &make_similarity_input(path, file_name, embedding, content_hash),
+    )
+    .expect("insert sample")
+}
+
+#[test]
+fn manager_similarity_by_id_returns_inserted_row_by_id() {
+    let (_dir, manager, conn) = setup_similarity_manager();
+    let id = insert_similarity_sample(
+        &conn,
+        "/samples/kick.wav",
+        "kick.wav",
+        Some(encode_embedding(&[1.0, 0.0, 0.0])),
+        None,
+    );
+
+    let row = manager
+        .get_sample_by_id(id)
+        .expect("lookup failed")
+        .expect("sample missing");
+
+    assert_eq!(row.id, id);
+    assert_eq!(row.path, "/samples/kick.wav");
+}
+
+#[test]
+fn manager_similarity_by_id_returns_none_for_missing_row() {
+    let manager = make_manager();
+
+    assert!(manager
+        .get_sample_by_id(-1)
+        .expect("lookup failed")
+        .is_none());
+}
+
+#[test]
+fn manager_similarity_by_id_excludes_source_row_and_orders_descending() {
+    let (_dir, manager, conn) = setup_similarity_manager();
+    let source_id = insert_similarity_sample(
+        &conn,
+        "/samples/source.wav",
+        "source.wav",
+        Some(encode_embedding(&[1.0, 0.0, 0.0])),
+        Some("hash-source"),
+    );
+    insert_similarity_sample(
+        &conn,
+        "/samples/high.wav",
+        "high.wav",
+        Some(encode_embedding(&[0.9, 0.1, 0.0])),
+        Some("hash-high"),
+    );
+    insert_similarity_sample(
+        &conn,
+        "/samples/low.wav",
+        "low.wav",
+        Some(encode_embedding(&[0.1, 0.9, 0.0])),
+        Some("hash-low"),
+    );
+
+    let results = manager
+        .find_similar_samples(source_id, 5, false)
+        .expect("similarity lookup failed");
+
+    assert_eq!(results.len(), 2);
+    assert!(results.iter().all(|result| result.row.id != source_id));
+    assert_eq!(results[0].row.path, "/samples/high.wav");
+    assert_eq!(results[1].row.path, "/samples/low.wav");
+    assert!(results[0].similarity > results[1].similarity);
+}
+
+#[test]
+fn manager_similarity_by_id_excludes_duplicates_when_requested() {
+    let (_dir, manager, conn) = setup_similarity_manager();
+    let source_id = insert_similarity_sample(
+        &conn,
+        "/samples/source.wav",
+        "source.wav",
+        Some(encode_embedding(&[1.0, 0.0, 0.0])),
+        Some("shared-hash"),
+    );
+    insert_similarity_sample(
+        &conn,
+        "/samples/duplicate.wav",
+        "duplicate.wav",
+        Some(encode_embedding(&[0.95, 0.05, 0.0])),
+        Some("shared-hash"),
+    );
+    insert_similarity_sample(
+        &conn,
+        "/samples/unique.wav",
+        "unique.wav",
+        Some(encode_embedding(&[0.2, 0.8, 0.0])),
+        Some("unique-hash"),
+    );
+
+    let results = manager
+        .find_similar_samples(source_id, 5, true)
+        .expect("similarity lookup failed");
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].row.path, "/samples/unique.wav");
+}
+
+#[test]
+fn manager_similarity_by_id_respects_limit() {
+    let (_dir, manager, conn) = setup_similarity_manager();
+    let source_id = insert_similarity_sample(
+        &conn,
+        "/samples/source.wav",
+        "source.wav",
+        Some(encode_embedding(&[1.0, 0.0, 0.0])),
+        None,
+    );
+    insert_similarity_sample(
+        &conn,
+        "/samples/one.wav",
+        "one.wav",
+        Some(encode_embedding(&[0.9, 0.1, 0.0])),
+        None,
+    );
+    insert_similarity_sample(
+        &conn,
+        "/samples/two.wav",
+        "two.wav",
+        Some(encode_embedding(&[0.8, 0.2, 0.0])),
+        None,
+    );
+    insert_similarity_sample(
+        &conn,
+        "/samples/three.wav",
+        "three.wav",
+        Some(encode_embedding(&[0.7, 0.3, 0.0])),
+        None,
+    );
+
+    let results = manager
+        .find_similar_samples(source_id, 2, false)
+        .expect("similarity lookup failed");
+
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].row.path, "/samples/one.wav");
+    assert_eq!(results[1].row.path, "/samples/two.wav");
+}
+
+#[test]
+fn manager_similarity_by_id_errors_on_missing_embedding() {
+    let (_dir, manager, conn) = setup_similarity_manager();
+    let source_id =
+        insert_similarity_sample(&conn, "/samples/source.wav", "source.wav", None, None);
+
+    let err = manager
+        .find_similar_samples(source_id, 2, false)
+        .expect_err("missing embedding should fail");
+
+    assert!(matches!(err, SimilarityError::MissingEmbedding(id) if id == source_id));
+}
+
+#[test]
+fn manager_similarity_by_id_errors_on_malformed_embedding() {
+    let (_dir, manager, conn) = setup_similarity_manager();
+    let source_id = insert_similarity_sample(
+        &conn,
+        "/samples/source.wav",
+        "source.wav",
+        Some(vec![1, 2, 3]),
+        None,
+    );
+
+    let err = manager
+        .find_similar_samples(source_id, 2, false)
+        .expect_err("malformed embedding should fail");
+
+    assert!(matches!(err, SimilarityError::MalformedEmbedding(id) if id == source_id));
 }

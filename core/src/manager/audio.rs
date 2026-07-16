@@ -17,7 +17,7 @@ pub(super) fn compute_waveform_peaks(samples: &[f32], num_peaks: usize) -> Strin
         return "[]".to_string();
     }
 
-    let samples_per_peak = (samples.len() + num_peaks - 1) / num_peaks;
+    let samples_per_peak = samples.len().div_ceil(num_peaks);
     let mut peaks: Vec<f32> = Vec::with_capacity(num_peaks);
 
     for i in 0..num_peaks {
