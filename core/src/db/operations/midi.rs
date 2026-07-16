@@ -152,7 +152,7 @@ pub fn delete_midi(conn: &Connection, path: &str) -> Result<usize, rusqlite::Err
 
 pub fn clear_all_midis(conn: &Connection) -> Result<usize, rusqlite::Error> {
     conn.execute("DELETE FROM midis_fts", [])?;
-    Ok(conn.execute("DELETE FROM midis", [])?)
+    conn.execute("DELETE FROM midis", [])
 }
 
 pub fn search_midis(conn: &Connection, query: &str) -> Result<Vec<MidiRow>, rusqlite::Error> {
@@ -307,15 +307,6 @@ pub fn assign_midi_tag(
     conn.prepare_cached("INSERT OR IGNORE INTO midi_file_tags (midi_id, tag_id) VALUES (?1, ?2)")?
         .execute(params![midi_id, tag_id])?;
     Ok(())
-}
-
-pub fn remove_midi_tag(
-    conn: &Connection,
-    midi_id: i64,
-    tag_id: i64,
-) -> Result<usize, rusqlite::Error> {
-    conn.prepare_cached("DELETE FROM midi_file_tags WHERE midi_id = ?1 AND tag_id = ?2")?
-        .execute(params![midi_id, tag_id])
 }
 
 pub fn get_tags_for_midi(
