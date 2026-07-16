@@ -3,6 +3,7 @@ import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } fro
 import { CollectionsSavedSearchesPanel } from "../CollectionsSavedSearchesPanel/CollectionsSavedSearchesPanel";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import type { Midi } from "../../types/midi";
+import type { Collection } from "../../types/collection";
 import type { SampleListHandle } from "../SampleList/types";
 import type { MidiListHandle, PlayerBarHandle } from "..";
 
@@ -22,6 +23,12 @@ interface AppMainPaneProps {
   sampleListRef: React.RefObject<SampleListHandle>;
   midiListRef: React.RefObject<MidiListHandle>;
   displayedSamples: Sample[];
+  samplePaths: Record<number, string>;
+  collections: readonly Collection[];
+  activeCollectionId: number | null;
+  isCollectionView: boolean;
+  onSelectCollection: (collectionId: number) => void;
+  onClearCollection: () => void;
   filteredMidis: Midi[];
   instrumentColorCoding: boolean;
   directoryClickFiltering: boolean;
@@ -39,6 +46,12 @@ export function AppMainPane({
   sampleListRef,
   midiListRef,
   displayedSamples,
+  samplePaths,
+  collections,
+  activeCollectionId,
+  isCollectionView,
+  onSelectCollection,
+  onClearCollection,
   filteredMidis,
   instrumentColorCoding,
   directoryClickFiltering,
@@ -48,7 +61,6 @@ export function AppMainPane({
 }: AppMainPaneProps) {
   const { favorites: sampleFavorites } = useFavoritesStore();
   const { favorites: midiFavorites } = useMidiFavoritesStore();
-  const activeCollectionId = sampleState.activeCollectionId ?? null;
   const duplicateSampleCount = sampleState.samples.filter((sample) => (sample.duplicate_count ?? 1) > 1).length;
   const instrumentTypeOptions = sampleState.instrumentTypes.map((type) => type.name) as Sample["instrument_type"][];
   
@@ -131,6 +143,11 @@ export function AppMainPane({
         duplicateCount={uiState.viewMode === "sample" ? duplicateSampleCount : 0}
         filterKey={uiState.viewMode === "midi" ? midiState.midiFilterKey : sampleState.filters.filterKey}
         samples={sampleState.samples}
+        collections={uiState.viewMode === "sample" ? collections : []}
+        activeCollectionId={activeCollectionId}
+        isCollectionView={uiState.viewMode === "sample" && isCollectionView}
+        onSelectCollection={onSelectCollection}
+        onClearCollection={onClearCollection}
         onFilterChange={(filters) => {
           if (uiState.viewMode === "midi") {
             if (filters.favoritesOnly !== undefined) {
@@ -183,7 +200,7 @@ export function AppMainPane({
           ref={sampleListRef}
           samples={displayedSamples}
           instrumentTypeOptions={instrumentTypeOptions}
-          samplePaths={sampleState.samplePaths}
+          samplePaths={samplePaths}
           filters={sampleState.filters}
           sort={sampleState.sort}
           selectedSample={sampleState.selected}
@@ -200,32 +217,31 @@ export function AppMainPane({
           onTypeClick={sampleState.handleTypeClick}
           onMetadataClick={showSampleMetadataQuality ? sampleState.handleMetadataClick : undefined}
           onImportPaths={scanState.handleImportPaths}
-          onLoadMore={activeCollectionId === null ? sampleState.loadMore : async () => {}}
+          onLoadMore={!isCollectionView ? sampleState.loadMore : async () => {}}
           isLoadingMore={sampleState.isLoadingMore}
           canLoadMore={
-            activeCollectionId === null && (sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit)
+            !isCollectionView && (sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit)
           }
-          onLoadPrevious={activeCollectionId === null ? sampleState.loadPrevious : async () => {}}
+          onLoadPrevious={!isCollectionView ? sampleState.loadPrevious : async () => {}}
           isLoadingPrevious={sampleState.isLoadingPrevious}
-          canLoadPrevious={activeCollectionId === null && sampleState.canLoadPrevious}
+          canLoadPrevious={!isCollectionView && sampleState.canLoadPrevious}
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
           showSampleMetadataQuality={showSampleMetadataQuality}
           getSampleProcessingSettings={getSampleProcessingSettings}
+          preserveOrder={sampleState.externalResults !== null || isCollectionView}
+          onRestoreSearchResults={sampleState.externalResults ? sampleState.restoreSearchResults : undefined}
         />
         <CollectionsSavedSearchesPanel
-          collections={sampleState.collections}
+          collections={collections}
           savedSearches={sampleState.savedSearches}
           activeCollectionId={activeCollectionId}
           selectedIds={sampleState.selectedIds}
           onCreateCollection={sampleState.createCollection}
           onUpdateCollection={sampleState.updateCollection}
           onDeleteCollection={sampleState.deleteCollection}
-          onOpenCollection={sampleState.loadCollectionSamples}
-          onClearCollection={async () => {
-            await sampleState.clearCollectionMode();
-            await sampleState.handleSearch(sampleState.filters.search);
-          }}
+          onOpenCollection={async (id) => onSelectCollection(id)}
+          onClearCollection={async () => onClearCollection()}
           onAddSelected={sampleState.addSelectedToCollection}
           onRemoveSelected={sampleState.removeSelectedFromCollection}
           onCreateSavedSearch={sampleState.createSavedSearch}
@@ -309,7 +325,7 @@ export function AppMainPane({
       {sampleState.selected && uiState.viewMode === "sample" && (
         <DetailPanel
           sample={sampleState.selected}
-          path={sampleState.samplePaths[sampleState.selected.id]}
+          path={samplePaths[sampleState.selected.id]}
           onSelect={(s) => {
             void handleSampleSelectWithRecent(s);
           }}

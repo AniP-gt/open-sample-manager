@@ -29,6 +29,7 @@ afterAll(() => {
 });
 
 import { PlayerBar } from "../PlayerBar";
+import type { PlayerBarHandle } from "../PlayerBar";
 import type { Sample, SampleProcessingSettings } from "../../../types/sample";
 
 vi.mock("react", async (importOriginal) => {
@@ -104,24 +105,36 @@ describe("PlayerBar", () => {
   });
 
   it("exposes handle methods (play, stop, toggle)", async () => {
-    const ref = React.createRef<any>();
+    const ref = React.createRef<PlayerBarHandle>();
     render(<PlayerBar sample={dummySample} ref={ref} />);
 
-    expect(ref.current).toBeTruthy();
+    const handle = ref.current;
+    expect(handle).toBeTruthy();
+    if (!handle) throw new Error("PlayerBar handle was not attached");
     
     act(() => {
-      ref.current.play();
+      handle.play();
     });
     expect(mockPlay).toHaveBeenCalled();
 
     act(() => {
-      ref.current.stop();
+      handle.stop();
     });
     expect(mockPause).toHaveBeenCalled();
     
     act(() => {
-      ref.current.toggle();
+      handle.toggle();
     });
+    expect(mockPlay).toHaveBeenCalled();
+  });
+
+  it("plays from zero through the imperative preview handle", () => {
+    const ref = React.createRef<PlayerBarHandle>();
+    render(<PlayerBar sample={dummySample} ref={ref} />);
+
+    ref.current?.playFromStart?.();
+
+    expect(mockPause).toHaveBeenCalled();
     expect(mockPlay).toHaveBeenCalled();
   });
 

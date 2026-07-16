@@ -6,6 +6,7 @@ export { ScannerOverlay } from "./ScannerOverlay/ScannerOverlay";
 export { Header } from "./Header/Header";
 export { FilterSidebar } from "./FilterSidebar/FilterSidebar";
 export { CollectionsSavedSearchesPanel } from "./CollectionsSavedSearchesPanel/CollectionsSavedSearchesPanel";
+export { CollectionSelector } from "./CollectionSelector/CollectionSelector";
 export { SampleList } from "./SampleList/SampleList";
 export { MidiList } from "./MidiList/MidiList";
 export type { MidiListHandle } from "./MidiList/types";

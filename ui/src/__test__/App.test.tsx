@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { App } from '../App';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 const mockResponse = {
   arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
@@ -152,7 +153,7 @@ vi.mock('@tauri-apps/plugin-window-state', () => ({
 }));
 
 vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: (options: any) => ({
+  useVirtualizer: (options: { readonly count: number }) => ({
     getVirtualItems: () => {
       if (options && options.count > 0) {
         return [{ index: 0, size: 40, start: 0 }];
@@ -178,8 +179,9 @@ describe('App Integration', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    useSettingsStore.getState().setAutoPlayOnSelect(false);
     const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockImplementation(defaultInvokeMock);
+    vi.mocked(invoke).mockImplementation(defaultInvokeMock);
   });
 
   test('renders initial App layout', async () => {
@@ -205,7 +207,7 @@ describe('App Integration', () => {
 
   test('shows error banner on sample trash failure and retries', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockImplementation((cmd: string, _args: any) => {
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
       if (cmd === 'send_to_trash') return Promise.reject('Trash failed mocked');
       return defaultInvokeMock(cmd);
     });
@@ -222,7 +224,7 @@ describe('App Integration', () => {
 
     // Click retry
     // First, let's fix invoke so it succeeds next time
-    (invoke as any).mockImplementation(defaultInvokeMock);
+    vi.mocked(invoke).mockImplementation(defaultInvokeMock);
 
     const retryBtn = screen.getByText('RETRY');
     await act(async () => fireEvent.click(retryBtn));
@@ -412,5 +414,36 @@ describe('App Integration', () => {
     const cancelBtn = screen.getByText('CANCEL');
     await act(async () => fireEvent.click(cancelBtn));
     expect(screen.queryByText('EDIT MIDI TAG')).not.toBeInTheDocument();
+  });
+
+  test.each([false, true])('plays one external preview when auto-play is %s', async (autoPlayOnSelect) => {
+    // Given: either user auto-play setting and one external preview lease.
+    useSettingsStore.getState().setAutoPlayOnSelect(autoPlayOnSelect);
+    const { invoke } = await import('@tauri-apps/api/core');
+    let claims = 0;
+    vi.mocked(invoke).mockImplementation((command: string) => {
+      if (command === 'claim_ui_command_queue') {
+        claims += 1;
+        return Promise.resolve(claims === 1 ? [{ id: 90, type: 'PreviewSample', sample_id: 1 }] : []);
+      }
+      if (command === 'get_samples_by_ids') return Promise.resolve([{
+        id: 1, path: '/tmp/test.wav', file_name: 'test.wav', duration: 1.0, bpm: 120,
+        sample_type: 'one-shot', musical_key: 'C', playback_type: 'oneshot', instrument_type: 'kick',
+        periodicity: null, sample_rate: null, low_ratio: null, attack_slope: null, decay_time: null,
+        waveform_peaks: null, source: null, pack_name: null, license: null, license_url: null,
+        license_memo: null, imported_at: null, peak_db: null, rms_db: null, leading_silence_ms: null,
+        clipping_count: null, channel_count: null, bit_depth: null, quality_flags: null, tags: [],
+        content_hash: null, duplicate_count: null, created_at: Date.now(), updated_at: Date.now(),
+      }]);
+      return defaultInvokeMock(command);
+    });
+    const play = vi.mocked(window.HTMLMediaElement.prototype.play);
+    play.mockClear();
+
+    // When: App processes the external preview and mounts its player.
+    await act(async () => render(<App />));
+
+    // Then: external preview owns playback exactly once regardless of the user's auto-play preference.
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
   });
 });

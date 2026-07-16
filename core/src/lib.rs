@@ -92,7 +92,7 @@ pub use db::schema::init_database;
 pub use ffi::handle::SMHandle;
 pub use manager::{
     LibraryExportSummary, LibraryImportSummary, ManagerError, SampleManager, ScanProgress,
-    ScanStage,
+    ScanStage, SimilarityError,
 };
 pub use scanner::Scanner;
 pub use threading::AnalysisPool;

@@ -85,12 +85,7 @@ pub(super) fn scan_with_progress(
     let producer = thread::spawn(move || {
         files.into_par_iter().for_each(|file_path| {
             let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| analyze(&file_path)))
-                .map_err(|_| {
-                    ManagerError::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "analysis panicked",
-                    ))
-                })
+                .map_err(|_| ManagerError::Io(std::io::Error::other("analysis panicked")))
                 .and_then(|r| r);
             let _ = tx.send((file_path, outcome));
         });

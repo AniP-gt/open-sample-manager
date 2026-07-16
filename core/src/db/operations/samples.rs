@@ -174,7 +174,7 @@ pub fn delete_sample(conn: &Connection, path: &str) -> Result<usize, rusqlite::E
 pub fn clear_all_samples(conn: &Connection) -> Result<usize, rusqlite::Error> {
     conn.execute("DELETE FROM samples_fts", [])?;
     conn.execute("DELETE FROM sample_tags", [])?;
-    Ok(conn.execute("DELETE FROM samples", [])?)
+    conn.execute("DELETE FROM samples", [])
 }
 
 pub fn move_sample_path(

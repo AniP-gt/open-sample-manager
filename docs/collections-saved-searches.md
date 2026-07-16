@@ -45,10 +45,10 @@ When a collection is active, the main sample list shows the collection contents 
 The feature adds three SQLite tables:
 
 - `collections` stores collection names, descriptions, and timestamps
-- `collection_samples` stores many-to-many collection membership by sample ID
+- `collection_members` stores ordered many-to-many membership by sample ID and `position`
 - `saved_searches` stores reusable sample filter and sort presets
 
-Core database operations live under `core/src/db/operations/`, the public manager facade lives under `core/src/manager/`, and Tauri exposes explicit IPC commands from `src-tauri/src/main.rs`. The React UI uses `useCollectionsSavedSearches` to keep the feature state and command payloads out of `App.tsx`.
+Legacy databases that contain `collection_samples` are migrated transactionally into `collection_members`, then the legacy table is dropped. Existing collection names are normalized by trimming, collapsing Unicode whitespace, and lowercasing; collisions merge into the earliest collection while appending unique members in stable order. Core database operations live under `core/src/db/operations/`, the public manager facade lives under `core/src/manager/`, and modular Tauri IPC commands live under `src-tauri/src/commands/collections.rs`. The React UI uses one `useCollections` owner for collection membership, saved searches, and collection view state.
 
 ## Limitations
 

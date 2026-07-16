@@ -36,6 +36,7 @@ mod scan;
 use std::path::PathBuf;
 
 use rusqlite::Connection;
+use thiserror::Error;
 
 use crate::analysis::decoder::DecodeError;
 use crate::analysis::processed_wav::ProcessedWavError;
@@ -134,6 +135,26 @@ impl From<ProcessedWavError> for ManagerError {
     fn from(e: ProcessedWavError) -> Self {
         ManagerError::ProcessedWav(e)
     }
+}
+
+/// Errors returned when similar-sample lookup fails.
+#[derive(Debug, Error)]
+pub enum SimilarityError {
+    /// The requested sample id does not exist.
+    #[error("sample id {0} was not found")]
+    NotFound(i64),
+    /// The source sample exists but has no embedding blob.
+    #[error("sample id {0} is missing an embedding")]
+    MissingEmbedding(i64),
+    /// The source sample embedding blob is not a valid f32 array.
+    #[error("sample id {0} has a malformed embedding blob")]
+    MalformedEmbedding(i64),
+    /// The requested number of similar samples is outside the supported range.
+    #[error("similarity limit {0} must be within 1..=100")]
+    InvalidLimit(usize),
+    /// Database access failed.
+    #[error("database error: {0}")]
+    Db(#[from] rusqlite::Error),
 }
 
 /// High-level manager that composes scanner, analysis, and database modules.

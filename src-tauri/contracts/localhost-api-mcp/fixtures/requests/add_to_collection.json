@@ -1,0 +1,6 @@
+{
+  "request_id": "req-collection-001",
+  "operation": "add_to_collection",
+  "collection_name": "starter-kicks",
+  "sample_ids": [101, 102, 103]
+}

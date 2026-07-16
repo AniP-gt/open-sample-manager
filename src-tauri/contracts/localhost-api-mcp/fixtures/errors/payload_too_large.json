@@ -1,0 +1,7 @@
+{
+  "request_id": "req-search-oversize",
+  "operation": "search_samples",
+  "code": "payload_too_large",
+  "message": "query exceeds maximum length",
+  "details": "Query field is over 512 characters"
+}

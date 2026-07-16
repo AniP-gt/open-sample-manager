@@ -61,6 +61,34 @@ pub struct SampleRow {
     pub tags: Vec<String>,
 }
 
+/// A row from the `collections` table.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CollectionRow {
+    pub id: i64,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub sample_count: i64,
+}
+
+/// The result of atomically adding samples to a collection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CollectionAddResult {
+    pub collection_id: i64,
+    pub added_count: usize,
+    pub created: bool,
+}
+
+/// A row with sample membership details for a collection.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CollectionMemberRow {
+    pub collection_id: i64,
+    pub sample_id: i64,
+    pub position: i64,
+    pub sample: SampleRow,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DuplicateGroup {
     pub content_hash: String,
@@ -181,16 +209,6 @@ pub struct MidiTagRow {
     pub id: i64,
     pub name: String,
     pub created_at: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct CollectionRow {
-    pub id: i64,
-    pub name: String,
-    pub description: Option<String>,
-    pub sample_count: i64,
-    pub created_at: String,
-    pub updated_at: String,
 }
 
 #[derive(Debug, Clone)]

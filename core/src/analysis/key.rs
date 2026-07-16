@@ -33,7 +33,7 @@ pub fn detect_key(samples: &[f32], sample_rate: u32) -> Option<String> {
             #[allow(clippy::cast_precision_loss)]
             let freq = bin as f64 * sr / DEFAULT_FFT_SIZE as f64;
             // Restrict to A0..C8 piano range to suppress noise/sub-bass artifacts.
-            if freq < 27.5 || freq > 4186.0 {
+            if !(27.5..=4186.0).contains(&freq) {
                 continue;
             }
             // Map frequency to pitch class: 0=C, 1=C#, ..., 9=A, ..., 11=B.

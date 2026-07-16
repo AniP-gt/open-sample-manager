@@ -3,8 +3,8 @@ import type { CSSProperties } from "react";
 import type { SampleCollection, SavedSearch } from "../../types/sample";
 
 type Props = {
-  collections: SampleCollection[];
-  savedSearches: SavedSearch[];
+  collections: readonly SampleCollection[];
+  savedSearches: readonly SavedSearch[];
   activeCollectionId: number | null;
   selectedIds: Set<number>;
   onCreateCollection: (name: string, description: string) => Promise<void>;
@@ -62,16 +62,19 @@ export function CollectionsSavedSearchesPanel({
           style={primaryButtonStyle}
           onClick={() => {
             if (!collectionName.trim()) return;
-            void onCreateCollection(collectionName, collectionDescription).then(() => {
-              setCollectionName("");
-              setCollectionDescription("");
-            });
+            void onCreateCollection(collectionName, collectionDescription).then(
+              () => {
+                setCollectionName("");
+                setCollectionDescription("");
+              },
+              () => undefined,
+            );
           }}
         >
           NEW COLLECTION
         </button>
         {activeCollectionId !== null && (
-          <button style={ghostButtonStyle} onClick={() => void onClearCollection()}>
+          <button style={ghostButtonStyle} onClick={() => void onClearCollection().catch(() => undefined)}>
             EXIT COLLECTION VIEW
           </button>
         )}
@@ -80,21 +83,21 @@ export function CollectionsSavedSearchesPanel({
             const active = collection.id === activeCollectionId;
             return (
               <div key={collection.id} style={{ ...itemStyle, ...(active ? activeItemStyle : {}) }}>
-                <button style={itemButtonStyle} onClick={() => void onOpenCollection(collection.id)}>
+                <button style={itemButtonStyle} onClick={() => void onOpenCollection(collection.id).catch(() => undefined)}>
                   <span style={nameStyle}>{collection.name}</span>
                   <span style={metaStyle}>{collection.sample_count} samples</span>
                 </button>
                 <div style={actionRowStyle}>
-                  <button style={tinyButtonStyle} onClick={() => void onAddSelected(collection.id, sampleIds)} disabled={sampleIds.length === 0}>
+                  <button style={tinyButtonStyle} onClick={() => void onAddSelected(collection.id, sampleIds).catch(() => undefined)} disabled={sampleIds.length === 0}>
                     ADD SELECTED
                   </button>
-                  <button style={tinyButtonStyle} onClick={() => void onRemoveSelected(collection.id, sampleIds)} disabled={sampleIds.length === 0}>
+                  <button style={tinyButtonStyle} onClick={() => void onRemoveSelected(collection.id, sampleIds).catch(() => undefined)} disabled={sampleIds.length === 0}>
                     REMOVE
                   </button>
-                  <button style={tinyButtonStyle} onClick={() => void renameCollection(collection, onUpdateCollection)}>
+                  <button style={tinyButtonStyle} onClick={() => void renameCollection(collection, onUpdateCollection).catch(() => undefined)}>
                     RENAME
                   </button>
-                  <button style={dangerButtonStyle} onClick={() => void onDeleteCollection(collection.id)}>
+                  <button style={dangerButtonStyle} onClick={() => void onDeleteCollection(collection.id).catch(() => undefined)}>
                     DELETE
                   </button>
                 </div>
@@ -116,7 +119,10 @@ export function CollectionsSavedSearchesPanel({
           style={primaryButtonStyle}
           onClick={() => {
             if (!savedSearchName.trim()) return;
-            void onCreateSavedSearch(savedSearchName).then(() => setSavedSearchName(""));
+            void onCreateSavedSearch(savedSearchName).then(
+              () => setSavedSearchName(""),
+              () => undefined,
+            );
           }}
         >
           SAVE CURRENT FILTERS
@@ -124,15 +130,15 @@ export function CollectionsSavedSearchesPanel({
         <div style={listStyle}>
           {savedSearches.map((search) => (
             <div key={search.id} style={itemStyle}>
-              <button style={itemButtonStyle} onClick={() => void onApplySavedSearch(search)}>
+              <button style={itemButtonStyle} onClick={() => void Promise.resolve(onApplySavedSearch(search)).catch(() => undefined)}>
                 <span style={nameStyle}>{search.name}</span>
                 <span style={metaStyle}>{search.search || "all samples"}</span>
               </button>
               <div style={actionRowStyle}>
-                <button style={tinyButtonStyle} onClick={() => void renameSavedSearch(search, onUpdateSavedSearch)}>
+                <button style={tinyButtonStyle} onClick={() => void renameSavedSearch(search, onUpdateSavedSearch).catch(() => undefined)}>
                   UPDATE
                 </button>
-                <button style={dangerButtonStyle} onClick={() => void onDeleteSavedSearch(search.id)}>
+                <button style={dangerButtonStyle} onClick={() => void onDeleteSavedSearch(search.id).catch(() => undefined)}>
                   DELETE
                 </button>
               </div>

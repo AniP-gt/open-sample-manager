@@ -213,6 +213,12 @@ function renderPane(overrides: {
       sampleListRef={createRef<SampleListHandle>()}
       midiListRef={createRef<MidiListHandle>()}
       displayedSamples={[sample]}
+      samplePaths={{ 1: "/library/kick.wav" }}
+      collections={[]}
+      activeCollectionId={null}
+      isCollectionView={false}
+      onSelectCollection={vi.fn()}
+      onClearCollection={vi.fn()}
       filteredMidis={[midi]}
       instrumentColorCoding={true}
       directoryClickFiltering={overrides.directoryClickFiltering ?? true}

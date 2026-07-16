@@ -1,0 +1,7 @@
+{
+  "request_id": "req-collection-dup",
+  "operation": "add_to_collection",
+  "code": "duplicate",
+  "message": "sample_ids must be unique",
+  "details": "Duplicate IDs were provided"
+}

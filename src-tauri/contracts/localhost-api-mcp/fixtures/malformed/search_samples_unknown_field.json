@@ -1,0 +1,6 @@
+{
+  "request_id": "req-search-unknown-001",
+  "operation": "search_samples",
+  "query": "kick",
+  "unknown": "bad"
+}

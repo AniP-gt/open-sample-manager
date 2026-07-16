@@ -1,0 +1,6 @@
+{
+  "request_id": "req-show-001",
+  "operation": "show_samples_in_app",
+  "sample_ids": [101, 102, 103],
+  "selected_id": 102
+}

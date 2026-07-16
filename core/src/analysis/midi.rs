@@ -218,18 +218,18 @@ fn estimate_key(weights: &[f64; 12]) -> Option<String> {
     let mut best_score = f64::NEG_INFINITY;
     let mut best_key = String::new();
 
-    for root in 0..12usize {
+    for (root, note_name) in NOTE_NAMES.iter().enumerate() {
         // Rotate profiles to test each root.
         let major_corr = pearson_correlation(weights, &rotate(&major_profile, root));
         let minor_corr = pearson_correlation(weights, &rotate(&minor_profile, root));
 
         if major_corr > best_score {
             best_score = major_corr;
-            best_key = format!("{} major", NOTE_NAMES[root]);
+            best_key = format!("{note_name} major");
         }
         if minor_corr > best_score {
             best_score = minor_corr;
-            best_key = format!("{} minor", NOTE_NAMES[root]);
+            best_key = format!("{note_name} minor");
         }
     }
 

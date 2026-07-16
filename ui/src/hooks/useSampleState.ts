@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
 import { getErrorMessage } from "../utils/sampleMapper";
-import { useCollectionsSavedSearches } from "./sampleState/useCollectionsSavedSearches";
+import { useCollections } from "./useCollections";
 import { useInstrumentTypes } from "./sampleState/useInstrumentTypes";
 import { useSampleClassificationState } from "./sampleState/useSampleClassificationState";
+import { useExternalResultState } from "./sampleState/useExternalResultState";
 import { useSampleMetadataState } from "./sampleState/useSampleMetadataState";
 import { useSamplePathLoading } from "./sampleState/useSamplePathLoading";
 import { useSampleSearchPagination } from "./sampleState/useSampleSearchPagination";
@@ -34,6 +35,20 @@ export function useSampleState({
     setSelected: selection.setSelected,
     setRetryAction,
     onInvokeError: handleInvokeError,
+  });
+
+  const externalResultState = useExternalResultState({
+    samples: searchState.samples,
+    samplePaths: searchState.samplePaths,
+    filters: searchState.filters,
+    sort: searchState.sort,
+    selected: selection.selected,
+    setSamples: searchState.setSamples,
+    setSamplePaths: searchState.setSamplePaths,
+    setFilters: searchState.setFilters,
+    setSort: searchState.setSort,
+    setSelected: selection.setSelected,
+    selectSample: selection.handleSampleSelect,
   });
 
   const connectedTrashState = useSampleTrash({
@@ -70,16 +85,13 @@ export function useSampleState({
     setCanLoadPrevious: searchState.setCanLoadPrevious,
   });
 
-  const collectionsState = useCollectionsSavedSearches({
+  const collectionsState = useCollections({
     filters: searchState.filters,
     sort: searchState.sort,
     setFilters: searchState.setFilters,
     setSort: searchState.setSort,
-    setSamples: searchState.setSamples,
-    setSamplePaths: searchState.setSamplePaths,
-    setSelected: selection.setSelected,
     runSearch: searchState.runSearch,
-    onInvokeError: handleInvokeError,
+    onError: handleInvokeError,
   });
 
   const metadataState = useSampleMetadataState({
@@ -108,7 +120,8 @@ export function useSampleState({
     selected: selection.selected,
     selectedIds: selection.selectedIds,
     setSelected: selection.setSelected,
-    samplePaths: searchState.samplePaths,
+    samplePaths: externalResultState.externalResults?.samplePaths ?? searchState.samplePaths,
+    externalResults: externalResultState.externalResults?.samples ?? null,
     filters: searchState.filters,
     setFilters: searchState.setFilters,
     suppressNextSearch: searchState.suppressNextSearch,
@@ -170,10 +183,10 @@ export function useSampleState({
     collections: collectionsState.collections,
     savedSearches: collectionsState.savedSearches,
     activeCollectionId: collectionsState.activeCollectionId,
-    refreshCollections: collectionsState.refreshCollections,
+    refreshCollections: collectionsState.refresh,
     refreshSavedSearches: collectionsState.refreshSavedSearches,
-    loadCollectionSamples: collectionsState.loadCollectionSamples,
-    clearCollectionMode: collectionsState.clearCollectionMode,
+    loadCollectionSamples: collectionsState.selectCollection,
+    clearCollectionMode: collectionsState.clearCollection,
     createCollection: collectionsState.createCollection,
     updateCollection: collectionsState.updateCollection,
     deleteCollection: collectionsState.deleteCollection,
@@ -183,5 +196,10 @@ export function useSampleState({
     updateSavedSearch: collectionsState.updateSavedSearch,
     deleteSavedSearch: collectionsState.deleteSavedSearch,
     applySavedSearch: collectionsState.applySavedSearch,
+    isCollectionView: collectionsState.isCollectionView,
+    collectionMembers: collectionsState.activeMembers,
+    collectionSamplePaths: collectionsState.samplePaths,
+    showExternalResults: externalResultState.showExternalResults,
+    restoreSearchResults: externalResultState.restoreSearchResults,
   };
 }

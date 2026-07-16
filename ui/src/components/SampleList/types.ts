@@ -27,6 +27,8 @@ export interface SampleListProps {
   instrumentColorCoding?: boolean;
   showSampleMetadataQuality?: boolean;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  preserveOrder?: boolean;
+  onRestoreSearchResults?: () => void;
 }
 
 export type SampleListHandle = {

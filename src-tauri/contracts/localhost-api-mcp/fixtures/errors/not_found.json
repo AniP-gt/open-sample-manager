@@ -1,0 +1,7 @@
+{
+  "request_id": "req-sample-404",
+  "operation": "get_sample",
+  "code": "not_found",
+  "message": "sample not found",
+  "details": "The requested sample id is unknown"
+}

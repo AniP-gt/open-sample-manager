@@ -1,0 +1,9 @@
+{
+  "request_id": "req-search-negative-bpm-001",
+  "operation": "search_samples",
+  "query": "kick",
+  "bpm_min": -45,
+  "bpm_max": 180,
+  "limit": 25,
+  "offset": 0
+}

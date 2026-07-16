@@ -1,0 +1,14 @@
+{
+  "request_id": "req-search-001",
+  "operation": "search_samples",
+  "query": "kick 808",
+  "sample_type": "oneshot",
+  "instrument": "kick",
+  "bpm_min": 90,
+  "bpm_max": 180,
+  "key": "C",
+  "tags": ["kick", "808"],
+  "directory_path": "/tmp/samples",
+  "limit": 25,
+  "offset": 0
+}

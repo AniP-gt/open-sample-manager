@@ -19,6 +19,7 @@ Feature guides:
 - [Search and organization](docs/features/search-and-organization.md)
 - [Preview sync and drag export](docs/features/preview-sync-and-drag-export.md)
 - [Settings and local data](docs/features/settings-and-local-data.md)
+- [Local API and MCP setup](docs/integrations/mcp.md)
 
 ### Audio Sample Management
 
@@ -60,6 +61,10 @@ Feature guides:
 See [Sample Metadata and Quality Checks](docs/sample_metadata_quality.md) for the stored fields, UI behavior, and analysis notes.
 For implementation details, see [Duplicate Detection](docs/duplicate-detection.md).
 See [Advanced Search DSL](docs/advanced_search_dsl.md) for the supported sample search syntax and examples.
+
+### MCP integration
+
+Use the local Node.js stdio MCP server to search the indexed library, find similar samples, send results to the desktop app, preview a sample, and add samples to a collection. See the [MCP integration guide](docs/integrations/mcp.md) for setup and behavior, or the [MCP server README](mcp-server/README.md) for exact host configuration.
 
 ---
 
@@ -296,6 +301,16 @@ npm run test --prefix ui
 npm run build --prefix ui
 ```
 
+### MCP server
+
+```bash
+npm ci --prefix mcp-server
+npm run mcp:typecheck
+npm run mcp:test
+npm run mcp:build
+npm run mcp:ci
+```
+
 ### Before opening a PR
 
 Run the checks that match your change. For a general change, use:
@@ -329,6 +344,7 @@ open-sample-manager/
 ├── core/        # Rust library — analysis, scanning, SQLite, FFI
 ├── src-tauri/   # Tauri shell — IPC command layer, app state
 ├── ui/          # React + TypeScript frontend
+├── mcp-server/  # Node.js stdio MCP server for the running desktop app
 ├── plugin/      # JUCE CMake scaffold (stub)
 └── scripts/     # Bootstrap tooling
 ```
@@ -336,6 +352,7 @@ open-sample-manager/
 - **core** — pure Rust library exposing `SampleManager` as the orchestration entry point. Also provides a C FFI interface for future plugin use.
 - **src-tauri** — thin Tauri command layer wrapping core APIs. All long-running work runs in `tokio::task::spawn_blocking`.
 - **ui** — React SPA communicating with Tauri via typed `invoke()` calls. No generated types; mapping is explicit in `App.tsx`.
+- **mcp-server**: Node.js stdio MCP server that reads the app connection manifest and calls its authenticated local API.
 
 ---
 

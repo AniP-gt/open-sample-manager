@@ -173,4 +173,25 @@ describe('SampleList rendering, search, and sort', () => {
     expect(loopIndex).toBeLessThan(kickIndex);
   });
 
+  test('preserves external caller order and restores normal search through the compact Back control', () => {
+    const onRestoreSearchResults = vi.fn();
+    renderSampleList({
+      samples: [
+        { ...mockSamples[1], id: 3, file_name: 'three.wav' },
+        { ...mockSamples[0], id: 1, file_name: 'one.wav' },
+        { ...mockSamples[1], id: 2, file_name: 'two.wav' },
+      ],
+      filters: { ...defaultFilters, search: 'does-not-match', favoritesOnly: true, hideDuplicates: true },
+      sort: { field: 'file_name', direction: 'desc' },
+      preserveOrder: true,
+      onRestoreSearchResults,
+    });
+
+    const rows = screen.getAllByText(/three.wav|one.wav|two.wav/);
+    expect(rows.map((row) => row.textContent)).toEqual(['three.wav', 'one.wav', 'two.wav']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to search results' }));
+    expect(onRestoreSearchResults).toHaveBeenCalledOnce();
+  });
+
 });
