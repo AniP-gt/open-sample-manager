@@ -25,7 +25,7 @@ pub fn generate_embedding(samples: &[f32], _sample_rate: u32) -> Vec<f32> {
     }
 
     let n = samples.len();
-    let per = (n + DIM - 1) / DIM; // ceil
+    let per = n.div_ceil(DIM);
     let mut vec: Vec<f32> = Vec::with_capacity(DIM);
 
     for i in 0..DIM {
@@ -34,7 +34,7 @@ pub fn generate_embedding(samples: &[f32], _sample_rate: u32) -> Vec<f32> {
             vec.push(0.0);
             continue;
         }
-        let end = ((start + per).min(n)) as usize;
+        let end = (start + per).min(n);
         let mut sum_sq = 0.0f64;
         for &s in &samples[start..end] {
             let v = s as f64;
