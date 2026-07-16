@@ -2,6 +2,7 @@ import React from "react";
 import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import type { Midi } from "../../types/midi";
+import type { Collection } from "../../types/collection";
 import type { SampleListHandle } from "../SampleList/types";
 import type { MidiListHandle, PlayerBarHandle } from "..";
 
@@ -21,6 +22,12 @@ interface AppMainPaneProps {
   sampleListRef: React.RefObject<SampleListHandle>;
   midiListRef: React.RefObject<MidiListHandle>;
   displayedSamples: Sample[];
+  samplePaths: Record<number, string>;
+  collections: readonly Collection[];
+  activeCollectionId: number | null;
+  isCollectionView: boolean;
+  onSelectCollection: (collectionId: number) => void;
+  onClearCollection: () => void;
   filteredMidis: Midi[];
   instrumentColorCoding: boolean;
   directoryClickFiltering: boolean;
@@ -38,6 +45,12 @@ export function AppMainPane({
   sampleListRef,
   midiListRef,
   displayedSamples,
+  samplePaths,
+  collections,
+  activeCollectionId,
+  isCollectionView,
+  onSelectCollection,
+  onClearCollection,
   filteredMidis,
   instrumentColorCoding,
   directoryClickFiltering,
@@ -129,6 +142,11 @@ export function AppMainPane({
         duplicateCount={uiState.viewMode === "sample" ? duplicateSampleCount : 0}
         filterKey={uiState.viewMode === "midi" ? midiState.midiFilterKey : sampleState.filters.filterKey}
         samples={sampleState.samples}
+        collections={uiState.viewMode === "sample" ? collections : []}
+        activeCollectionId={activeCollectionId}
+        isCollectionView={uiState.viewMode === "sample" && isCollectionView}
+        onSelectCollection={onSelectCollection}
+        onClearCollection={onClearCollection}
         onFilterChange={(filters) => {
           if (uiState.viewMode === "midi") {
             if (filters.favoritesOnly !== undefined) {
@@ -180,7 +198,7 @@ export function AppMainPane({
           ref={sampleListRef}
           samples={displayedSamples}
           instrumentTypeOptions={instrumentTypeOptions}
-          samplePaths={sampleState.samplePaths}
+          samplePaths={samplePaths}
           filters={sampleState.filters}
           sort={sampleState.sort}
           selectedSample={sampleState.selected}
@@ -209,6 +227,8 @@ export function AppMainPane({
           instrumentColorCoding={instrumentColorCoding}
           showSampleMetadataQuality={showSampleMetadataQuality}
           getSampleProcessingSettings={getSampleProcessingSettings}
+          preserveOrder={sampleState.externalResults !== null || isCollectionView}
+          onRestoreSearchResults={sampleState.externalResults ? sampleState.restoreSearchResults : undefined}
         />
       ) : (
         <>
@@ -285,7 +305,7 @@ export function AppMainPane({
       {sampleState.selected && uiState.viewMode === "sample" && (
         <DetailPanel
           sample={sampleState.selected}
-          path={sampleState.samplePaths[sampleState.selected.id]}
+          path={samplePaths[sampleState.selected.id]}
           onSelect={(s) => {
             void handleSampleSelectWithRecent(s);
           }}
