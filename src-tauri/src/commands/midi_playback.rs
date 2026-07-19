@@ -30,6 +30,7 @@ fn find_timidity_executable() -> Result<PathBuf, CommandError> {
     }
     let common_paths = if cfg!(target_os = "macos") {
         vec![
+            PathBuf::from("/run/current-system/sw/bin/timidity"),
             PathBuf::from("/opt/homebrew/bin/timidity"),
             PathBuf::from("/usr/local/bin/timidity"),
             PathBuf::from("/opt/local/bin/timidity"),

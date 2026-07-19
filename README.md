@@ -6,6 +6,11 @@ A fast, local-first desktop application for managing audio samples and MIDI file
 
 > **Status:** Developer preview. This project is currently distributed as source code only. Official signed installers are not available yet.
 
+> **Platform status:** The codebase and Tauri packaging are intended for macOS,
+> Windows, and Linux, but development and runtime verification currently focus on
+> macOS. Windows and Linux builds are experimental and may have platform-specific
+> limitations; see [Platform Support](#platform-support).
+
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)
 ![License](https://img.shields.io/github/license/AniP-gt/open-sample-manager)
 
@@ -163,10 +168,15 @@ npm run tauri:dev
 ### Build for production
 
 ```bash
-npm run build:app
+npm run tauri:build
 ```
 
+`npm run build:app` is an equivalent alias. Tauri writes the application and platform
+packages under `target/release/bundle/` (for example, `macos/` and `dmg/` on macOS).
 This creates a local build for your machine. It is not an official signed release build.
+
+For the complete OS-specific prerequisites, build commands, output locations, and MIDI
+playback setup, see [Build and MIDI Playback Setup](docs/build-and-midi-setup.md).
 
 ---
 
@@ -177,6 +187,28 @@ Open Sample Manager is source-only for now. If you want to try it, clone the rep
 Signed macOS, Linux, and Windows installers may come later, after the release pipeline is ready. Before publishing official binaries, the project needs release signing, macOS notarization, CI-backed builds, and a review of Tauri permissions and CSP settings.
 
 Please don't redistribute local builds as official releases.
+
+### Platform Support
+
+Open Sample Manager is designed as a cross-platform Tauri application, but it has not
+yet completed release-level verification on every supported operating system.
+
+| Platform | Current status |
+|---|---|
+| macOS | Primary development and verification platform |
+| Linux | Experimental; requires distribution-specific Tauri dependencies and runtime testing |
+| Windows | Experimental; requires runtime testing and has known MIDI process-control limitations |
+
+Most library management, database, analysis, search, and playback UI code is portable.
+Native file drag-out is currently implemented through macOS-only Tauri plugins, so
+dragging samples or MIDI files from the app into another application may not work on
+Windows or Linux. On Windows, starting MIDI playback is implemented, but stopping the
+TiMidity++ child process still uses Unix-style process control and requires a
+platform-specific implementation.
+
+Before claiming full Windows or Linux support, the project needs native builds and
+smoke tests on those platforms, including file scanning, audio/MIDI playback, drag-out,
+trash/open-folder operations, and installer packaging.
 
 ---
 
@@ -192,7 +224,10 @@ During the developer preview, review the source and build locally if you want to
 
 ## MIDI Playback Setup
 
-MIDI playback requires **TiMidity++**, a free software MIDI synthesizer. The app detects it automatically if installed; the Settings panel shows installation status and instructions.
+MIDI playback requires **TiMidity++**, a free software MIDI synthesizer. TiMidity++ is
+not bundled with the application: each user must install it separately. The app detects
+the executable through the process `PATH` and common platform-specific locations; the
+Settings panel shows installation status and instructions.
 
 ### Install TiMidity++
 
@@ -200,6 +235,10 @@ MIDI playback requires **TiMidity++**, a free software MIDI synthesizer. The app
 ```bash
 brew install timidity
 ```
+
+**macOS (Nix/nix-darwin)**: install the `timidity` package in your system environment.
+The app directly checks `/run/current-system/sw/bin/timidity`, so a Finder- or
+Dock-launched app does not need to inherit the Nix shell `PATH`.
 
 **Linux (Debian/Ubuntu)**
 ```bash
@@ -274,11 +313,17 @@ The app searches these paths in addition to `PATH`:
 
 | Platform | Paths searched |
 |---|---|
-| macOS | `/opt/homebrew/bin/timidity`, `/usr/local/bin/timidity`, `/opt/local/bin/timidity` |
+| macOS | `/run/current-system/sw/bin/timidity`, `/opt/homebrew/bin/timidity`, `/usr/local/bin/timidity`, `/opt/local/bin/timidity` |
 | Linux | `/usr/bin/timidity`, `/usr/local/bin/timidity`, `/snap/bin/timidity`, `/opt/timidity/bin/timidity` |
 | Windows | `C:\Program Files\timidity\timidity.exe`, `C:\Program Files (x86)\timidity\timidity.exe`, `C:\msys64\mingw64\bin\timidity.exe`, `C:\chocolatey\bin\timidity.exe` |
 
-If TiMidity++ is installed elsewhere, add its directory to your system `PATH`.
+If TiMidity++ is installed elsewhere, add its directory to the OS-level environment
+`PATH`. Shell-only configuration such as `.zshrc` or `.bashrc` may not be inherited by
+applications launched from Finder, Dock, or a Linux desktop menu. On Windows, restart
+Open Sample Manager after changing the user or system `Path` environment variable.
+
+See [Build and MIDI Playback Setup](docs/build-and-midi-setup.md) for verification and
+troubleshooting commands.
 
 ---
 
