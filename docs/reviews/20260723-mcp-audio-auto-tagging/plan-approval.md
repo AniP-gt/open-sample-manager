@@ -4,8 +4,8 @@ status: revising-after-review
 intent: clear
 review_required: true
 plan_path: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-plan_sha256: 7f8a82f84114cbc1b537e4e0e7f8e1ddb88bcdc7ef5cc19272851826cad33915
-review_round_id: 49EDF013-B7DD-448A-9A3B-A40D8B8F2B29
+plan_sha256: a597a52c49f02b9e0dfaf82da97fdd0693db78d7022e4632d1fa7db9af50c27f
+review_round_id: 8F910F0B-93F1-4F94-BDAE-420E80300811
 round_status: pending
 pending-action: review docs/tasks/20260723-mcp-audio-auto-tagging/task.md
 review:
@@ -14,8 +14,8 @@ review:
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-    round_id: 49EDF013-B7DD-448A-9A3B-A40D8B8F2B29
-    plan_sha256: 7f8a82f84114cbc1b537e4e0e7f8e1ddb88bcdc7ef5cc19272851826cad33915
+    round_id: 8F910F0B-93F1-4F94-BDAE-420E80300811
+    plan_sha256: a597a52c49f02b9e0dfaf82da97fdd0693db78d7022e4632d1fa7db9af50c27f
     launch_id: null
     session: null
     result: "PENDING_REVIEW"
@@ -24,8 +24,8 @@ review:
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-    round_id: 49EDF013-B7DD-448A-9A3B-A40D8B8F2B29
-    plan_sha256: 7f8a82f84114cbc1b537e4e0e7f8e1ddb88bcdc7ef5cc19272851826cad33915
+    round_id: 8F910F0B-93F1-4F94-BDAE-420E80300811
+    plan_sha256: a597a52c49f02b9e0dfaf82da97fdd0693db78d7022e4632d1fa7db9af50c27f
     launch_id: null
     session: null
     result: "PENDING_REVIEW"
