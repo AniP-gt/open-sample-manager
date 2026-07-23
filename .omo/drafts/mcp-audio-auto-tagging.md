@@ -4,8 +4,8 @@ status: approved
 intent: clear
 review_required: false
 plan_path: .omo/plans/mcp-audio-auto-tagging.md
-plan_sha256: 099151b661c8c084891d59fc796b5c26a4642926b6dee69d38ed4bf428e16e18
-review_round_id: 869A4948-B716-4261-A7F5-D672DA91D82A
+plan_sha256: 36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859
+review_round_id: 57FCCE46-C1F6-48E9-A0F7-157174DC8719
 round_status: approved
 pending-action: execute .omo/plans/mcp-audio-auto-tagging.md in a new implementation turn
 review:
@@ -14,20 +14,20 @@ review:
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: .omo/plans/mcp-audio-auto-tagging.md
-    round_id: 869A4948-B716-4261-A7F5-D672DA91D82A
-    plan_sha256: 099151b661c8c084891d59fc796b5c26a4642926b6dee69d38ed4bf428e16e18
-    launch_id: ses_0727dc69cffeXuWP7RnrlBXcNu
-    session: ses_0727dc69cffeXuWP7RnrlBXcNu
+    round_id: 57FCCE46-C1F6-48E9-A0F7-157174DC8719
+    plan_sha256: 36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859
+    launch_id: ses_0721eeb36ffe9RluUsBLT6I93G
+    session: ses_0721eeb36ffe9RluUsBLT6I93G
     result: "OKAY"
   independent:
     status: approved
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: .omo/plans/mcp-audio-auto-tagging.md
-    round_id: 869A4948-B716-4261-A7F5-D672DA91D82A
-    plan_sha256: 099151b661c8c084891d59fc796b5c26a4642926b6dee69d38ed4bf428e16e18
-    launch_id: ses_0727dc5f9ffe0v1JQ96YHbvRwe
-    session: ses_0727dc5f9ffe0v1JQ96YHbvRwe
+    round_id: 57FCCE46-C1F6-48E9-A0F7-157174DC8719
+    plan_sha256: 36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859
+    launch_id: ses_0721ee962ffeU2SEWfouSZmiiZ
+    session: ses_0721ee962ffeU2SEWfouSZmiiZ
     result: "OKAY"
 approach: Extend the existing Node stdio MCP -> authenticated localhost API -> Rust core path with a confidence-calibrated hybrid classifier, explicit abstention, provenance-aware persistence, and dataset-backed evaluation.
 ---
@@ -103,6 +103,7 @@ Remote behavior | No cloud inference or Streamable HTTP endpoint | Project is lo
 - Review round 14 fixes: added atomic consume-once seal ledger/receipt/crash-burn/rerun rejection; strict probability-vector and manifest-bijection validation; exact temperature-log-prior fusion and shared Rust/Python fixtures; unified support counts; added portable same-file-based Unix/Windows FileIdentity and mutation tests.
 - Review round 15 fixes: made mean-logit temperature/log-prior fusion use one f64 softmax; removed caller-selected consumption stores; derived consume-once state from the immutable seal; added same-file/fs4 locking from final hash through commit.
 - Review round 16 fixes: replaced the undefined signed-seal claim with a fixed hash-sealed descriptor contract; defined the precommit filesystem/SQLite linearization gate and advisory-lock scope; added literal native Unix/Windows lock-race commands and made packaging depend on apply safety. Momus and Oracle both returned unconditional OKAY for SHA `099151b661c8c084891d59fc796b5c26a4642926b6dee69d38ed4bf428e16e18`.
+- Review round 17 fixes: made Todo 1 preserve the committed plan while proving the product tree still matches base `39bddb0`; removed stale approval waits; root-qualified pytest paths; corrected every transitive Blocks declaration; expanded Todo 13 into literal release commands and automated final gates. Momus and Oracle both returned unconditional OKAY for SHA `36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859`.
 
 ## Scope IN
 - Rust classification domain types, feature extraction, fusion, calibration, and manual-override-safe persistence.
@@ -126,6 +127,6 @@ None. User selected threshold-gated preview/apply, bundled ONNX inference, and T
 ## Approval gate
 status: approved
 approach: Extend the existing MCP/local API/core pipeline. Rust produces two-head candidate scores from filename priors, DSP features, and a bundled ONNX model; calibrated fusion may abstain. Kick-vs-Tom uses a dedicated evidence path and validation slice. Persistence stores provenance, confidence, model version, and manual ownership. MCP exposes preview and threshold-gated apply semantics; apply idempotently creates a missing canonical Tom instrument type before assignment, while preview remains read-only. TDD locks contracts and override protection; dataset benchmarks gate accuracy and runtime.
-next-action: Execute `.omo/plans/mcp-audio-auto-tagging.md` from immutable SHA `099151b661c8c084891d59fc796b5c26a4642926b6dee69d38ed4bf428e16e18` in a new implementation turn; Todo 1 must stop if base HEAD or worktree differs.
+next-action: Execute `.omo/plans/mcp-audio-auto-tagging.md` from immutable SHA `36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859` in a new implementation turn; Todo 1 must stop if baseline ancestry, product-tree equivalence, or worktree cleanliness fails.
 <!-- When exploration is exhausted and unknowns are answered, set status: awaiting-approval. -->
 <!-- That durable record is the loop guard: on a later turn read it and resume at the gate instead of re-running exploration. -->
