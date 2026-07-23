@@ -1,34 +1,34 @@
 ---
 slug: mcp-audio-auto-tagging
-status: revising-after-review
+status: approved
 intent: clear
-review_required: true
+review_required: false
 plan_path: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
 plan_sha256: e6154c5ffe7d16c1f0e309cf1adcc85da6fb9dfcd6b4d1c8dea4e9b21be7f901
 review_round_id: F90B1DB3-8C37-496B-8FDC-DF5609636C66
-round_status: pending
-pending-action: review docs/tasks/20260723-mcp-audio-auto-tagging/task.md
+round_status: approved
+pending-action: execute docs/tasks/20260723-mcp-audio-auto-tagging/task.md in a new implementation turn
 review:
   momus:
-    status: pending
+    status: approved
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
     round_id: F90B1DB3-8C37-496B-8FDC-DF5609636C66
     plan_sha256: e6154c5ffe7d16c1f0e309cf1adcc85da6fb9dfcd6b4d1c8dea4e9b21be7f901
-    launch_id: null
-    session: null
-    result: "PENDING_REVIEW"
+    launch_id: ses_071e555aeffe7zjTfweN99DxH4
+    session: ses_071e555aeffe7zjTfweN99DxH4
+    result: "OKAY"
   independent:
-    status: pending
+    status: approved
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
     round_id: F90B1DB3-8C37-496B-8FDC-DF5609636C66
     plan_sha256: e6154c5ffe7d16c1f0e309cf1adcc85da6fb9dfcd6b4d1c8dea4e9b21be7f901
-    launch_id: null
-    session: null
-    result: "PENDING_REVIEW"
+    launch_id: ses_071e55403ffejPbqCNK5FOYoMa
+    session: ses_071e55403ffejPbqCNK5FOYoMa
+    result: "OKAY"
 approach: Extend the existing Node stdio MCP -> authenticated localhost API -> Rust core path with a confidence-calibrated hybrid classifier, explicit abstention, provenance-aware persistence, and dataset-backed evaluation.
 ---
 
@@ -106,6 +106,7 @@ Remote behavior | No cloud inference or Streamable HTTP endpoint | Project is lo
 - Review round 17 fixes: made Todo 1 preserve the committed plan while proving the product tree still matches base `39bddb0`; removed stale approval waits; root-qualified pytest paths; corrected every transitive Blocks declaration; expanded Todo 13 into literal release commands and automated final gates. Momus and Oracle both returned unconditional OKAY for SHA `36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859`.
 - Review round 18 fixes: moved the implementation task and integrated approval record into the repository's `docs/tasks` and `docs/reviews` workflow; moved execution evidence under `docs/issues`; made all Todo `References:` fields machine-detectable; fully specified 64,000-sample windowing and 400-frame STFT/Hann/DFT/HTK-mel/log preprocessing. Momus and Oracle both returned unconditional OKAY for SHA `e3c4bd1f0388a4ea34abfffdba9c5c7b09637bea363698813e406dcce46ab9c1`.
 - Review round 19 fixes: replaced obsolete rubato `SincFixedIn` with compile-verified rubato 4.0.0 `Async::new_sinc`/`FixedAsync::Input`; evaluated active PR #16/#18 conflicts; fixed merge order so auto-tagging lands first; added disposable upstream DB fixtures, lossless upgrade tests, overlap reporting, and explicit downstream-rebase ownership. Momus and Oracle both returned unconditional OKAY for SHA `bba62d4550824ca756821b59b81150859be481f3d3c847ee5faa1ebddfa13222`.
+- Review round 20 fixes: made Todo 1 executable from either the reviewed task branch or merged main using origin/main ancestry plus exact docs-only exclusions; fixed downstream order to auto-tag, #16, then #18; corrected rubato `process_all()` from ceil output to explicit round-length truncation with a 44.1 kHz/1023-frame boundary test. Momus and Oracle both returned unconditional OKAY for SHA `e6154c5ffe7d16c1f0e309cf1adcc85da6fb9dfcd6b4d1c8dea4e9b21be7f901`.
 
 ## Scope IN
 - Rust classification domain types, feature extraction, fusion, calibration, and manual-override-safe persistence.
@@ -127,7 +128,7 @@ Remote behavior | No cloud inference or Streamable HTTP endpoint | Project is lo
 None. User selected threshold-gated preview/apply, bundled ONNX inference, and TDD.
 
 ## Approval gate
-status: awaiting-approval
+status: approved
 approach: Extend the existing MCP/local API/core pipeline. Rust produces two-head candidate scores from filename priors, DSP features, and a bundled ONNX model; calibrated fusion may abstain. Kick-vs-Tom uses a dedicated evidence path and validation slice. Persistence stores provenance, confidence, model version, and manual ownership. MCP exposes preview and threshold-gated apply semantics; apply idempotently creates a missing canonical Tom instrument type before assignment, while preview remains read-only. TDD locks contracts and override protection; dataset benchmarks gate accuracy and runtime.
 next-action: Execute `docs/tasks/20260723-mcp-audio-auto-tagging/task.md` from its immutable reviewed SHA in a new implementation turn; Todo 1 must stop if baseline ancestry, product-tree equivalence, or worktree cleanliness fails.
 <!-- When exploration is exhausted and unknowns are answered, set status: awaiting-approval. -->
