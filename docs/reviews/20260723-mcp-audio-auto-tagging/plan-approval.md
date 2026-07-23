@@ -1,34 +1,34 @@
 ---
 slug: mcp-audio-auto-tagging
-status: approved
+status: revising-after-review
 intent: clear
-review_required: false
-plan_path: .omo/plans/mcp-audio-auto-tagging.md
-plan_sha256: 36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859
-review_round_id: 57FCCE46-C1F6-48E9-A0F7-157174DC8719
-round_status: approved
-pending-action: execute .omo/plans/mcp-audio-auto-tagging.md in a new implementation turn
+review_required: true
+plan_path: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
+plan_sha256: e3c4bd1f0388a4ea34abfffdba9c5c7b09637bea363698813e406dcce46ab9c1
+review_round_id: 14177A67-50B7-4684-9F90-771846B008EE
+round_status: pending
+pending-action: review docs/tasks/20260723-mcp-audio-auto-tagging/task.md
 review:
   momus:
-    status: approved
+    status: pending
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
-    target: .omo/plans/mcp-audio-auto-tagging.md
-    round_id: 57FCCE46-C1F6-48E9-A0F7-157174DC8719
-    plan_sha256: 36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859
-    launch_id: ses_0721eeb36ffe9RluUsBLT6I93G
-    session: ses_0721eeb36ffe9RluUsBLT6I93G
-    result: "OKAY"
+    target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
+    round_id: 14177A67-50B7-4684-9F90-771846B008EE
+    plan_sha256: e3c4bd1f0388a4ea34abfffdba9c5c7b09637bea363698813e406dcce46ab9c1
+    launch_id: null
+    session: null
+    result: "PENDING_REVIEW"
   independent:
-    status: approved
+    status: pending
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
-    target: .omo/plans/mcp-audio-auto-tagging.md
-    round_id: 57FCCE46-C1F6-48E9-A0F7-157174DC8719
-    plan_sha256: 36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859
-    launch_id: ses_0721ee962ffeU2SEWfouSZmiiZ
-    session: ses_0721ee962ffeU2SEWfouSZmiiZ
-    result: "OKAY"
+    target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
+    round_id: 14177A67-50B7-4684-9F90-771846B008EE
+    plan_sha256: e3c4bd1f0388a4ea34abfffdba9c5c7b09637bea363698813e406dcce46ab9c1
+    launch_id: null
+    session: null
+    result: "PENDING_REVIEW"
 approach: Extend the existing Node stdio MCP -> authenticated localhost API -> Rust core path with a confidence-calibrated hybrid classifier, explicit abstention, provenance-aware persistence, and dataset-backed evaluation.
 ---
 
@@ -125,8 +125,8 @@ Remote behavior | No cloud inference or Streamable HTTP endpoint | Project is lo
 None. User selected threshold-gated preview/apply, bundled ONNX inference, and TDD.
 
 ## Approval gate
-status: approved
+status: awaiting-approval
 approach: Extend the existing MCP/local API/core pipeline. Rust produces two-head candidate scores from filename priors, DSP features, and a bundled ONNX model; calibrated fusion may abstain. Kick-vs-Tom uses a dedicated evidence path and validation slice. Persistence stores provenance, confidence, model version, and manual ownership. MCP exposes preview and threshold-gated apply semantics; apply idempotently creates a missing canonical Tom instrument type before assignment, while preview remains read-only. TDD locks contracts and override protection; dataset benchmarks gate accuracy and runtime.
-next-action: Execute `.omo/plans/mcp-audio-auto-tagging.md` from immutable SHA `36bd48e8e28e9ab8e2acacad364c90da5f4dac06c34e0fe435b299a5d8d9f859` in a new implementation turn; Todo 1 must stop if baseline ancestry, product-tree equivalence, or worktree cleanliness fails.
+next-action: Execute `docs/tasks/20260723-mcp-audio-auto-tagging/task.md` from its immutable reviewed SHA in a new implementation turn; Todo 1 must stop if baseline ancestry, product-tree equivalence, or worktree cleanliness fails.
 <!-- When exploration is exhausted and unknowns are answered, set status: awaiting-approval. -->
 <!-- That durable record is the loop guard: on a later turn read it and resume at the gate instead of re-running exploration. -->
