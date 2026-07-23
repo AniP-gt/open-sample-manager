@@ -4,6 +4,8 @@
 
 A fast, local-first desktop application for managing audio samples and MIDI files. Built with Rust, Tauri, and React.
 
+[日本語ドキュメント](docs/ja/README.md)
+
 > **Status:** Developer preview. This project is currently distributed as source code only. Official signed installers are not available yet.
 
 > **Platform status:** The codebase and Tauri packaging are intended for macOS,
