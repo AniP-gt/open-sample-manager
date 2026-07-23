@@ -4,8 +4,8 @@ status: approved
 intent: clear
 review_required: false
 plan_path: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-plan_sha256: a597a52c49f02b9e0dfaf82da97fdd0693db78d7022e4632d1fa7db9af50c27f
-review_round_id: 8F910F0B-93F1-4F94-BDAE-420E80300811
+plan_sha256: 629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f
+review_round_id: 5C79CE27-ECA9-4928-A390-B5B77D8DF77D
 round_status: approved
 pending-action: execute docs/tasks/20260723-mcp-audio-auto-tagging/task.md in a new implementation turn
 review:
@@ -14,20 +14,20 @@ review:
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-    round_id: 8F910F0B-93F1-4F94-BDAE-420E80300811
-    plan_sha256: a597a52c49f02b9e0dfaf82da97fdd0693db78d7022e4632d1fa7db9af50c27f
-    launch_id: ses_071d1d959ffe1ekl5ALn2wu4XY
-    session: ses_071d1d959ffe1ekl5ALn2wu4XY
+    round_id: 5C79CE27-ECA9-4928-A390-B5B77D8DF77D
+    plan_sha256: 629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f
+    launch_id: ses_071ae1d35ffeqvvphd4EtrGntc
+    session: ses_071ae1d35ffeqvvphd4EtrGntc
     result: "OKAY"
   independent:
     status: approved
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-    round_id: 8F910F0B-93F1-4F94-BDAE-420E80300811
-    plan_sha256: a597a52c49f02b9e0dfaf82da97fdd0693db78d7022e4632d1fa7db9af50c27f
-    launch_id: ses_071d1d857ffeycsYFQ6JVRZpbO
-    session: ses_071d1d857ffeycsYFQ6JVRZpbO
+    round_id: 5C79CE27-ECA9-4928-A390-B5B77D8DF77D
+    plan_sha256: 629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f
+    launch_id: ses_071ae1e73ffeHBgxBTU0QDEaqz
+    session: ses_071ae1e73ffeHBgxBTU0QDEaqz
     result: "OKAY"
 approach: Extend the existing Node stdio MCP -> authenticated localhost API -> Rust core path with a confidence-calibrated hybrid classifier, explicit abstention, provenance-aware persistence, and dataset-backed evaluation.
 ---
@@ -108,6 +108,9 @@ Remote behavior | No cloud inference or Streamable HTTP endpoint | Project is lo
 - Review round 19 fixes: replaced obsolete rubato `SincFixedIn` with compile-verified rubato 4.0.0 `Async::new_sinc`/`FixedAsync::Input`; evaluated active PR #16/#18 conflicts; fixed merge order so auto-tagging lands first; added disposable upstream DB fixtures, lossless upgrade tests, overlap reporting, and explicit downstream-rebase ownership. Momus and Oracle both returned unconditional OKAY for SHA `bba62d4550824ca756821b59b81150859be481f3d3c847ee5faa1ebddfa13222`.
 - Review round 20 fixes: made Todo 1 executable from either the reviewed task branch or merged main using origin/main ancestry plus exact docs-only exclusions; fixed downstream order to auto-tag, #16, then #18; corrected rubato `process_all()` from ceil output to explicit round-length truncation with a 44.1 kHz/1023-frame boundary test. Momus and Oracle both returned unconditional OKAY for SHA `e6154c5ffe7d16c1f0e309cf1adcc85da6fb9dfcd6b4d1c8dea4e9b21be7f901`.
 - Review round 21 fixes: made the origin/main fetch update its explicit remote-tracking ref and fail closed; replaced execution of open-PR code with full-OID/SHA-bound static SQL fixtures built by trusted current-branch tests; fixed ort rc.12 Result handling; made Todo 1 and Todo 10 QA outcomes machine-executable. Momus and Oracle both returned unconditional OKAY for SHA `a597a52c49f02b9e0dfaf82da97fdd0693db78d7022e4632d1fa7db9af50c27f`.
+- Review round 22 fixes: installed MCP dependencies before its baseline; bound fetched PR refs to current GitHub `headRefOid` values before branch creation; corrected ort rc.12 `commit()` handling to check its boolean and fail closed when ORT is already initialized; added zero-write subprocess coverage for that failure.
+- Review round 23 fixes: closed the bootstrap race by re-fetching both PR refs immediately before branch creation and requiring each original recorded OID, current GitHub `headRefOid`, and freshly fetched remote-tracking OID to remain identical.
+- Review round 24 fixes: made the existing accidental-PR-head-ancestry rejection executable both initially and immediately before branch creation for PR #16 and PR #18. Momus and Oracle both returned unconditional OKAY for SHA `629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f`.
 
 ## Scope IN
 - Rust classification domain types, feature extraction, fusion, calibration, and manual-override-safe persistence.
@@ -131,6 +134,6 @@ None. User selected threshold-gated preview/apply, bundled ONNX inference, and T
 ## Approval gate
 status: approved
 approach: Extend the existing MCP/local API/core pipeline. Rust produces two-head candidate scores from filename priors, DSP features, and a bundled ONNX model; calibrated fusion may abstain. Kick-vs-Tom uses a dedicated evidence path and validation slice. Persistence stores provenance, confidence, model version, and manual ownership. MCP exposes preview and threshold-gated apply semantics; apply idempotently creates a missing canonical Tom instrument type before assignment, while preview remains read-only. TDD locks contracts and override protection; dataset benchmarks gate accuracy and runtime.
-next-action: Execute `docs/tasks/20260723-mcp-audio-auto-tagging/task.md` from its immutable reviewed SHA in a new implementation turn; Todo 1 must stop if baseline ancestry, product-tree equivalence, or worktree cleanliness fails.
+next-action: Execute `docs/tasks/20260723-mcp-audio-auto-tagging/task.md` from immutable reviewed SHA `629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f` in a new implementation turn; Todo 1 must stop if baseline ancestry, product-tree equivalence, worktree cleanliness, either PR OID binding check, or either PR-head non-ancestry check fails.
 <!-- When exploration is exhausted and unknowns are answered, set status: awaiting-approval. -->
 <!-- That durable record is the loop guard: on a later turn read it and resume at the gate instead of re-running exploration. -->
