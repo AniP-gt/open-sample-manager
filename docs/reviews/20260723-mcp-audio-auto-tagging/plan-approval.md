@@ -4,8 +4,8 @@ status: approved
 intent: clear
 review_required: false
 plan_path: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-plan_sha256: 629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f
-review_round_id: 5C79CE27-ECA9-4928-A390-B5B77D8DF77D
+plan_sha256: a1d00af623a0e7e1e36a6fbf62cb1d8dc83a40bd433766e90cc4c7f90efaae37
+review_round_id: 71C91452-10FA-4215-9243-8DEC7808E03D
 round_status: approved
 pending-action: execute docs/tasks/20260723-mcp-audio-auto-tagging/task.md in a new implementation turn
 review:
@@ -14,20 +14,20 @@ review:
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-    round_id: 5C79CE27-ECA9-4928-A390-B5B77D8DF77D
-    plan_sha256: 629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f
-    launch_id: ses_071ae1d35ffeqvvphd4EtrGntc
-    session: ses_071ae1d35ffeqvvphd4EtrGntc
+    round_id: 71C91452-10FA-4215-9243-8DEC7808E03D
+    plan_sha256: a1d00af623a0e7e1e36a6fbf62cb1d8dc83a40bd433766e90cc4c7f90efaae37
+    launch_id: ses_06d926e06ffeNgqFAL4xah9WBL
+    session: ses_06d926e06ffeNgqFAL4xah9WBL
     result: "OKAY"
   independent:
     status: approved
     workspace_root: /Users/tk/workspace/github.com/AniP-gt/open-sample-manager
     runtime_home: null
     target: docs/tasks/20260723-mcp-audio-auto-tagging/task.md
-    round_id: 5C79CE27-ECA9-4928-A390-B5B77D8DF77D
-    plan_sha256: 629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f
-    launch_id: ses_071ae1e73ffeHBgxBTU0QDEaqz
-    session: ses_071ae1e73ffeHBgxBTU0QDEaqz
+    round_id: 71C91452-10FA-4215-9243-8DEC7808E03D
+    plan_sha256: a1d00af623a0e7e1e36a6fbf62cb1d8dc83a40bd433766e90cc4c7f90efaae37
+    launch_id: ses_06d973bbeffezJIKMCcJ6uLa7O
+    session: ses_06d973bbeffezJIKMCcJ6uLa7O
     result: "OKAY"
 approach: Extend the existing Node stdio MCP -> authenticated localhost API -> Rust core path with a confidence-calibrated hybrid classifier, explicit abstention, provenance-aware persistence, and dataset-backed evaluation.
 ---
@@ -111,6 +111,7 @@ Remote behavior | No cloud inference or Streamable HTTP endpoint | Project is lo
 - Review round 22 fixes: installed MCP dependencies before its baseline; bound fetched PR refs to current GitHub `headRefOid` values before branch creation; corrected ort rc.12 `commit()` handling to check its boolean and fail closed when ORT is already initialized; added zero-write subprocess coverage for that failure.
 - Review round 23 fixes: closed the bootstrap race by re-fetching both PR refs immediately before branch creation and requiring each original recorded OID, current GitHub `headRefOid`, and freshly fetched remote-tracking OID to remain identical.
 - Review round 24 fixes: made the existing accidental-PR-head-ancestry rejection executable both initially and immediately before branch creation for PR #16 and PR #18. Momus and Oracle both returned unconditional OKAY for SHA `629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f`.
+- Review round 25 fixes: added a first-operation immutable handoff gate that receives task and approval SHA-256 values outside the repository, verifies both document byte hashes plus all recorded plan hashes, and rejects drift before network, dependency installation, evidence, or branch creation. Momus and Oracle both returned unconditional OKAY for SHA `a1d00af623a0e7e1e36a6fbf62cb1d8dc83a40bd433766e90cc4c7f90efaae37`.
 
 ## Scope IN
 - Rust classification domain types, feature extraction, fusion, calibration, and manual-override-safe persistence.
@@ -134,6 +135,6 @@ None. User selected threshold-gated preview/apply, bundled ONNX inference, and T
 ## Approval gate
 status: approved
 approach: Extend the existing MCP/local API/core pipeline. Rust produces two-head candidate scores from filename priors, DSP features, and a bundled ONNX model; calibrated fusion may abstain. Kick-vs-Tom uses a dedicated evidence path and validation slice. Persistence stores provenance, confidence, model version, and manual ownership. MCP exposes preview and threshold-gated apply semantics; apply idempotently creates a missing canonical Tom instrument type before assignment, while preview remains read-only. TDD locks contracts and override protection; dataset benchmarks gate accuracy and runtime.
-next-action: Execute `docs/tasks/20260723-mcp-audio-auto-tagging/task.md` from immutable reviewed SHA `629d6fa8e5afe0b40ed50f71f4aed09b55c4e1a9ee590352bad9c1995695305f` in a new implementation turn; Todo 1 must stop if baseline ancestry, product-tree equivalence, worktree cleanliness, either PR OID binding check, or either PR-head non-ancestry check fails.
+next-action: Execute `docs/tasks/20260723-mcp-audio-auto-tagging/task.md` from immutable reviewed SHA `a1d00af623a0e7e1e36a6fbf62cb1d8dc83a40bd433766e90cc4c7f90efaae37` in a new implementation turn; the trusted external handoff must also supply the final approval-document SHA, and Todo 1 must stop before network or installation if either value is absent or mismatched.
 <!-- When exploration is exhausted and unknowns are answered, set status: awaiting-approval. -->
 <!-- That durable record is the loop guard: on a later turn read it and resume at the gate instead of re-running exploration. -->
