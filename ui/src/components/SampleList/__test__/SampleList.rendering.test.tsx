@@ -153,12 +153,23 @@ describe('SampleList rendering, search, and sort', () => {
     expect(screen.queryByText('flute.wav')).not.toBeInTheDocument();
   });
 
-  test('fuzzy-matches non-contiguous filename letters', () => {
+  test('does not fuzzy-match non-contiguous filename letters', () => {
     renderSampleList({
       samples: [
         { ...mockSamples[0], id: 10, file_name: 'DrumFill.wav' },
       ],
       filters: { ...defaultFilters, search: 'fll' },
+    });
+
+    expect(screen.queryByText('DrumFill.wav')).not.toBeInTheDocument();
+  });
+
+  test('still matches contiguous fill in filename', () => {
+    renderSampleList({
+      samples: [
+        { ...mockSamples[0], id: 10, file_name: 'DrumFill.wav' },
+      ],
+      filters: { ...defaultFilters, search: 'fill' },
     });
 
     expect(screen.queryByText('DrumFill.wav')).toBeInTheDocument();

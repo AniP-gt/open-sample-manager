@@ -91,8 +91,8 @@ describe("display hooks", () => {
     expect(result.current).toEqual([samples[0]]);
   });
 
-  test("keeps fuzzy tag matches returned by backend search", () => {
-    const { result } = renderHook(() => useDisplayedSamples(samples, { ...filters, search: "drm" }, []));
+  test("keeps contiguous tag matches returned by backend search", () => {
+    const { result } = renderHook(() => useDisplayedSamples(samples, { ...filters, search: "drum" }, []));
 
     expect(result.current).toEqual([samples[0]]);
   });
