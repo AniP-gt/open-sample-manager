@@ -134,7 +134,7 @@ fn scan_skips_duplicate_paths() {
 }
 
 #[test]
-fn search_fuzzy_subsequence_matching() {
+fn search_fuzzy_contiguous_matching() {
     let dir = TempDir::new().unwrap();
     write_wav(&dir, "kick_808.wav", 11_025);
     write_wav(&dir, "kick_909.wav", 11_025);
@@ -143,7 +143,7 @@ fn search_fuzzy_subsequence_matching() {
     let manager = make_manager();
     manager.scan_directory(dir.path()).expect("scan failed");
 
-    let results = manager.search("kc").expect("search failed");
+    let results = manager.search("kick").expect("search failed");
     assert_eq!(results.len(), 2);
 }
 

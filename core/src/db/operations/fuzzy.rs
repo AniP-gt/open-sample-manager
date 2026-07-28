@@ -17,7 +17,7 @@ pub(super) fn matches_fuzzy_query(query: &str, targets: &[&str]) -> bool {
     terms.iter().all(|term| {
         normalized_targets
             .iter()
-            .any(|target| is_subsequence(term, target))
+            .any(|target| target.contains(term))
     })
 }
 
@@ -43,24 +43,6 @@ fn normalize_char(c: char) -> std::char::ToLowercase {
     }
 }
 
-fn is_subsequence(term: &str, target: &str) -> bool {
-    let mut term_chars = term.chars();
-    let Some(mut wanted) = term_chars.next() else {
-        return true;
-    };
-
-    for candidate in target.chars() {
-        if candidate == wanted {
-            match term_chars.next() {
-                Some(next) => wanted = next,
-                None => return true,
-            }
-        }
-    }
-
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,11 +55,16 @@ mod tests {
     }
 
     #[test]
-    fn terms_match_as_ordered_subsequences_across_targets() {
-        assert!(matches_fuzzy_query("kdm", &["Kick Drum"]));
+    fn terms_match_as_contiguous_substrings_across_targets() {
+        assert!(matches_fuzzy_query("ki", &["Kick Drum"]));
         assert!(matches_fuzzy_query("kick loop", &["Kick", "Loop Pack"]));
         assert!(!matches_fuzzy_query("kdk", &["Kick Drum"]));
         assert!(!matches_fuzzy_query("kick sample", &["Kick", "Loop Pack"]));
+        assert!(matches_fuzzy_query("fill", &["Drum Fill.wav"]));
+        assert!(!matches_fuzzy_query(
+            "fill",
+            &["FL_PV2022_VP_Kit04_Fx_Loop_Delayed_Impact_143_Amin_02.wav"]
+        ));
     }
 
     #[test]

@@ -49,14 +49,42 @@ fn test_search_samples_no_match() {
 }
 
 #[test]
-fn test_search_samples_fuzzy_subsequence_match() {
+fn test_search_samples_fuzzy_contiguous_match() {
     let conn = setup_db();
     insert_sample(&conn, &make_input("/samples/kick_808.wav", "kick_808.wav"))
         .expect("insert failed");
     insert_sample(&conn, &make_input("/samples/kick_909.wav", "kick_909.wav"))
         .expect("insert failed");
     insert_sample(&conn, &make_input("/samples/snare.wav", "snare.wav")).expect("insert failed");
-    assert_eq!(search_samples(&conn, "kc").expect("search failed").len(), 2);
+    assert_eq!(
+        search_samples(&conn, "kick").expect("search failed").len(),
+        2
+    );
+    assert!(search_samples(&conn, "kc")
+        .expect("search failed")
+        .is_empty());
+}
+
+#[test]
+fn test_search_samples_fill_matches_contiguous_terms_and_not_noncontiguous_legacy_match() {
+    let conn = setup_db();
+    insert_sample(
+        &conn,
+        &make_input("/samples/Drum Fill.wav", "Drum Fill.wav"),
+    )
+    .expect("insert failed");
+    insert_sample(
+        &conn,
+        &make_input(
+            "/samples/FL_PV2022_VP_Kit04_Fx_Loop_Delayed_Impact_143_Amin_02.wav",
+            "FL_PV2022_VP_Kit04_Fx_Loop_Delayed_Impact_143_Amin_02.wav",
+        ),
+    )
+    .expect("insert failed");
+
+    let results = search_samples(&conn, "fill").expect("search failed");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].file_name, "Drum Fill.wav");
 }
 
 #[test]
@@ -85,7 +113,7 @@ fn test_search_samples_matches_sample_tags() {
     )
     .expect("sample tag insert failed");
 
-    let results = search_samples(&conn, "drm").expect("search failed");
+    let results = search_samples(&conn, "drum").expect("search failed");
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].file_name, "mystery.wav");
     assert_eq!(results[0].tags, vec!["drums"]);

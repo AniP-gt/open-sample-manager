@@ -54,8 +54,8 @@ fn midi_search_normalizes_full_width_ascii_and_matches_tags() {
     let tag_id = insert_midi_tag(&conn, "melody-custom").expect("insert tag");
     assign_midi_tag(&conn, midi_id, tag_id).expect("assign tag");
 
-    let by_tag =
-        search_midis_paginated(&conn, "ｍｌｃ", 10, 0, None, None).expect("search midi by tag");
+    let by_tag = search_midis_paginated(&conn, "ｍｅｌｏｄｙ", 10, 0, None, None)
+        .expect("search midi by tag");
     assert_eq!(by_tag.len(), 1);
     assert_eq!(by_tag[0].file_name, "mystery.mid");
 
@@ -63,4 +63,25 @@ fn midi_search_normalizes_full_width_ascii_and_matches_tags() {
         search_midis_paginated(&conn, "ｍｙｓ", 10, 0, None, None).expect("search midi by name");
     assert_eq!(by_name.len(), 1);
     assert_eq!(by_name[0].file_name, "mystery.mid");
+}
+
+#[test]
+fn midi_search_fill_matches_contiguous_terms_and_not_noncontiguous_legacy_match() {
+    let conn = init_test_db();
+
+    insert_midi(&conn, &midi_input("/tmp/Drum Fill.mid", "Drum Fill.mid")).expect("insert midi");
+    insert_midi(
+        &conn,
+        &midi_input(
+            "/tmp/FL_PV2022_VP_Kit04_Fx_Loop_Delayed_Impact_143_Amin_02.mid",
+            "FL_PV2022_VP_Kit04_Fx_Loop_Delayed_Impact_143_Amin_02.mid",
+        ),
+    )
+    .expect("insert midi");
+
+    let results =
+        search_midis_paginated(&conn, "fill", 10, 0, None, None).expect("search midi by fill");
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].file_name, "Drum Fill.mid");
 }
