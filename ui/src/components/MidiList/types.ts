@@ -21,6 +21,8 @@ export interface MidiListProps {
   onTrashMidi?: (id: number) => void;
   midiSearch?: string;
   onMidiSearchChange?: (query: string) => void;
+  appliedMidiSearch?: string;
+  onMidiSearchSubmit?: () => void;
   onTogglePlayback?: () => void;
   filterKey?: string;
   tempoMin?: string;

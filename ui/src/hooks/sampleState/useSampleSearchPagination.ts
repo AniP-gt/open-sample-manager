@@ -224,7 +224,7 @@ export function useSampleSearchPagination({
       return;
     }
     void handleSearch(filters.search);
-  }, [filters.directoryPath, filters.search, handleSearch]);
+  }, [filters.directoryPath, handleSearch]);
 
   const suppressNextSearch = useCallback(() => {
     suppressSearchRef.current = true;

@@ -205,6 +205,10 @@ export function AppMainPane({
           selectedIds={sampleState.selectedIds}
           onSampleSelect={handleSampleSelectWithRecent}
           onFilterChange={sampleState.handleFilterChange}
+          onSearchSubmit={(query) => {
+            sampleState.handleFilterChange({ search: query });
+            void sampleState.handleSearch(query);
+          }}
           onSortChange={sampleState.setSort}
           onDeleteSample={(id) => {
             void sampleState.handleDeleteSample(id);
@@ -265,6 +269,10 @@ export function AppMainPane({
             externalIsDragOver={uiState.isDragOver}
             midiSearch={midiState.midiSearch}
             onMidiSearchChange={midiState.setMidiSearch}
+            appliedMidiSearch={midiState.debouncedMidiSearch}
+            onMidiSearchSubmit={() => {
+              void midiState.submitMidiSearch();
+            }}
             tempoMin={midiState.midiTempoMin}
             onTempoMinChange={midiState.setMidiTempoMin}
             tempoMax={midiState.midiTempoMax}

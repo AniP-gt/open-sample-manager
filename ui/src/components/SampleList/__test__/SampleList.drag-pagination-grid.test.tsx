@@ -1,13 +1,42 @@
 import './mockSampleListDependencies';
 import { describe, expect, test, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
-import { mockSamples, renderSampleList } from './sampleListTestHelpers';
+import { defaultFilters, mockSamples, renderSampleList } from './sampleListTestHelpers';
 
 describe('SampleList drag, pagination, and grid view', () => {
+  test('submits search on Enter or search button without applying changes while typing', () => {
+    const onSearchSubmit = vi.fn();
+    const onFilterChange = vi.fn();
+    renderSampleList({ onSearchSubmit, onFilterChange });
+
+    const input = screen.getByPlaceholderText('Search by filename, tag, key...');
+    fireEvent.change(input, { target: { value: 'snare' } });
+
+    expect(onFilterChange).not.toHaveBeenCalled();
+    expect(onSearchSubmit).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSearchSubmit).toHaveBeenCalledWith('snare');
+
+    fireEvent.change(input, { target: { value: 'hat' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search samples' }));
+    expect(onSearchSubmit).toHaveBeenLastCalledWith('hat');
+  });
+
   test('shows No more results when canLoadMore is false and items present', () => {
     renderSampleList({ canLoadMore: false });
 
     expect(screen.getByText('No more results')).toBeInTheDocument();
+  });
+
+  test('does not offer another page when the applied search has no visible results', () => {
+    renderSampleList({
+      filters: { ...defaultFilters, search: 'notfound' },
+      canLoadMore: true,
+      onLoadMore: vi.fn(async () => {}),
+    });
+
+    expect(screen.queryByText('Load more')).not.toBeInTheDocument();
   });
 
   test('handles drag overlay', () => {

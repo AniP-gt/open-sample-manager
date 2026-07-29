@@ -35,7 +35,7 @@ describe('SampleList rendering, search, and sort', () => {
     expect(onSortChange).toHaveBeenCalledWith({ field: 'sample_type', direction: 'asc' });
   });
 
-  test('handles search input', () => {
+  test('keeps search input changes as a draft until submission', () => {
     const handleFilterChange = vi.fn();
     renderSampleList({
       filters: defaultFilters,
@@ -46,7 +46,8 @@ describe('SampleList rendering, search, and sort', () => {
     const searchInput = screen.getByPlaceholderText('Search by filename, tag, key...');
     fireEvent.change(searchInput, { target: { value: 'kick' } });
 
-    expect(handleFilterChange).toHaveBeenCalledWith({ search: 'kick' });
+    expect(handleFilterChange).not.toHaveBeenCalled();
+    expect(searchInput).toHaveValue('kick');
   });
 
   test('calls onFilterChange from metadata header controls', () => {
