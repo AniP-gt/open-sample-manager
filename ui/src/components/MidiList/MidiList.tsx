@@ -38,6 +38,8 @@ export const MidiList = forwardRef(function MidiList(
     tagFilterId,
     midiSearch = "",
     onMidiSearchChange = () => {},
+    appliedMidiSearch = "",
+    onMidiSearchSubmit = () => {},
     onTogglePlayback,
     filterKey = "",
     tempoMin = "",
@@ -83,7 +85,7 @@ export const MidiList = forwardRef(function MidiList(
     sortedMidis,
     headerClick,
     headerKeyDown,
-  } = useMidiSort(midis, filterKey, midiSearch, tempoMin, tempoMax, tagFilterName);
+  } = useMidiSort(midis, filterKey, appliedMidiSearch, tempoMin, tempoMax, tagFilterName);
 
   const handleMidiSelectInternal = useCallback((midi: Midi, isShift?: boolean) => {
     if (isShift && selectedMidi && sortedMidis.length > 0) {
@@ -122,7 +124,7 @@ export const MidiList = forwardRef(function MidiList(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            if (isLoadingMore) return;
+            if (sortedMidis.length === 0 || isLoadingMore) return;
             if (canLoadMore === false) return;
             void onLoadMore();
           }
@@ -133,7 +135,7 @@ export const MidiList = forwardRef(function MidiList(
 
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [onLoadMore, isLoadingMore, canLoadMore]);
+  }, [onLoadMore, isLoadingMore, canLoadMore, sortedMidis.length]);
 
   useEffect(() => {
     const sentinel = topSentinelRef.current;
@@ -178,7 +180,14 @@ export const MidiList = forwardRef(function MidiList(
   }));
 
   if (midis.length === 0) {
-    return <MidiListEmpty midiSearch={midiSearch} onMidiSearchChange={onMidiSearchChange} />;
+    return (
+      <MidiListEmpty
+        midiSearch={midiSearch}
+        appliedMidiSearch={appliedMidiSearch}
+        onMidiSearchChange={onMidiSearchChange}
+        onMidiSearchSubmit={onMidiSearchSubmit}
+      />
+    );
   }
 
   return (
@@ -219,6 +228,7 @@ export const MidiList = forwardRef(function MidiList(
       <MidiListSearch
         midiSearch={midiSearch}
         onMidiSearchChange={onMidiSearchChange}
+        onMidiSearchSubmit={onMidiSearchSubmit}
         tempoMin={tempoMin}
         onTempoMinChange={onTempoMinChange}
         tempoMax={tempoMax}
@@ -308,7 +318,7 @@ export const MidiList = forwardRef(function MidiList(
       <div style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af" }}>
         {isLoadingMore ? (
           <div style={{ fontSize: 13 }}>Loading...</div>
-        ) : canLoadMore === false ? (
+        ) : canLoadMore === false || sortedMidis.length === 0 ? (
           <div style={{ fontSize: 13 }}>No more results</div>
         ) : onLoadMore ? (
           <button

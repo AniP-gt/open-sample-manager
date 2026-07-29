@@ -135,6 +135,7 @@ export function useMidiState({
 
   const runMidiSearch = useCallback(async (query: string) => {
     try {
+      setDebouncedMidiSearch(query);
       if (query.trim()) {
         const rows = await invoke<Midi[]>("search_midis_paginated", {
           query,
@@ -400,10 +401,9 @@ export function useMidiState({
     }
   }, [viewMode]);
 
-  useEffect(() => {
-    const id = setTimeout(() => setDebouncedMidiSearch(midiSearch), 300);
-    return () => clearTimeout(id);
-  }, [midiSearch]);
+  const submitMidiSearch = useCallback(async () => {
+    await runMidiSearch(midiSearch);
+  }, [midiSearch, runMidiSearch]);
 
   useEffect(() => {
     if (viewMode === "midi") {
@@ -413,7 +413,7 @@ export function useMidiState({
       }
       void runMidiSearch(debouncedMidiSearch);
     }
-  }, [debouncedMidiSearch, directoryPath, midiTagFilterId, pageLimit, runMidiSearch, viewMode]);
+  }, [directoryPath, midiTagFilterId, pageLimit, runMidiSearch, viewMode]);
 
   const suppressNextMidiSearch = () => {
     suppressMidiSearchRef.current = true;
@@ -484,6 +484,7 @@ export function useMidiState({
     fetchAllMidiPaths,
     loadMidiByPath,
     runMidiSearch,
+    submitMidiSearch,
     suppressNextMidiSearch,
     requestTrashMidi,
     confirmTrashMidi,

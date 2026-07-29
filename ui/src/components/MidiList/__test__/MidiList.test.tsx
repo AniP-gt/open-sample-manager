@@ -123,8 +123,9 @@ describe('MidiList', () => {
     vi.useRealTimers();
   });
 
-  test('handles search input', () => {
+  test('submits search on Enter or search button without submitting while typing', () => {
     const handleSearchChange = vi.fn();
+    const handleSearchSubmit = vi.fn();
     render(
       <MidiList
         midis={mockMidis}
@@ -134,6 +135,7 @@ describe('MidiList', () => {
         onTrashMidi={vi.fn()}
         midiSearch=""
         onMidiSearchChange={handleSearchChange}
+        onMidiSearchSubmit={handleSearchSubmit}
       />
     );
 
@@ -141,6 +143,13 @@ describe('MidiList', () => {
     fireEvent.change(searchInput, { target: { value: 'drum' } });
 
     expect(handleSearchChange).toHaveBeenCalledWith('drum');
+    expect(handleSearchSubmit).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(searchInput, { key: 'Enter' });
+    expect(handleSearchSubmit).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search MIDI files' }));
+    expect(handleSearchSubmit).toHaveBeenCalledTimes(2);
   });
 
   test('renders empty state when no midis', () => {
@@ -161,6 +170,7 @@ describe('MidiList', () => {
         selectedMidi={null}
         onMidiSelect={vi.fn()}
         midiSearch="notfound"
+        appliedMidiSearch="notfound"
         onMidiSearchChange={vi.fn()}
       />
     );
@@ -190,7 +200,7 @@ describe('MidiList', () => {
         ]}
         selectedMidi={null}
         onMidiSelect={vi.fn()}
-        midiSearch="FILL"
+        appliedMidiSearch="FILL"
       />
     );
 
@@ -204,7 +214,7 @@ describe('MidiList', () => {
         midis={[{ ...mockMidis[0], id: 10, file_name: 'DrumFill.mid' }]}
         selectedMidi={null}
         onMidiSelect={vi.fn()}
-        midiSearch="fll"
+        appliedMidiSearch="fll"
       />
     );
 
@@ -225,6 +235,21 @@ describe('MidiList', () => {
 
     fireEvent.change(screen.getByPlaceholderText('Search by filename...'), { target: { value: 'drums' } });
     expect(onMidiSearchChange).toHaveBeenCalledWith('drums');
+  });
+
+  test('does not offer another page when the applied search has no visible results', () => {
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+        appliedMidiSearch="notfound"
+        canLoadMore={true}
+        onLoadMore={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('Load more')).not.toBeInTheDocument();
   });
 
   test('filters MIDI rows by tempo, key, and tag controls', () => {

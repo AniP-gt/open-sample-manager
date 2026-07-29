@@ -4,6 +4,7 @@ import { KEY_FILTER_OPTIONS } from "../../../utils/keyOptions";
 interface MidiListSearchProps {
   midiSearch: string;
   onMidiSearchChange: (query: string) => void;
+  onMidiSearchSubmit: () => void;
   tempoMin: string;
   onTempoMinChange: (value: string) => void;
   tempoMax: string;
@@ -33,6 +34,7 @@ const controlStyle = {
 export function MidiListSearch({
   midiSearch,
   onMidiSearchChange,
+  onMidiSearchSubmit,
   tempoMin,
   onTempoMinChange,
   tempoMax,
@@ -54,9 +56,22 @@ export function MidiListSearch({
       <input
         value={midiSearch}
         onChange={(e) => onMidiSearchChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            onMidiSearchSubmit();
+          }
+        }}
         placeholder="Search by filename..."
         style={{ flex: "1 1 220px", minWidth: "160px", fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
       />
+      <button
+        type="button"
+        aria-label="Search MIDI files"
+        onClick={onMidiSearchSubmit}
+        style={{ ...controlStyle, cursor: "pointer", color: "#f97316" }}
+      >
+        Search
+      </button>
       <input
         type="number"
         value={tempoMin}

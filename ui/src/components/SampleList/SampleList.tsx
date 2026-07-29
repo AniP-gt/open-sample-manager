@@ -53,6 +53,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     selectedSample,
     onSampleSelect,
     onFilterChange,
+    onSearchSubmit,
     onSortChange,
     onTrashSample,
     onTypeClick,
@@ -79,10 +80,15 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const preparedPathsRef = useRef<Record<string, string>>({});
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [searchInput, setSearchInput] = useState(filters.search);
   const [randomHistory, setRandomHistory] = useState<Sample[]>([]);
   const [lastRandomSample, setLastRandomSample] = useState<Sample | null>(null);
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
+
+  useEffect(() => {
+    setSearchInput(filters.search);
+  }, [filters.search]);
 
   const { colWidths, startColumnResize, draggedColumnRef, activeResize } = useColumnResize([
     "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "96px", "70px", "88px"
@@ -213,7 +219,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            if (isLoadingMore || canLoadMore === false) return;
+            if (sorted.length === 0 || isLoadingMore || canLoadMore === false) return;
             void onLoadMore();
           }
         }
@@ -222,7 +228,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     );
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [onLoadMore, isLoadingMore, canLoadMore]);
+  }, [onLoadMore, isLoadingMore, canLoadMore, sorted.length]);
 
   useEffect(() => {
     const sentinel = topSentinelRef.current;
@@ -281,11 +287,24 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           <path d="m21 21-4.35-4.35" />
         </svg>
         <input
-          value={filters.search}
-          onChange={(e) => onFilterChange({ search: e.target.value })}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onSearchSubmit?.(searchInput);
+            }
+          }}
           placeholder="Search by filename, tag, key..."
           style={{ flex: "1 1 220px", minWidth: "160px", fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
         />
+        <button
+          type="button"
+          aria-label="Search samples"
+          onClick={() => onSearchSubmit?.(searchInput)}
+          style={{ ...controlStyle, cursor: "pointer", color: "#f97316" }}
+        >
+          Search
+        </button>
         <input
           type="number"
           value={filters.filterBpmMin}
@@ -421,7 +440,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             canLoadPrevious={canLoadPrevious}
             onLoadPrevious={onLoadPrevious}
             isLoadingMore={isLoadingMore}
-            canLoadMore={canLoadMore}
+            canLoadMore={sorted.length > 0 && canLoadMore}
             onLoadMore={onLoadMore}
             getSampleProcessingSettings={getSampleProcessingSettings}
           />
