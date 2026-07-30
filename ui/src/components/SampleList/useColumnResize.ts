@@ -15,7 +15,7 @@ export function useColumnResize(initialWidths: string[]) {
       document.removeEventListener("mouseup", resizeHandlersRef.current.onUp);
     }
 
-    const minWidths = [36, 20, 120, 60, 60, 40, 40, 40, 30];
+    const minWidths = [36, 20, 200, 100, 72, 40, 40, 40, 30];
     const maxWidths = [80, 400, 1600, 800, 800, 400, 400, 400, 200];
 
     const onMove = (e: MouseEvent) => {

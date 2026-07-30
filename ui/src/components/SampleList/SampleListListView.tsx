@@ -9,6 +9,7 @@ interface SampleListListViewProps {
   selectedSample: Sample | null;
   selectedIds?: Set<number>;
   colWidths: string[];
+  tableMinWidth: number;
   rowHeight: number;
   sort: SortState;
   onSortChange: (sort: SortState) => void;
@@ -37,6 +38,7 @@ interface SampleListListViewProps {
   canLoadMore?: boolean;
   onLoadMore?: () => Promise<void>;
   getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  showMusicalKey?: boolean;
   showSampleMetadataQuality?: boolean;
 }
 
@@ -46,6 +48,7 @@ export function SampleListListView({
   selectedSample,
   selectedIds,
   colWidths,
+  tableMinWidth,
   rowHeight,
   sort,
   onSortChange,
@@ -74,18 +77,21 @@ export function SampleListListView({
   canLoadMore,
   onLoadMore,
   getSampleProcessingSettings,
+  showMusicalKey = true,
   showSampleMetadataQuality = true,
 }: SampleListListViewProps) {
   return (
     <>
       <SampleListHeader
         colWidths={colWidths}
+        tableMinWidth={tableMinWidth}
         sort={sort}
         onSortChange={onSortChange}
         startColumnResize={startColumnResize}
         draggedColumnRef={draggedColumnRef}
         activeResize={activeResize}
         headerRefs={headerRefs}
+        showMusicalKey={showMusicalKey}
         showSampleMetadataQuality={showSampleMetadataQuality}
       />
       {(externalIsDragOver || isDragOver) && (
@@ -110,7 +116,7 @@ export function SampleListListView({
           </div>
         )}
         <div ref={topSentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
-        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        <div style={{ height: virtualizer.getTotalSize(), minWidth: tableMinWidth, position: "relative" }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const s = samples[virtualRow.index];
             const isSelected = selectedIds ? selectedIds.has(s.id) : selectedSample?.id === s.id;
@@ -120,12 +126,14 @@ export function SampleListListView({
                 sample={s}
                 virtualRow={virtualRow}
                 colWidths={colWidths}
+                tableMinWidth={tableMinWidth}
                 rowHeight={rowHeight}
                 isSelected={isSelected}
                 samplePath={samplePaths[s.id]}
                 isFavorite={favorites.has(s.id)}
                 instrumentColorCoding={instrumentColorCoding}
                 processingSettings={getSampleProcessingSettings?.(s, samplePaths[s.id])}
+                showMusicalKey={showMusicalKey}
                 showSampleMetadataQuality={showSampleMetadataQuality}
                 dragIconPath={dragIconPath}
                 preparedPathsRef={preparedPathsRef}

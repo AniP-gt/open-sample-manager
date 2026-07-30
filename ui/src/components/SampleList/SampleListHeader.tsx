@@ -2,26 +2,31 @@ import React, { useState } from "react";
 import { SortHeader } from "./SortHeader";
 import type { SortState } from "../../types/sample";
 import type { ActiveResizeState } from "./types";
+import { SAMPLE_LIST_COLUMN_GAP } from "./sampleListLayout";
 
 interface SampleListHeaderProps {
   colWidths: string[];
+  tableMinWidth: number;
   sort: SortState;
   onSortChange: (sort: SortState) => void;
   startColumnResize: (index: number, startX: number, startWidth: number) => void;
   draggedColumnRef: React.MutableRefObject<number | null>;
   activeResize: React.MutableRefObject<ActiveResizeState>;
   headerRefs: React.MutableRefObject<Array<HTMLDivElement | null>>;
+  showMusicalKey?: boolean;
   showSampleMetadataQuality?: boolean;
 }
 
 export function SampleListHeader({
   colWidths,
+  tableMinWidth,
   sort,
   onSortChange,
   startColumnResize,
   draggedColumnRef,
   activeResize,
   headerRefs,
+  showMusicalKey = true,
   showSampleMetadataQuality = true,
 }: SampleListHeaderProps) {
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
@@ -61,9 +66,12 @@ export function SampleListHeader({
 
   return (
     <div
+      data-testid="sample-list-header"
       style={{
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
+        columnGap: SAMPLE_LIST_COLUMN_GAP,
+        minWidth: tableMinWidth,
         padding: "6px 12px",
         borderLeft: "2px solid transparent",
         boxSizing: "border-box",
@@ -138,16 +146,18 @@ export function SampleListHeader({
         {renderResizer(6)}
       </div>
 
-      <div
-        style={{ position: "relative" }}
-        ref={(el) => (headerRefs.current[7] = el)}
-        onMouseDown={(e) => handleMouseDown(7, e)}
-        onMouseMove={(e) => handleMouseMove(7, e)}
-        onMouseLeave={() => handleMouseLeave(7)}
-      >
-        <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>KEY</SortHeader>
-        {renderResizer(7)}
-      </div>
+      {showMusicalKey && (
+        <div
+          style={{ position: "relative" }}
+          ref={(el) => (headerRefs.current[7] = el)}
+          onMouseDown={(e) => handleMouseDown(7, e)}
+          onMouseMove={(e) => handleMouseMove(7, e)}
+          onMouseLeave={() => handleMouseLeave(7)}
+        >
+          <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>KEY</SortHeader>
+          {renderResizer(7)}
+        </div>
+      )}
 
       {showSampleMetadataQuality && (
         <>

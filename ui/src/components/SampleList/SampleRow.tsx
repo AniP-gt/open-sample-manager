@@ -6,11 +6,13 @@ import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
 import { SampleRowActions } from "./SampleRowActions";
 import { sampleProcessingSignature } from "../../utils/sampleProcessing";
+import { SAMPLE_LIST_COLUMN_GAP } from "./sampleListLayout";
 
 interface SampleRowProps {
   sample: Sample;
   virtualRow: VirtualItem;
   colWidths: string[];
+  tableMinWidth: number;
   rowHeight: number;
   isSelected: boolean;
   samplePath?: string;
@@ -24,6 +26,7 @@ interface SampleRowProps {
   onTypeClick?: (sample: Sample) => void;
   onMetadataClick?: (sample: Sample) => void;
   onTrashSample?: (id: number) => void;
+  showMusicalKey?: boolean;
   showSampleMetadataQuality?: boolean;
 }
 
@@ -31,6 +34,7 @@ export function SampleRow({
   sample: s,
   virtualRow,
   colWidths,
+  tableMinWidth,
   rowHeight,
   isSelected,
   samplePath,
@@ -44,6 +48,7 @@ export function SampleRow({
   onTypeClick,
   onMetadataClick,
   onTrashSample,
+  showMusicalKey = true,
   showSampleMetadataQuality = true,
 }: SampleRowProps) {
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
@@ -68,6 +73,8 @@ export function SampleRow({
         transform: `translateY(${virtualRow.start}px)`,
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
+        columnGap: SAMPLE_LIST_COLUMN_GAP,
+        minWidth: tableMinWidth,
         padding: "6px 12px",
         boxSizing: "border-box",
         borderBottom: "1px solid #0d0f16",
@@ -175,17 +182,19 @@ export function SampleRow({
       <div style={{ fontSize: "16px", color: "#6b7280" }}>
         {s.duration.toFixed(2)}s
       </div>
-      <div
-        style={{
-          fontSize: "14px",
-          fontFamily: "'Courier New', monospace",
-          fontWeight: 600,
-          letterSpacing: "0.08em",
-          color: s.musical_key ? "#a78bfa" : "#374151",
-        }}
-      >
-        {s.musical_key ?? "-"}
-      </div>
+      {showMusicalKey && (
+        <div
+          style={{
+            fontSize: "14px",
+            fontFamily: "'Courier New', monospace",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            color: s.musical_key ? "#a78bfa" : "#374151",
+          }}
+        >
+          {s.musical_key ?? "-"}
+        </div>
+      )}
       {showSampleMetadataQuality && (
         <>
           <button
