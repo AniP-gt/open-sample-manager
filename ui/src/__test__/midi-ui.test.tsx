@@ -67,6 +67,12 @@ describe('MidiList component', () => {
       note_count: 32,
       channel_count: 1,
       key_estimate: 'C',
+      musical_role: 'melody',
+      polyphony: 'monophonic',
+      density: 'medium',
+      register: 'mid',
+      bar_count: 1,
+      suggested_instrument: null,
       file_size: 1000,
       created_at: '',
       modified_at: '',
@@ -81,7 +87,7 @@ describe('MidiList component', () => {
 
     expect(screen.getByText('a.mid')).toBeInTheDocument()
     expect(screen.getByText('120.0 BPM')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('2', { selector: 'div' })).toBeInTheDocument()
   })
 
   it('shows empty-state when midis is empty', async () => {
@@ -115,6 +121,12 @@ describe('TiMidity prompt in App', () => {
         note_count: 10,
         channel_count: 1,
         key_estimate: 'G',
+        musical_role: 'melody',
+        polyphony: 'monophonic',
+        density: 'medium',
+        register: 'mid',
+        bar_count: 1,
+        suggested_instrument: null,
         file_size: 500,
         created_at: '',
         modified_at: '',

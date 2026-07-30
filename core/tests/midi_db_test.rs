@@ -44,6 +44,12 @@ fn midi_db_roundtrip_insert_get_list_paginated() {
         note_count: Some(96),
         channel_count: Some(2),
         key_estimate: Some("C minor".to_string()),
+        musical_role: Some("chords".to_string()),
+        polyphony: Some("polyphonic".to_string()),
+        density: Some("dense".to_string()),
+        register: Some("mid".to_string()),
+        bar_count: Some(4.0),
+        suggested_instrument: Some("piano".to_string()),
         file_size: Some(2048),
     };
     let second = MidiInput {
@@ -57,6 +63,12 @@ fn midi_db_roundtrip_insert_get_list_paginated() {
         note_count: Some(48),
         channel_count: Some(1),
         key_estimate: None,
+        musical_role: None,
+        polyphony: None,
+        density: None,
+        register: None,
+        bar_count: None,
+        suggested_instrument: None,
         file_size: Some(1024),
     };
 
@@ -72,6 +84,12 @@ fn midi_db_roundtrip_insert_get_list_paginated() {
     assert_eq!(fetched.tempo, Some(128.0));
     assert_eq!(fetched.time_signature_numerator, 3);
     assert_eq!(fetched.time_signature_denominator, 4);
+    assert_eq!(fetched.musical_role.as_deref(), Some("chords"));
+    assert_eq!(fetched.polyphony.as_deref(), Some("polyphonic"));
+    assert_eq!(fetched.density.as_deref(), Some("dense"));
+    assert_eq!(fetched.register.as_deref(), Some("mid"));
+    assert_eq!(fetched.bar_count, Some(4.0));
+    assert_eq!(fetched.suggested_instrument.as_deref(), Some("piano"));
 
     let page_one = list_midis_paginated(&conn, 1, 0, None, None).expect("list page one");
     assert_eq!(page_one.len(), 1);

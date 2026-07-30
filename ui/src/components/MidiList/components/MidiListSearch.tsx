@@ -16,6 +16,16 @@ interface MidiListSearchProps {
   onTagFilterChange?: (tagId: number | null) => void;
   filteredCount: number;
   totalCount: number;
+  musicalRole: string;
+  onMusicalRoleChange: (value: string) => void;
+  polyphony: string;
+  onPolyphonyChange: (value: string) => void;
+  density: string;
+  onDensityChange: (value: string) => void;
+  register: string;
+  onRegisterChange: (value: string) => void;
+  barCount: string;
+  onBarCountChange: (value: string) => void;
 }
 
 const controlStyle = {
@@ -46,6 +56,16 @@ export function MidiListSearch({
   onTagFilterChange,
   filteredCount,
   totalCount,
+  musicalRole,
+  onMusicalRoleChange,
+  polyphony,
+  onPolyphonyChange,
+  density,
+  onDensityChange,
+  register,
+  onRegisterChange,
+  barCount,
+  onBarCountChange,
 }: MidiListSearchProps) {
   return (
     <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
@@ -108,6 +128,26 @@ export function MidiListSearch({
         {midiTags.map((tag) => (
           <option key={tag.id} value={tag.id}>{tag.name}</option>
         ))}
+      </select>
+      <select value={musicalRole} onChange={(e) => onMusicalRoleChange(e.target.value)} aria-label="MIDI role filter" style={{ ...controlStyle, width: "92px" }}>
+        <option value="">ROLE</option>
+        {["melody", "chords", "bass", "drums", "mixed"].map((value) => <option key={value} value={value}>{value}</option>)}
+      </select>
+      <select value={polyphony} onChange={(e) => onPolyphonyChange(e.target.value)} aria-label="MIDI polyphony filter" style={{ ...controlStyle, width: "118px" }}>
+        <option value="">VOICING</option>
+        {["monophonic", "polyphonic"].map((value) => <option key={value} value={value}>{value}</option>)}
+      </select>
+      <select value={density} onChange={(e) => onDensityChange(e.target.value)} aria-label="MIDI density filter" style={{ ...controlStyle, width: "88px" }}>
+        <option value="">DENSITY</option>
+        {["sparse", "medium", "dense"].map((value) => <option key={value} value={value}>{value}</option>)}
+      </select>
+      <select value={register} onChange={(e) => onRegisterChange(e.target.value)} aria-label="MIDI register filter" style={{ ...controlStyle, width: "88px" }}>
+        <option value="">RANGE</option>
+        {["low", "mid", "high", "wide"].map((value) => <option key={value} value={value}>{value}</option>)}
+      </select>
+      <select value={barCount} onChange={(e) => onBarCountChange(e.target.value)} aria-label="MIDI bar count filter" style={{ ...controlStyle, width: "72px" }}>
+        <option value="">BARS</option>
+        {[1, 2, 4, 8].map((value) => <option key={value} value={value}>{value}</option>)}
       </select>
       <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
         {filteredCount}/{totalCount} RESULTS

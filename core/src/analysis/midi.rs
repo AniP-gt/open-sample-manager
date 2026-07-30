@@ -8,6 +8,8 @@ use std::path::Path;
 
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 
+use super::midi_classification::MidiFeatureAccumulator;
+
 /// Extracted metadata from a MIDI file.
 #[derive(Debug, Clone, Default)]
 pub struct ParsedMidi {
@@ -27,6 +29,12 @@ pub struct ParsedMidi {
     pub channel_count: Option<i64>,
     /// Best-guess key name, e.g. "C major".
     pub key_estimate: Option<String>,
+    pub musical_role: Option<String>,
+    pub polyphony: Option<String>,
+    pub density: Option<String>,
+    pub register: Option<String>,
+    pub bar_count: Option<f64>,
+    pub suggested_instrument: Option<String>,
 }
 
 /// Parse a MIDI file and return extracted metadata.
@@ -59,6 +67,7 @@ pub fn parse_midi(path: &Path) -> Result<ParsedMidi, Box<dyn std::error::Error>>
     let mut ts_den: Option<i64> = None;
     let mut note_count: i64 = 0;
     let mut channels: HashSet<u8> = HashSet::new();
+    let mut feature_accumulator = MidiFeatureAccumulator::default();
 
     // Pitch-class accumulator for key estimation (indexed 0=C … 11=B).
     let mut pitch_class_weights: [f64; 12] = [0.0; 12];
@@ -69,6 +78,7 @@ pub fn parse_midi(path: &Path) -> Result<ParsedMidi, Box<dyn std::error::Error>>
     // Collect tempo events from all tracks in tick order.
     // SMF format-1 dedicates track 0 to tempo/meta, but other formats vary.
     for track in &smf.tracks {
+        feature_accumulator.begin_track();
         let mut abs_tick: u64 = 0;
         for event in track {
             abs_tick += u32::from(event.delta) as u64;
@@ -89,7 +99,9 @@ pub fn parse_midi(path: &Path) -> Result<ParsedMidi, Box<dyn std::error::Error>>
                     }
                 }
                 TrackEventKind::Midi { channel, message } => {
-                    channels.insert(u8::from(channel));
+                    let channel = u8::from(channel);
+                    channels.insert(channel);
+                    feature_accumulator.observe(channel, message);
                     match message {
                         MidiMessage::NoteOn { vel, key } => {
                             if u8::from(vel) > 0 {
@@ -134,6 +146,15 @@ pub fn parse_midi(path: &Path) -> Result<ParsedMidi, Box<dyn std::error::Error>>
 
     // ── Key estimate ──────────────────────────────────────────────────────
     let key_estimate = estimate_key(&pitch_class_weights);
+    let beats_per_bar = ts_num
+        .zip(ts_den)
+        .map(|(numerator, denominator)| numerator as f64 * 4.0 / denominator as f64)
+        .unwrap_or(4.0);
+    let bar_count = (beats_per_bar > 0.0).then(|| {
+        let bars = max_tick as f64 / tpq as f64 / beats_per_bar;
+        (bars * 100.0).round() / 100.0
+    });
+    let classification = feature_accumulator.classify(bar_count);
 
     Ok(ParsedMidi {
         duration: Some(duration_secs),
@@ -152,6 +173,12 @@ pub fn parse_midi(path: &Path) -> Result<ParsedMidi, Box<dyn std::error::Error>>
             None
         },
         key_estimate,
+        musical_role: classification.musical_role,
+        polyphony: classification.polyphony,
+        density: classification.density,
+        register: classification.register,
+        bar_count,
+        suggested_instrument: classification.suggested_instrument,
     })
 }
 

@@ -7,6 +7,11 @@ export interface MidiFilterState {
   tempoMin: string;
   tempoMax: string;
   tagName: string;
+  musicalRole: string;
+  polyphony: string;
+  density: string;
+  register: string;
+  barCount: string;
 }
 
 function parseBound(value: string) {
@@ -34,6 +39,18 @@ function matchesTag(midi: Midi, tagName: string) {
   return midi.tag_name === tagName;
 }
 
+function matchesClassification(midi: Midi, filters: MidiFilterState) {
+  if (filters.musicalRole && midi.musical_role !== filters.musicalRole) return false;
+  if (filters.polyphony && midi.polyphony !== filters.polyphony) return false;
+  if (filters.density && midi.density !== filters.density) return false;
+  if (filters.register && midi.register !== filters.register) return false;
+  if (filters.barCount) {
+    if (midi.bar_count === null) return false;
+    if (Math.round(midi.bar_count) !== Number(filters.barCount)) return false;
+  }
+  return true;
+}
+
 export function matchesMidiFilters(midi: Midi, filters: MidiFilterState) {
   const minTempo = parseBound(filters.tempoMin);
   const maxTempo = parseBound(filters.tempoMax);
@@ -41,5 +58,6 @@ export function matchesMidiFilters(midi: Midi, filters: MidiFilterState) {
   if (!matchesFilenameSubstring(filters.searchText, midi.file_name)) return false;
   if (!matchesKey(midi, filters.filterKey)) return false;
   if (!matchesTempo(midi.tempo, minTempo, maxTempo)) return false;
-  return matchesTag(midi, filters.tagName);
+  if (!matchesTag(midi, filters.tagName)) return false;
+  return matchesClassification(midi, filters);
 }

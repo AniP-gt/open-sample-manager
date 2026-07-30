@@ -12,6 +12,12 @@ export interface Midi {
   note_count: number | null;
   channel_count: number | null;
   key_estimate: string | null;
+  musical_role: string | null;
+  polyphony: string | null;
+  density: string | null;
+  register: string | null;
+  bar_count: number | null;
+  suggested_instrument: string | null;
   file_size: number | null;
   created_at: string;
   modified_at: string;
