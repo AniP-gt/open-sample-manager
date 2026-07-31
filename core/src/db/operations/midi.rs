@@ -6,7 +6,8 @@ use super::types::{MidiInput, MidiRow, MidiTagRow};
 const MIDI_SELECT: &str = "SELECT m.id, m.path, m.file_name, m.duration, m.tempo,
             m.time_signature_numerator, m.time_signature_denominator,
             m.track_count, m.note_count, m.channel_count, m.key_estimate,
-            m.file_size, m.created_at, m.modified_at,
+            m.musical_role, m.polyphony, m.density, m.register, m.bar_count,
+            m.suggested_instrument, m.file_size, m.created_at, m.modified_at,
             COALESCE(GROUP_CONCAT(t.name, ' '), '') as tag_name
      FROM midis m
      LEFT JOIN midi_file_tags mft ON mft.midi_id = m.id
@@ -25,23 +26,32 @@ fn row_to_midi(row: &rusqlite::Row) -> rusqlite::Result<MidiRow> {
         note_count: row.get(8)?,
         channel_count: row.get(9)?,
         key_estimate: row.get(10)?,
-        file_size: row.get(11)?,
-        created_at: row.get(12)?,
-        modified_at: row.get(13)?,
-        tag_name: row.get::<_, Option<String>>(14)?.unwrap_or_default(),
+        musical_role: row.get(11)?,
+        polyphony: row.get(12)?,
+        density: row.get(13)?,
+        register: row.get(14)?,
+        bar_count: row.get(15)?,
+        suggested_instrument: row.get(16)?,
+        file_size: row.get(17)?,
+        created_at: row.get(18)?,
+        modified_at: row.get(19)?,
+        tag_name: row.get::<_, Option<String>>(20)?.unwrap_or_default(),
     })
 }
 
 pub fn insert_midi(conn: &Connection, input: &MidiInput) -> Result<i64, rusqlite::Error> {
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO midis (path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, file_size) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+        "INSERT INTO midis (path, file_name, duration, tempo, time_signature_numerator, time_signature_denominator, track_count, note_count, channel_count, key_estimate, musical_role, polyphony, density, register, bar_count, suggested_instrument, file_size) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17) \
          ON CONFLICT(path) DO UPDATE SET \
            file_name = excluded.file_name, duration = excluded.duration, tempo = excluded.tempo, \
            time_signature_numerator = excluded.time_signature_numerator, \
            time_signature_denominator = excluded.time_signature_denominator, \
            track_count = excluded.track_count, note_count = excluded.note_count, \
            channel_count = excluded.channel_count, key_estimate = excluded.key_estimate, \
+           musical_role = excluded.musical_role, polyphony = excluded.polyphony, \
+           density = excluded.density, register = excluded.register, \
+           bar_count = excluded.bar_count, suggested_instrument = excluded.suggested_instrument, \
            file_size = excluded.file_size, modified_at = CURRENT_TIMESTAMP",
     )?;
     stmt.execute(params![
@@ -55,6 +65,12 @@ pub fn insert_midi(conn: &Connection, input: &MidiInput) -> Result<i64, rusqlite
         input.note_count,
         input.channel_count,
         input.key_estimate,
+        input.musical_role,
+        input.polyphony,
+        input.density,
+        input.register,
+        input.bar_count,
+        input.suggested_instrument,
         input.file_size,
     ])?;
     let rowid = conn.last_insert_rowid();

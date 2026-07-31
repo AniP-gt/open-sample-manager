@@ -20,6 +20,12 @@ pub fn midi_input(path: &str, file_name: &str) -> MidiInput {
         note_count: None,
         channel_count: None,
         key_estimate: None,
+        musical_role: None,
+        polyphony: None,
+        density: None,
+        register: None,
+        bar_count: None,
+        suggested_instrument: None,
         file_size: None,
     }
 }

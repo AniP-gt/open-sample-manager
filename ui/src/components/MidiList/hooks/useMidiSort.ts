@@ -9,13 +9,29 @@ export function useMidiSort(
   tempoMin: string,
   tempoMax: string,
   tagName: string,
+  musicalRole: string,
+  polyphony: string,
+  density: string,
+  register: string,
+  barCount: string,
 ) {
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const filteredMidis = useMemo(() => {
-    return midis.filter((midi) => matchesMidiFilters(midi, { searchText, filterKey, tempoMin, tempoMax, tagName }));
-  }, [midis, filterKey, searchText, tempoMin, tempoMax, tagName]);
+    return midis.filter((midi) => matchesMidiFilters(midi, {
+      searchText,
+      filterKey,
+      tempoMin,
+      tempoMax,
+      tagName,
+      musicalRole,
+      polyphony,
+      density,
+      register,
+      barCount,
+    }));
+  }, [midis, filterKey, searchText, tempoMin, tempoMax, tagName, musicalRole, polyphony, density, register, barCount]);
 
   const headerClick = (key: string) => {
     if (sortBy === key) {
@@ -41,6 +57,14 @@ export function useMidiSort(
         return m.file_name?.toLowerCase() ?? "";
       case "tag_name":
         return m.tag_name?.toLowerCase() ?? null;
+      case "musical_role":
+        return m.musical_role;
+      case "polyphony":
+        return m.polyphony;
+      case "bar_count":
+        return m.bar_count;
+      case "suggested_instrument":
+        return m.suggested_instrument;
       case "tempo":
         return m.tempo ?? null;
       case "time_sig":

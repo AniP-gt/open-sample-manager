@@ -55,6 +55,11 @@ export const MidiList = forwardRef(function MidiList(
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [musicalRole, setMusicalRole] = useState("");
+  const [polyphony, setPolyphony] = useState("");
+  const [density, setDensity] = useState("");
+  const [register, setRegister] = useState("");
+  const [barCount, setBarCount] = useState("");
   const dragCounter = useRef(0);
   const preparedPathsRef = useRef<Record<string, string>>({});
   const dragIconPathRef = useRef<string>("");
@@ -85,7 +90,19 @@ export const MidiList = forwardRef(function MidiList(
     sortedMidis,
     headerClick,
     headerKeyDown,
-  } = useMidiSort(midis, filterKey, appliedMidiSearch, tempoMin, tempoMax, tagFilterName);
+  } = useMidiSort(
+    midis,
+    filterKey,
+    appliedMidiSearch,
+    tempoMin,
+    tempoMax,
+    tagFilterName,
+    musicalRole,
+    polyphony,
+    density,
+    register,
+    barCount,
+  );
 
   const handleMidiSelectInternal = useCallback((midi: Midi, isShift?: boolean) => {
     if (isShift && selectedMidi && sortedMidis.length > 0) {
@@ -240,6 +257,16 @@ export const MidiList = forwardRef(function MidiList(
         onTagFilterChange={onTagFilterChange}
         filteredCount={filteredMidis.length}
         totalCount={midis.length}
+        musicalRole={musicalRole}
+        onMusicalRoleChange={setMusicalRole}
+        polyphony={polyphony}
+        onPolyphonyChange={setPolyphony}
+        density={density}
+        onDensityChange={setDensity}
+        register={register}
+        onRegisterChange={setRegister}
+        barCount={barCount}
+        onBarCountChange={setBarCount}
       />
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "auto", boxSizing: "border-box", minHeight: 0 }}>

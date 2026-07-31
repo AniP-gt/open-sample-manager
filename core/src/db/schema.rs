@@ -103,6 +103,12 @@ pub fn init_database(conn: &Connection) -> Result<(), rusqlite::Error> {
             note_count INTEGER,
             channel_count INTEGER,
             key_estimate TEXT,
+            musical_role TEXT,
+            polyphony TEXT,
+            density TEXT,
+            register TEXT,
+            bar_count REAL,
+            suggested_instrument TEXT,
             file_size INTEGER,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             modified_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -230,6 +236,23 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         "CREATE INDEX IF NOT EXISTS idx_midis_track_count ON midis(track_count)",
         [],
     );
+    for (name, definition) in [
+        ("musical_role", "musical_role TEXT"),
+        ("polyphony", "polyphony TEXT"),
+        ("density", "density TEXT"),
+        ("register", "register TEXT"),
+        ("bar_count", "bar_count REAL"),
+        ("suggested_instrument", "suggested_instrument TEXT"),
+    ] {
+        let has_column: bool = conn.query_row(
+            "SELECT COUNT(*) > 0 FROM pragma_table_info('midis') WHERE name = ?1",
+            [name],
+            |row| row.get(0),
+        )?;
+        if !has_column {
+            conn.execute(&format!("ALTER TABLE midis ADD COLUMN {definition}"), [])?;
+        }
+    }
 
     // Migration: create midi_tags and midi_file_tags tables for existing DBs
     // that were created before these tables existed.

@@ -42,6 +42,12 @@ const mockMidis: Midi[] = [
     created_at: '2023-01-01T00:00:00Z',
     modified_at: '2023-01-01T00:00:00Z',
     key_estimate: 'C major',
+    musical_role: 'chords',
+    polyphony: 'polyphonic',
+    density: 'dense',
+    register: 'mid',
+    bar_count: 4,
+    suggested_instrument: 'piano',
     duration: 12.5,
     tag_name: 'drums',
   },
@@ -59,6 +65,12 @@ const mockMidis: Midi[] = [
     created_at: '2023-01-02T00:00:00Z',
     modified_at: '2023-01-02T00:00:00Z',
     key_estimate: 'A minor',
+    musical_role: 'bass',
+    polyphony: 'monophonic',
+    density: 'sparse',
+    register: 'low',
+    bar_count: 2,
+    suggested_instrument: 'bass',
     duration: 6.0,
     tag_name: 'bass',
   },
@@ -189,6 +201,29 @@ describe('MidiList', () => {
     expect(screen.getByText('test-midi.mid')).toBeInTheDocument();
     expect(screen.getByText('120.0 BPM')).toBeInTheDocument();
     expect(screen.getByText('4/4')).toBeInTheDocument();
+    expect(screen.getByText('chords', { selector: 'div' })).toBeInTheDocument();
+    expect(screen.getByText('polyphonic · dense · mid')).toBeInTheDocument();
+    expect(screen.getByText('4 bars')).toBeInTheDocument();
+    expect(screen.getByText('piano')).toBeInTheDocument();
+  });
+
+  test('filters MIDI rows by inferred phrase characteristics', () => {
+    render(
+      <MidiList
+        midis={mockMidis}
+        selectedMidi={null}
+        onMidiSelect={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('MIDI role filter'), { target: { value: 'bass' } });
+    fireEvent.change(screen.getByLabelText('MIDI polyphony filter'), { target: { value: 'monophonic' } });
+    fireEvent.change(screen.getByLabelText('MIDI density filter'), { target: { value: 'sparse' } });
+    fireEvent.change(screen.getByLabelText('MIDI register filter'), { target: { value: 'low' } });
+    fireEvent.change(screen.getByLabelText('MIDI bar count filter'), { target: { value: '2' } });
+
+    expect(screen.queryByText('test-midi.mid')).not.toBeInTheDocument();
+    expect(screen.getByText('test-midi-2.mid')).toBeInTheDocument();
   });
 
   test('filters search text by case-insensitive filename substring', () => {
@@ -424,7 +459,7 @@ describe('MidiList', () => {
         onTagBadgeClick={onTagClick}
       />
     );
-    const tagBadge = screen.getByText('drums');
+    const tagBadge = screen.getByText('drums', { selector: 'span' });
     fireEvent.click(tagBadge);
     expect(onTagClick).toHaveBeenCalledWith(mockMidis[0]);
   });

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import type React from "react";
 
-const defaultColWidths = ["44px", "44px", "560px", "180px", "120px", "100px", "82px", "82px", "82px", "110px", "96px"];
-const STORAGE_KEY = "midiListColWidths_v2";
+const defaultColWidths = ["44px", "44px", "420px", "140px", "110px", "190px", "72px", "130px", "120px", "100px", "82px", "82px", "82px", "110px", "96px"];
+const STORAGE_KEY = "midiListColWidths_v3";
 
-const minWidths = [20, 28, 240, 100, 90, 70, 60, 60, 60, 80, 56];
-const maxWidths = [100, 400, 1600, 800, 800, 400, 400, 400, 400, 800, 400];
+const minWidths = [20, 28, 200, 90, 80, 120, 56, 90, 90, 70, 60, 60, 60, 80, 56];
+const maxWidths = [100, 400, 1600, 800, 800, 800, 300, 800, 800, 400, 400, 400, 400, 800, 400];
 
 export function useMidiColumnResize() {
   const [colWidths, setColWidths] = useState<string[]>(defaultColWidths);

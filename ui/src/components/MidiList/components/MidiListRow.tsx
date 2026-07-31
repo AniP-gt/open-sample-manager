@@ -92,6 +92,10 @@ export function MidiListRow({
       <div onClick={(e) => { e.stopPropagation(); onTagBadgeClick?.(midi); }}>
         <span style={{ display: "inline-block", background: midi.tag_name ? "#22d3ee18" : "transparent", border: `1px solid ${midi.tag_name ? "#22d3ee55" : "#1a1f2e"}`, borderRadius: 2, color: midi.tag_name ? "#22d3ee" : "#4b5563", fontSize: 11, fontFamily: "'Courier New', monospace", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", padding: "3px 8px", cursor: "pointer", minWidth: 64, textAlign: "center" }}>{midi.tag_name || "+ tag"}</span>
       </div>
+      <div style={{ color: midi.musical_role ? "#22d3ee" : "#374151", fontSize: 12, fontWeight: 600, textTransform: "uppercase" }}>{midi.musical_role ?? "—"}</div>
+      <div style={{ color: midi.polyphony ? "#a78bfa" : "#374151", fontSize: 12 }}>{[midi.polyphony, midi.density, midi.register].filter(Boolean).join(" · ") || "—"}</div>
+      <div style={{ color: midi.bar_count != null ? "#34d399" : "#374151", fontSize: 13, textAlign: "right" }}>{midi.bar_count != null ? `${midi.bar_count.toLocaleString()} ${midi.bar_count === 1 ? "bar" : "bars"}` : "—"}</div>
+      <div style={{ color: midi.suggested_instrument ? "#fbbf24" : "#374151", fontSize: 12, textTransform: "uppercase" }}>{midi.suggested_instrument ?? "—"}</div>
       <div style={{ fontSize: 14, color: midi.tempo ? "#22d3ee" : "#374151", textAlign: "right", fontWeight: midi.tempo ? 700 : 400 }}>{midi.tempo ? `${midi.tempo.toFixed(1)} BPM` : "—"}</div>
       <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "center" }}>{midi.time_signature_numerator}/{midi.time_signature_denominator}</div>
       <div style={{ fontSize: 14, color: "#a78bfa", textAlign: "right" }}>{midi.track_count ?? "—"}</div>

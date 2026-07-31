@@ -31,6 +31,12 @@ pub(super) fn scan_midi_directory(
             note_count: parsed.as_ref().and_then(|p| p.note_count),
             channel_count: parsed.as_ref().and_then(|p| p.channel_count),
             key_estimate: parsed.as_ref().and_then(|p| p.key_estimate.clone()),
+            musical_role: parsed.as_ref().and_then(|p| p.musical_role.clone()),
+            polyphony: parsed.as_ref().and_then(|p| p.polyphony.clone()),
+            density: parsed.as_ref().and_then(|p| p.density.clone()),
+            register: parsed.as_ref().and_then(|p| p.register.clone()),
+            bar_count: parsed.as_ref().and_then(|p| p.bar_count),
+            suggested_instrument: parsed.as_ref().and_then(|p| p.suggested_instrument.clone()),
             file_size,
         };
         match crate::db::operations::insert_midi(conn, &input) {

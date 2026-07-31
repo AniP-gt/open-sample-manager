@@ -1,5 +1,6 @@
 /// MIDI file metadata extraction (tempo, duration, time signature, key, etc.).
 pub mod midi;
+mod midi_classification;
 
 /// Algorithms for BPM estimation from audio signals.
 pub mod bpm;
