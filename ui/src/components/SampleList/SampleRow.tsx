@@ -6,11 +6,13 @@ import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import { TypeBadge, getInstrumentColor } from "../TypeBadge/TypeBadge";
 import { SampleRowActions } from "./SampleRowActions";
 import { sampleProcessingSignature } from "../../utils/sampleProcessing";
+import { SAMPLE_LIST_COLUMN_GAP } from "./sampleListLayout";
 
 interface SampleRowProps {
   sample: Sample;
   virtualRow: VirtualItem;
   colWidths: string[];
+  tableMinWidth: number;
   rowHeight: number;
   isSelected: boolean;
   samplePath?: string;
@@ -31,6 +33,7 @@ export function SampleRow({
   sample: s,
   virtualRow,
   colWidths,
+  tableMinWidth,
   rowHeight,
   isSelected,
   samplePath,
@@ -68,6 +71,8 @@ export function SampleRow({
         transform: `translateY(${virtualRow.start}px)`,
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
+        columnGap: SAMPLE_LIST_COLUMN_GAP,
+        minWidth: tableMinWidth,
         padding: "6px 12px",
         boxSizing: "border-box",
         borderBottom: "1px solid #0d0f16",

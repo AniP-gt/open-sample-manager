@@ -9,6 +9,7 @@ interface SampleListListViewProps {
   selectedSample: Sample | null;
   selectedIds?: Set<number>;
   colWidths: string[];
+  tableMinWidth: number;
   rowHeight: number;
   sort: SortState;
   onSortChange: (sort: SortState) => void;
@@ -46,6 +47,7 @@ export function SampleListListView({
   selectedSample,
   selectedIds,
   colWidths,
+  tableMinWidth,
   rowHeight,
   sort,
   onSortChange,
@@ -80,6 +82,7 @@ export function SampleListListView({
     <>
       <SampleListHeader
         colWidths={colWidths}
+        tableMinWidth={tableMinWidth}
         sort={sort}
         onSortChange={onSortChange}
         startColumnResize={startColumnResize}
@@ -110,7 +113,7 @@ export function SampleListListView({
           </div>
         )}
         <div ref={topSentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
-        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        <div style={{ height: virtualizer.getTotalSize(), minWidth: tableMinWidth, position: "relative" }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const s = samples[virtualRow.index];
             const isSelected = selectedIds ? selectedIds.has(s.id) : selectedSample?.id === s.id;
@@ -120,6 +123,7 @@ export function SampleListListView({
                 sample={s}
                 virtualRow={virtualRow}
                 colWidths={colWidths}
+                tableMinWidth={tableMinWidth}
                 rowHeight={rowHeight}
                 isSelected={isSelected}
                 samplePath={samplePaths[s.id]}

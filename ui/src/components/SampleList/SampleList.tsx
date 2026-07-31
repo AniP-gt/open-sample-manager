@@ -6,6 +6,10 @@ import { GridView } from "./GridView";
 import type { SampleListProps, SampleListHandle } from "./types";
 import type { InstrumentType, Sample, SampleType } from "../../types/sample";
 import { useColumnResize } from "./useColumnResize";
+import {
+  DEFAULT_SAMPLE_COLUMN_WIDTHS,
+  getSampleListMinWidth,
+} from "./sampleListLayout";
 import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { SampleListListView } from "./SampleListListView";
@@ -53,7 +57,6 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     selectedSample,
     onSampleSelect,
     onFilterChange,
-    onSearchSubmit,
     onSortChange,
     onTrashSample,
     onTypeClick,
@@ -80,23 +83,19 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const preparedPathsRef = useRef<Record<string, string>>({});
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  const [searchInput, setSearchInput] = useState(filters.search);
   const [randomHistory, setRandomHistory] = useState<Sample[]>([]);
   const [lastRandomSample, setLastRandomSample] = useState<Sample | null>(null);
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
-  useEffect(() => {
-    setSearchInput(filters.search);
-  }, [filters.search]);
-
   const { colWidths, startColumnResize, draggedColumnRef, activeResize } = useColumnResize([
-    "44px", "28px", "0.9fr", "90px", "80px", "70px", "60px", "60px", "96px", "70px", "88px"
+    ...DEFAULT_SAMPLE_COLUMN_WIDTHS,
   ]);
   const visibleColWidths = useMemo(() => {
     if (showSampleMetadataQuality) return colWidths;
     return colWidths.filter((_, index) => index !== 8 && index !== 9);
   }, [colWidths, showSampleMetadataQuality]);
+  const tableMinWidth = getSampleListMinWidth(showSampleMetadataQuality);
 
   const {
     isDragOver,
@@ -219,7 +218,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            if (sorted.length === 0 || isLoadingMore || canLoadMore === false) return;
+            if (isLoadingMore || canLoadMore === false) return;
             void onLoadMore();
           }
         }
@@ -228,7 +227,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     );
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [onLoadMore, isLoadingMore, canLoadMore, sorted.length]);
+  }, [onLoadMore, isLoadingMore, canLoadMore]);
 
   useEffect(() => {
     const sentinel = topSentinelRef.current;
@@ -287,24 +286,11 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           <path d="m21 21-4.35-4.35" />
         </svg>
         <input
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              onSearchSubmit?.(searchInput);
-            }
-          }}
+          value={filters.search}
+          onChange={(e) => onFilterChange({ search: e.target.value })}
           placeholder="Search by filename, tag, key..."
           style={{ flex: "1 1 220px", minWidth: "160px", fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
         />
-        <button
-          type="button"
-          aria-label="Search samples"
-          onClick={() => onSearchSubmit?.(searchInput)}
-          style={{ ...controlStyle, cursor: "pointer", color: "#f97316" }}
-        >
-          Search
-        </button>
         <input
           type="number"
           value={filters.filterBpmMin}
@@ -402,7 +388,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
         <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} onMetadataClick={onMetadataClick} showSampleMetadataQuality={showSampleMetadataQuality} />
       ) : (
         <div
-          style={{ flex: 1, overflowY: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}
+          data-testid="sample-list-scroll-region"
+          style={{ flex: 1, minWidth: 0, overflow: "auto", paddingBottom: selectedSample ? "160px" : undefined, boxSizing: "border-box" }}
           ref={(el: HTMLDivElement | null) => {
             listRef.current = el;
             scrollRef.current = el;
@@ -414,6 +401,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             selectedSample={selectedSample}
             selectedIds={props.selectedIds}
             colWidths={visibleColWidths}
+            tableMinWidth={tableMinWidth}
             rowHeight={rowHeight}
             sort={sort}
             onSortChange={onSortChange}
@@ -440,7 +428,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             canLoadPrevious={canLoadPrevious}
             onLoadPrevious={onLoadPrevious}
             isLoadingMore={isLoadingMore}
-            canLoadMore={sorted.length > 0 && canLoadMore}
+            canLoadMore={canLoadMore}
             onLoadMore={onLoadMore}
             getSampleProcessingSettings={getSampleProcessingSettings}
           />

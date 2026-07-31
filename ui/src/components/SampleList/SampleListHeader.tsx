@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { SortHeader } from "./SortHeader";
 import type { SortState } from "../../types/sample";
 import type { ActiveResizeState } from "./types";
+import { SAMPLE_LIST_COLUMN_GAP } from "./sampleListLayout";
 
 interface SampleListHeaderProps {
   colWidths: string[];
+  tableMinWidth: number;
   sort: SortState;
   onSortChange: (sort: SortState) => void;
   startColumnResize: (index: number, startX: number, startWidth: number) => void;
@@ -16,6 +18,7 @@ interface SampleListHeaderProps {
 
 export function SampleListHeader({
   colWidths,
+  tableMinWidth,
   sort,
   onSortChange,
   startColumnResize,
@@ -61,9 +64,12 @@ export function SampleListHeader({
 
   return (
     <div
+      data-testid="sample-list-header"
       style={{
         display: "grid",
         gridTemplateColumns: colWidths.join(" "),
+        columnGap: SAMPLE_LIST_COLUMN_GAP,
+        minWidth: tableMinWidth,
         padding: "6px 12px",
         borderLeft: "2px solid transparent",
         boxSizing: "border-box",
