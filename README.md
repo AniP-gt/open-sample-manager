@@ -53,6 +53,7 @@ Feature guides:
 
 - **MIDI directory scanning** — index MIDI files alongside audio samples
 - **MIDI playback** — play MIDI files via TiMidity++ (see [MIDI Playback Setup](#midi-playback-setup))
+- **Phrase classification**: filter MIDI by musical role, voicing, density, range, bar count, and suggested General MIDI instrument family
 - **Tag system** — create and assign custom tags to MIDI files
 - **Search** — full-text search over MIDI filenames
 
