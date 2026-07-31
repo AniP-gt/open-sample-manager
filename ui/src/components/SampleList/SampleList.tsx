@@ -16,6 +16,7 @@ import { SampleListListView } from "./SampleListListView";
 import { matchesSampleFilters } from "../../utils/sampleFilter";
 import { appendPreviousRandomSelection, chooseRandomSample, popRandomHistory } from "./randomSelection";
 import { KEY_FILTER_OPTIONS } from "../../utils/keyOptions";
+import { SampleListSearch } from "./SampleListSearch";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 export type { SampleListHandle, SampleListProps } from "./types";
@@ -57,6 +58,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     selectedSample,
     onSampleSelect,
     onFilterChange,
+    onSearchSubmit,
     onSortChange,
     onTrashSample,
     onTypeClick,
@@ -218,7 +220,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            if (isLoadingMore || canLoadMore === false) return;
+            if (sorted.length === 0 || isLoadingMore || canLoadMore === false) return;
             void onLoadMore();
           }
         }
@@ -227,7 +229,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     );
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [onLoadMore, isLoadingMore, canLoadMore]);
+  }, [onLoadMore, isLoadingMore, canLoadMore, sorted.length]);
 
   useEffect(() => {
     const sentinel = topSentinelRef.current;
@@ -285,11 +287,9 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
         </svg>
-        <input
-          value={filters.search}
-          onChange={(e) => onFilterChange({ search: e.target.value })}
-          placeholder="Search by filename, tag, key..."
-          style={{ flex: "1 1 220px", minWidth: "160px", fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
+        <SampleListSearch
+          appliedQuery={filters.search}
+          onSubmit={onSearchSubmit}
         />
         <input
           type="number"
@@ -428,7 +428,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             canLoadPrevious={canLoadPrevious}
             onLoadPrevious={onLoadPrevious}
             isLoadingMore={isLoadingMore}
-            canLoadMore={canLoadMore}
+            canLoadMore={sorted.length > 0 && canLoadMore}
             onLoadMore={onLoadMore}
             getSampleProcessingSettings={getSampleProcessingSettings}
           />
