@@ -18,8 +18,8 @@ improve information legibility without reducing the number of samples visible.
 ## Responsive Behavior
 
 - Search and filter controls wrap when the sample-list pane is constrained.
-- Below 900px of list width, secondary KEY, LIC, and QC columns are hidden so
-  filename, classification, tempo, duration, and row actions remain visible.
+- Constrained list panes keep every enabled column and expose the remaining
+  information through horizontal scrolling, matching the MIDI list.
 - Opening the detail panel must not reduce the filename column below its
   readable minimum.
 - Column headers and virtualized rows share one width and spacing contract.

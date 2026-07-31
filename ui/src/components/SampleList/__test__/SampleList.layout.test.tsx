@@ -3,10 +3,7 @@ import { describe, expect, test } from "vitest";
 import { renderSampleList } from "./sampleListTestHelpers";
 import {
   SAMPLE_LIST_COLUMN_GAP,
-  SAMPLE_LIST_COMPACT_MIN_WIDTH,
   SAMPLE_LIST_MIN_WIDTH,
-  getSampleListMinWidth,
-  isCompactSampleList,
 } from "../sampleListLayout";
 
 describe("SampleList responsive layout", () => {
@@ -28,9 +25,7 @@ describe("SampleList responsive layout", () => {
     });
   });
 
-  test("uses the compact column contract for a constrained list pane", () => {
-    expect(isCompactSampleList(755)).toBe(true);
-    expect(getSampleListMinWidth(true, true)).toBe(SAMPLE_LIST_COMPACT_MIN_WIDTH);
-    expect(SAMPLE_LIST_COMPACT_MIN_WIDTH).toBeLessThanOrEqual(755);
+  test("keeps the full table wider than the pane when the detail panel is open", () => {
+    expect(SAMPLE_LIST_MIN_WIDTH).toBeGreaterThan(755);
   });
 });

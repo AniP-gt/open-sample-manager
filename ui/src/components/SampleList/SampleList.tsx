@@ -9,7 +9,6 @@ import { useColumnResize } from "./useColumnResize";
 import {
   DEFAULT_SAMPLE_COLUMN_WIDTHS,
   getSampleListMinWidth,
-  isCompactSampleList,
 } from "./sampleListLayout";
 import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
@@ -77,7 +76,6 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   } = props;
 
   const listRef = useRef<HTMLDivElement | null>(null);
-  const listContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const headerRefs = useRef<Array<HTMLDivElement | null>>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -85,35 +83,19 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
   const preparedPathsRef = useRef<Record<string, string>>({});
 
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  const [listWidth, setListWidth] = useState(Number.POSITIVE_INFINITY);
   const [randomHistory, setRandomHistory] = useState<Sample[]>([]);
   const [lastRandomSample, setLastRandomSample] = useState<Sample | null>(null);
   const { favorites, toggleFavorite } = useFavoritesStore();
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
-  useEffect(() => {
-    const container = listContainerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setListWidth(entry.contentRect.width);
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  const compactLayout = isCompactSampleList(listWidth);
   const { colWidths, startColumnResize, draggedColumnRef, activeResize } = useColumnResize([
     ...DEFAULT_SAMPLE_COLUMN_WIDTHS,
   ]);
   const visibleColWidths = useMemo(() => {
-    if (compactLayout) {
-      return colWidths.filter((_, index) => index !== 7 && index !== 8 && index !== 9);
-    }
     if (showSampleMetadataQuality) return colWidths;
     return colWidths.filter((_, index) => index !== 8 && index !== 9);
-  }, [colWidths, compactLayout, showSampleMetadataQuality]);
-  const tableMinWidth = getSampleListMinWidth(compactLayout, showSampleMetadataQuality);
+  }, [colWidths, showSampleMetadataQuality]);
+  const tableMinWidth = getSampleListMinWidth(showSampleMetadataQuality);
 
   const {
     isDragOver,
@@ -292,7 +274,6 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
 
   return (
     <div
-      ref={listContainerRef}
       style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
@@ -431,8 +412,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
             onToggleFavorite={toggleFavorite}
             favorites={favSet}
             instrumentColorCoding={instrumentColorCoding}
-            showMusicalKey={!compactLayout}
-            showSampleMetadataQuality={showSampleMetadataQuality && !compactLayout}
+            showSampleMetadataQuality={showSampleMetadataQuality}
             dragIconPath={dragIconPathRef.current}
             preparedPathsRef={preparedPathsRef}
             headerRefs={headerRefs}

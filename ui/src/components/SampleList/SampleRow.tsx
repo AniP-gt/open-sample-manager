@@ -26,7 +26,6 @@ interface SampleRowProps {
   onTypeClick?: (sample: Sample) => void;
   onMetadataClick?: (sample: Sample) => void;
   onTrashSample?: (id: number) => void;
-  showMusicalKey?: boolean;
   showSampleMetadataQuality?: boolean;
 }
 
@@ -48,7 +47,6 @@ export function SampleRow({
   onTypeClick,
   onMetadataClick,
   onTrashSample,
-  showMusicalKey = true,
   showSampleMetadataQuality = true,
 }: SampleRowProps) {
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
@@ -182,19 +180,17 @@ export function SampleRow({
       <div style={{ fontSize: "16px", color: "#6b7280" }}>
         {s.duration.toFixed(2)}s
       </div>
-      {showMusicalKey && (
-        <div
-          style={{
-            fontSize: "14px",
-            fontFamily: "'Courier New', monospace",
-            fontWeight: 600,
-            letterSpacing: "0.08em",
-            color: s.musical_key ? "#a78bfa" : "#374151",
-          }}
-        >
-          {s.musical_key ?? "-"}
-        </div>
-      )}
+      <div
+        style={{
+          fontSize: "14px",
+          fontFamily: "'Courier New', monospace",
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          color: s.musical_key ? "#a78bfa" : "#374151",
+        }}
+      >
+        {s.musical_key ?? "-"}
+      </div>
       {showSampleMetadataQuality && (
         <>
           <button

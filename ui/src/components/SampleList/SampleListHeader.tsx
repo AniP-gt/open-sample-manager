@@ -13,7 +13,6 @@ interface SampleListHeaderProps {
   draggedColumnRef: React.MutableRefObject<number | null>;
   activeResize: React.MutableRefObject<ActiveResizeState>;
   headerRefs: React.MutableRefObject<Array<HTMLDivElement | null>>;
-  showMusicalKey?: boolean;
   showSampleMetadataQuality?: boolean;
 }
 
@@ -26,7 +25,6 @@ export function SampleListHeader({
   draggedColumnRef,
   activeResize,
   headerRefs,
-  showMusicalKey = true,
   showSampleMetadataQuality = true,
 }: SampleListHeaderProps) {
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
@@ -146,18 +144,16 @@ export function SampleListHeader({
         {renderResizer(6)}
       </div>
 
-      {showMusicalKey && (
-        <div
-          style={{ position: "relative" }}
-          ref={(el) => (headerRefs.current[7] = el)}
-          onMouseDown={(e) => handleMouseDown(7, e)}
-          onMouseMove={(e) => handleMouseMove(7, e)}
-          onMouseLeave={() => handleMouseLeave(7)}
-        >
-          <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>KEY</SortHeader>
-          {renderResizer(7)}
-        </div>
-      )}
+      <div
+        style={{ position: "relative" }}
+        ref={(el) => (headerRefs.current[7] = el)}
+        onMouseDown={(e) => handleMouseDown(7, e)}
+        onMouseMove={(e) => handleMouseMove(7, e)}
+        onMouseLeave={() => handleMouseLeave(7)}
+      >
+        <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>KEY</SortHeader>
+        {renderResizer(7)}
+      </div>
 
       {showSampleMetadataQuality && (
         <>
