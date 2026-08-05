@@ -5,7 +5,6 @@ import type { SampleProcessingSettings } from "../types/sample";
 import { hasSampleProcessingEdits, toProcessedDragParams } from "../utils/sampleProcessing";
 
 const FALLBACK_DRAG_ICON = "/tmp/osm_drag_icon.png";
-const PREPARED_FILE_CLEANUP_DELAY_MS = 1500;
 
 export function loadDragIconPath(dragIconPathRef: React.MutableRefObject<string>) {
   void invoke<string>("get_drag_icon_path").then((path) => {
@@ -59,13 +58,9 @@ export function startFileDrag(
     }).then((processedPath) => {
       if (!processedPath) return;
       preparedPathsRef.current[key] = processedPath;
-      return startDrag({ item: [processedPath], icon: dragIconPath || FALLBACK_DRAG_ICON })
-        .catch((err) => {
-          console.warn(`${logPrefix} startDrag failed:`, err);
-        })
-        .finally(() => {
-          schedulePreparedFileCleanup(key, preparedPathsRef);
-        });
+      return startDrag({ item: [processedPath], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
+        console.warn(`${logPrefix} startDrag failed:`, err);
+      });
     }).catch((err) => {
       console.warn(`${logPrefix} processed drag failed:`, err);
     });
@@ -75,19 +70,4 @@ export function startFileDrag(
   void startDrag({ item: [preparedPath || path], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
     console.warn(`${logPrefix} startDrag failed:`, err);
   });
-
-  schedulePreparedFileCleanup(key, preparedPathsRef);
-}
-
-function schedulePreparedFileCleanup(
-  key: string | number,
-  preparedPathsRef: React.MutableRefObject<Record<string, string>>,
-) {
-  setTimeout(() => {
-    const prepared = preparedPathsRef.current[key];
-    if (prepared) {
-      void invoke("delete_file", { path: prepared }).catch(() => {});
-      delete preparedPathsRef.current[key];
-    }
-  }, PREPARED_FILE_CLEANUP_DELAY_MS);
 }

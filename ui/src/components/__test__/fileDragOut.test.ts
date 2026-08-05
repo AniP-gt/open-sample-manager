@@ -162,7 +162,32 @@ describe("fileDragOut", () => {
     expect(startDrag).not.toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" });
   });
 
-  it("cleans up processed drag files prepared during drag start", async () => {
+  it("uses source path for unedited drag when cache is empty", async () => {
+    vi.useFakeTimers();
+    const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: {} };
+    vi.mocked(startDrag).mockResolvedValue(undefined);
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    const event = { preventDefault: vi.fn() } as unknown as React.DragEvent;
+
+    startFileDrag(
+      event,
+      "/samples/kick.wav",
+      "raw-empty",
+      preparedPathsRef,
+      "/tmp/icon.png",
+      "[test]",
+    );
+    await Promise.resolve();
+
+    vi.advanceTimersByTime(2000);
+    await Promise.resolve();
+
+    expect(startDrag).toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" });
+    expect(invoke).not.toHaveBeenCalledWith("delete_file", expect.any(Object));
+    expect(preparedPathsRef.current).toStrictEqual({});
+  });
+
+  it("keeps a processed drag file cached after cleanup delay", async () => {
     vi.useFakeTimers();
     const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: {} };
     vi.mocked(invoke).mockResolvedValue(undefined);
@@ -188,45 +213,36 @@ describe("fileDragOut", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    vi.runOnlyPendingTimers();
+    vi.advanceTimersByTime(2000);
     await Promise.resolve();
 
-    expect(invoke).toHaveBeenCalledWith("delete_file", { path: "/tmp/processed.wav" });
-    expect(preparedPathsRef.current["edited-cleanup"]).toBeUndefined();
+    expect(invoke).not.toHaveBeenCalledWith("delete_file", { path: "/tmp/processed.wav" });
+    expect(preparedPathsRef.current["edited-cleanup"]).toBe("/tmp/processed.wav");
   });
 
-  it("cleans up processed drag files when native drag rejects", async () => {
+  it("keeps an already prepared raw drag path cached after cleanup delay", async () => {
     vi.useFakeTimers();
-    const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: {} };
+    const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: { "raw-cleanup": "/tmp/raw.wav" } };
     vi.mocked(invoke).mockResolvedValue(undefined);
-    vi.mocked(invoke).mockResolvedValueOnce("/tmp/processed.wav");
-    vi.mocked(startDrag).mockRejectedValueOnce(new Error("drag failed"));
+    vi.mocked(startDrag).mockResolvedValue(undefined);
     const event = { preventDefault: vi.fn() } as unknown as React.DragEvent;
 
     startFileDrag(
       event,
       "/samples/kick.wav",
-      "edited-reject-cleanup",
+      "raw-cleanup",
       preparedPathsRef,
       "/tmp/icon.png",
       "[test]",
-      {
-        trimStartSeconds: 0,
-        trimEndSeconds: 0,
-        fadeInSeconds: 0,
-        fadeOutSeconds: 0,
-        gainDb: 3,
-      },
     );
     await Promise.resolve();
     await Promise.resolve();
+
+    vi.advanceTimersByTime(2000);
     await Promise.resolve();
 
-    vi.runOnlyPendingTimers();
-    await Promise.resolve();
-
-    expect(startDrag).toHaveBeenCalledWith({ item: ["/tmp/processed.wav"], icon: "/tmp/icon.png" });
-    expect(invoke).toHaveBeenCalledWith("delete_file", { path: "/tmp/processed.wav" });
-    expect(preparedPathsRef.current["edited-reject-cleanup"]).toBeUndefined();
+    expect(startDrag).toHaveBeenCalledWith({ item: ["/tmp/raw.wav"], icon: "/tmp/icon.png" });
+    expect(invoke).not.toHaveBeenCalledWith("delete_file", { path: "/tmp/raw.wav" });
+    expect(preparedPathsRef.current["raw-cleanup"]).toBe("/tmp/raw.wav");
   });
 });
