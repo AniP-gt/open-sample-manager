@@ -82,6 +82,32 @@ export interface SortState {
   direction: SortDirection;
 }
 
+export interface SampleCollection {
+  id: number;
+  name: string;
+  description: string | null;
+  sample_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedSearch {
+  id: number;
+  name: string;
+  search: string;
+  filter_type: FilterState["filterType"];
+  filter_bpm_min: string;
+  filter_bpm_max: string;
+  filter_instrument_type: FilterState["filterInstrumentType"];
+  favorites_only: boolean;
+  filter_key: string;
+  directory_path: string;
+  sort_field: SortState["field"];
+  sort_direction: SortState["direction"];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TypeBadgeStyle {
   bg: string;
   color: string;

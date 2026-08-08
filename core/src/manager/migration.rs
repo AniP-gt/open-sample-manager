@@ -25,6 +25,7 @@ const REQUIRED_TABLES: &[&str] = &[
     "midi_file_tags",
     "collections",
     "collection_members",
+    "saved_searches",
     "samples_fts",
     "midis_fts",
 ];

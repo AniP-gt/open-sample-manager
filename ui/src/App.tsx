@@ -26,7 +26,6 @@ import { useRecentStore } from "./store/useRecentStore";
 import { useDisplayedSamples } from "./hooks/useDisplayedSamples";
 import { useSampleProcessingState } from "./hooks/useSampleProcessingState";
 import { useExternalApiCommands } from "./hooks/useExternalApiCommands";
-import { useCollections } from "./hooks/useCollections";
 import type { FilterState, Sample } from "./types/sample";
 import type { Midi } from "./types/midi";
 
@@ -121,15 +120,14 @@ export function App() {
     fetchAllMidiPaths: midiState.fetchAllMidiPaths,
   });
 
-  const collectionState = useCollections({ onError: scanState.setError });
-
   const externalApiCommands = useExternalApiCommands({
     showExternalResults: sampleState.showExternalResults,
     setViewMode: uiState.setViewMode,
     setError: scanState.setError,
     playerBarRef,
     selectSample: sampleState.handleSampleSelect,
-    refreshCollections: collectionState.refresh,
+    refreshCollections: sampleState.refreshCollections,
+    clearCollectionView: sampleState.clearCollectionMode,
   });
   const setPlayerBarRef = useCallback((playerBar: PlayerBarHandle | null) => {
     setPlayerBar(playerBar);
@@ -203,13 +201,16 @@ export function App() {
     sampleState.setMetadataModalOpen,
   ]);
 
-  const displayedSamples = useDisplayedSamples(
+  const filteredDisplayedSamples = useDisplayedSamples(
     sampleState.samples,
     sampleState.filters,
     favorites,
     sampleState.externalResults,
-    collectionState.isCollectionView ? collectionState.activeMembers : null,
+    sampleState.isCollectionView ? sampleState.collectionMembers : null,
   );
+  const displayedSamples = sampleState.isCollectionView
+    ? sampleState.collectionMembers
+    : filteredDisplayedSamples;
 
   const filteredMidis = useMemo(() => {
     if (!midiState.favoritesOnly) return midiState.midis;
@@ -219,8 +220,8 @@ export function App() {
 
   const displayedSamplePaths = sampleState.externalResults
     ? sampleState.samplePaths
-    : collectionState.isCollectionView
-      ? collectionState.samplePaths
+    : sampleState.isCollectionView
+      ? sampleState.collectionSamplePaths
       : sampleState.samplePaths;
   const selectedSamplePath = sampleState.selected ? displayedSamplePaths[sampleState.selected.id] : undefined;
   const sampleProcessingState = useSampleProcessingState(sampleState.selected, selectedSamplePath);
@@ -327,13 +328,11 @@ export function App() {
         midiListRef={midiListRef}
         displayedSamples={displayedSamples}
         samplePaths={displayedSamplePaths}
-        collections={collectionState.collections}
-        activeCollectionId={collectionState.activeCollectionId}
-        isCollectionView={collectionState.isCollectionView}
-        onSelectCollection={(collectionId) => {
-          void collectionState.selectCollection(collectionId);
-        }}
-        onClearCollection={collectionState.clearCollection}
+        collections={sampleState.collections}
+        activeCollectionId={sampleState.activeCollectionId}
+        isCollectionView={sampleState.isCollectionView}
+        onSelectCollection={(collectionId) => { void sampleState.loadCollectionSamples(collectionId); }}
+        onClearCollection={sampleState.clearCollectionMode}
         filteredMidis={filteredMidis}
         instrumentColorCoding={instrumentColorCoding}
         directoryClickFiltering={directoryClickFiltering}

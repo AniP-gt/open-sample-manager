@@ -25,7 +25,7 @@ export type StringArraySetter = Dispatch<SetStateAction<string[]>>;
 
 export type RetryActionSetter = Dispatch<SetStateAction<RetryAction | null>>;
 
-export type RunSampleSearch = (query: string) => Promise<Sample[]>;
+export type RunSampleSearch = (query: string, directoryPath?: string | null) => Promise<Sample[]>;
 
 export type FetchAllSamplePaths = () => Promise<void>;
 

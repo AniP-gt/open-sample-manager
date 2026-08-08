@@ -314,7 +314,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           style={{ ...controlStyle, width: "92px" }}
         >
           {sampleTypeOptions.map((type) => (
-            <option key={type} value={type}>{type === "all" ? "TYPE" : type}</option>
+            <option key={type} value={type}>{type === "all" ? "TYPE" : type.toUpperCase()}</option>
           ))}
         </select>
         <select

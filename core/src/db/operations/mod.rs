@@ -3,13 +3,16 @@ mod fuzzy;
 mod instrument_types;
 mod midi;
 mod samples;
+mod saved_searches;
 mod search_dsl;
 mod types;
 
 pub use collections::{
-    add_samples_to_collection, get_collection_by_id, get_collection_members,
-    list_collection_member_sample_ids, list_collection_members_with_positions, list_collections,
-    normalize_collection_name,
+    add_samples_to_collection, add_samples_to_collection_by_id, create_collection,
+    delete_collection, get_collection_by_id, get_collection_members,
+    list_collection_member_sample_ids, list_collection_members_with_positions,
+    list_collection_samples, list_collections, normalize_collection_name,
+    remove_samples_from_collection, update_collection,
 };
 pub use instrument_types::{
     delete_instrument_type, get_all_instrument_types, insert_instrument_type,
@@ -27,7 +30,12 @@ pub use samples::{
     move_sample_path, search_by_embedding, search_samples, search_samples_paginated, update_sample,
     update_sample_license_metadata,
 };
+pub use saved_searches::{
+    create_saved_search, delete_saved_search, get_saved_search, list_saved_searches,
+    update_saved_search,
+};
 pub use types::{
-    CollectionAddResult, CollectionMemberRow, CollectionRow, DuplicateGroup, EmbeddingSearchResult,
-    InstrumentTypeRow, MidiInput, MidiRow, MidiTagRow, SampleInput, SampleRow,
+    CollectionAddResult, CollectionInput, CollectionMemberRow, CollectionRow, DuplicateGroup,
+    EmbeddingSearchResult, InstrumentTypeRow, MidiInput, MidiRow, MidiTagRow, SampleInput,
+    SampleRow, SavedSearchInput, SavedSearchRow,
 };

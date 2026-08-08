@@ -1,5 +1,6 @@
 import React from "react";
 import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
+import { CollectionsSavedSearchesPanel } from "../CollectionsSavedSearchesPanel/CollectionsSavedSearchesPanel";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import type { Midi } from "../../types/midi";
 import type { Collection } from "../../types/collection";
@@ -194,6 +195,7 @@ export function AppMainPane({
       />
 
       {uiState.viewMode === "sample" ? (
+        <>
         <SampleList
           ref={sampleListRef}
           samples={displayedSamples}
@@ -219,14 +221,14 @@ export function AppMainPane({
           onTypeClick={sampleState.handleTypeClick}
           onMetadataClick={showSampleMetadataQuality ? sampleState.handleMetadataClick : undefined}
           onImportPaths={scanState.handleImportPaths}
-          onLoadMore={sampleState.loadMore}
+          onLoadMore={!isCollectionView ? sampleState.loadMore : async () => {}}
           isLoadingMore={sampleState.isLoadingMore}
           canLoadMore={
-            sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit
+            !isCollectionView && (sampleState.lastFetchCount === null ? true : sampleState.lastFetchCount === uiState.pageLimit)
           }
-          onLoadPrevious={sampleState.loadPrevious}
+          onLoadPrevious={!isCollectionView ? sampleState.loadPrevious : async () => {}}
           isLoadingPrevious={sampleState.isLoadingPrevious}
-          canLoadPrevious={sampleState.canLoadPrevious}
+          canLoadPrevious={!isCollectionView && sampleState.canLoadPrevious}
           onTogglePlayback={sampleState.togglePlayback}
           instrumentColorCoding={instrumentColorCoding}
           showSampleMetadataQuality={showSampleMetadataQuality}
@@ -234,6 +236,24 @@ export function AppMainPane({
           preserveOrder={sampleState.externalResults !== null || isCollectionView}
           onRestoreSearchResults={sampleState.externalResults ? sampleState.restoreSearchResults : undefined}
         />
+        <CollectionsSavedSearchesPanel
+          collections={collections}
+          savedSearches={sampleState.savedSearches}
+          activeCollectionId={activeCollectionId}
+          selectedIds={sampleState.selectedIds}
+          onCreateCollection={sampleState.createCollection}
+          onUpdateCollection={sampleState.updateCollection}
+          onDeleteCollection={sampleState.deleteCollection}
+          onOpenCollection={async (id) => onSelectCollection(id)}
+          onClearCollection={async () => onClearCollection()}
+          onAddSelected={sampleState.addSelectedToCollection}
+          onRemoveSelected={sampleState.removeSelectedFromCollection}
+          onCreateSavedSearch={sampleState.createSavedSearch}
+          onUpdateSavedSearch={sampleState.updateSavedSearch}
+          onDeleteSavedSearch={sampleState.deleteSavedSearch}
+          onApplySavedSearch={sampleState.applySavedSearch}
+        />
+        </>
       ) : (
         <>
           <MidiList

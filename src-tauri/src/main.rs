@@ -1,7 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::sync::{Arc, Mutex};
+
 use open_sample_manager_core::SampleManager;
+use tauri::Manager;
 
 mod app_state;
 mod commands;
@@ -12,15 +15,8 @@ mod local_api_runtime;
 use crate::app_state::{AppRuntimeState, AppState, PreparedTempRegistry};
 use crate::commands::*;
 use crate::external_commands::emit_ui_command_wake as emit_ui_command_wake_event;
-use std::sync::{Arc, Mutex};
-use tauri::Manager;
 
 fn main() {
-    // Create the builder and register plugins. We register the dragout plugin
-    // only on macOS because it purposefully fails to compile on other
-    // platforms (it uses macOS-only Objective-C APIs). Keeping the conditional
-    // registration here avoids build errors on Linux/Windows while enabling
-    // native file-promise drag semantics on macOS.
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -45,7 +41,6 @@ fn main() {
                 }
                 Err(_) => None,
             };
-
             let db_path_str = db_path
                 .as_ref()
                 .map(|path| path.to_string_lossy().to_string());
@@ -69,28 +64,21 @@ fn main() {
                 let app_handle = app.app_handle().clone();
                 Arc::new(move || emit_ui_command_wake_event(&app_handle))
             };
-
             let local_api_runtime = match app.path().app_data_dir() {
-                Ok(app_data_dir) => {
-                    match local_api_runtime::start_local_api_with_manager_and_wake_default(
-                        local_api_runtime::LocalApiDataDirectory::new(app_data_dir),
-                        manager,
-                        ui_commands,
-                        emit_ui_command_wake,
-                    ) {
-                        Ok(runtime) => Some(runtime),
-                        Err(error) => {
-                            eprintln!(
-                                "warning: failed to start localhost API on 127.0.0.1:37421: {error}"
-                            );
-                            None
-                        }
+                Ok(app_data_dir) => match local_api_runtime::start_local_api_with_manager_and_wake_default(
+                    local_api_runtime::LocalApiDataDirectory::new(app_data_dir),
+                    manager,
+                    ui_commands,
+                    emit_ui_command_wake,
+                ) {
+                    Ok(runtime) => Some(runtime),
+                    Err(error) => {
+                        eprintln!("warning: failed to start localhost API on 127.0.0.1:37421: {error}");
+                        None
                     }
-                }
+                },
                 Err(error) => {
-                    eprintln!(
-                        "warning: unable to resolve app data directory for localhost API: {error}"
-                    );
+                    eprintln!("warning: unable to resolve app data directory for localhost API: {error}");
                     None
                 }
             };
@@ -110,16 +98,23 @@ fn main() {
         import_library_database,
         import_file,
         search_samples,
-        // Paginated listing/search exposed to renderer. list_samples_paginated
-        // currently ignores the `query` parameter and returns a LIMIT/OFFSET
-        // paginated listing. Future change will wire server-side FTS filtering.
         list_samples_paginated,
         list_samples_around_id,
         search_by_embedding,
         get_sample,
         get_samples_by_ids,
+        create_collection,
         list_collections,
+        update_collection,
+        delete_collection,
+        add_samples_to_collection,
+        remove_samples_from_collection,
+        list_collection_samples,
         get_collection_members,
+        create_saved_search,
+        list_saved_searches,
+        update_saved_search,
+        delete_saved_search,
         list_all_sample_paths,
         list_duplicate_groups,
         delete_sample,
@@ -139,13 +134,10 @@ fn main() {
         prepare_processed_drag_file,
         delete_file,
         get_drag_icon_path,
-        debug_start_drag,
-        debug_try_deserialize,
         claim_ui_command_queue,
         acknowledge_ui_command,
         nack_ui_command,
         emit_ui_command_wake,
-        // MIDI commands
         check_timidity,
         play_midi,
         stop_midi,
@@ -158,7 +150,6 @@ fn main() {
         clear_all_midis,
         search_midis,
         search_midis_paginated,
-        // MIDI tag commands
         get_midi_tags,
         add_midi_tag,
         delete_midi_tag,

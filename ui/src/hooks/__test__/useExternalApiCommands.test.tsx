@@ -58,6 +58,7 @@ describe("useExternalApiCommands", () => {
     const showExternalResults = vi.fn();
     const setViewMode = vi.fn();
     const setError = vi.fn();
+    const clearCollectionView = vi.fn();
     const window = {
       show: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       setFocus: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -81,6 +82,7 @@ describe("useExternalApiCommands", () => {
         setError,
         playerBarRef: { current: null },
         selectSample: vi.fn(),
+        clearCollectionView,
         getAppWindow: () => window,
       }),
     );
@@ -92,6 +94,7 @@ describe("useExternalApiCommands", () => {
     }));
     expect(showExternalResults.mock.calls[0]?.[0].samples.map((sample: { id: number }) => sample.id)).toEqual([3, 1, 2]);
     expect(setViewMode).toHaveBeenCalledWith("sample");
+    expect(clearCollectionView).toHaveBeenCalledOnce();
     expect(window.show).toHaveBeenCalledOnce();
     expect(window.setFocus).toHaveBeenCalledOnce();
 
@@ -166,6 +169,7 @@ describe("useExternalApiCommands", () => {
     const setError = vi.fn();
     const showExternalResults = vi.fn();
     const setViewMode = vi.fn();
+    const clearCollectionView = vi.fn();
     const commands = [[{ id: 3, type: "PreviewSample", sample_id: 2 }], []] as const;
     let drainCount = 0;
     let wake: (() => void) | undefined;
@@ -191,10 +195,12 @@ describe("useExternalApiCommands", () => {
         setError,
         playerBarRef,
         selectSample,
+        clearCollectionView,
       }),
     );
 
     await waitFor(() => expect(selectSample).toHaveBeenCalledWith(expect.objectContaining({ id: 2 })));
+    expect(clearCollectionView).toHaveBeenCalledOnce();
     expect(stop).not.toHaveBeenCalled();
     expect(playFromStart).not.toHaveBeenCalled();
     expect(result.current.previewSampleId).toBe(2);

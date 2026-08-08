@@ -321,6 +321,161 @@ fn init_database_repairs_collections_when_a_colliding_migration_version_is_alrea
 }
 
 #[test]
+fn init_database_migrates_populated_legacy_collection_samples() {
+    let conn = Connection::open_in_memory().expect("create database");
+    conn.execute_batch(
+        "CREATE TABLE samples (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, file_name TEXT NOT NULL, bpm REAL, sample_type TEXT);
+         INSERT INTO samples (id, path, file_name) VALUES (1, '/tmp/one.wav', 'one.wav'), (2, '/tmp/two.wav', 'two.wav');
+         CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+         CREATE TABLE collection_samples (
+             collection_id INTEGER NOT NULL,
+             sample_id INTEGER NOT NULL,
+             added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+             PRIMARY KEY (collection_id, sample_id)
+         );
+         INSERT INTO collections (id, name) VALUES (1, 'Legacy');
+         INSERT INTO collection_samples (collection_id, sample_id, added_at) VALUES
+             (1, 2, '2026-01-01T00:00:02Z'),
+             (1, 1, '2026-01-01T00:00:01Z');",
+    )
+    .expect("seed legacy collection data");
+
+    init_database(&conn).expect("migrate legacy collection data");
+
+    let members = conn
+        .prepare(
+            "SELECT sample_id FROM collection_members WHERE collection_id = 1 ORDER BY position",
+        )
+        .expect("prepare member query")
+        .query_map([], |row| row.get::<_, i64>(0))
+        .expect("query members")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect members");
+    let legacy_table_exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'collection_samples')",
+            [],
+            |row| row.get(0),
+        )
+        .expect("inspect legacy table");
+
+    assert_eq!(members, vec![1, 2]);
+    assert!(!legacy_table_exists);
+}
+
+#[test]
+fn init_database_merges_normalized_legacy_collection_name_collisions() {
+    let mut conn = Connection::open_in_memory().expect("create database");
+    conn.execute_batch(
+        "CREATE TABLE samples (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, file_name TEXT NOT NULL, bpm REAL, sample_type TEXT);
+         INSERT INTO samples (id, path, file_name) VALUES (1, '/tmp/one.wav', 'one.wav'), (2, '/tmp/two.wav', 'two.wav');
+         CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+         CREATE TABLE collection_samples (
+             collection_id INTEGER NOT NULL,
+             sample_id INTEGER NOT NULL,
+             added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+             PRIMARY KEY (collection_id, sample_id)
+         );
+         INSERT INTO collections (id, name, created_at) VALUES (1, ' Drum   Kit ', '2026-01-01T00:00:01Z'), (2, 'drum kit', '2026-01-01T00:00:02Z');
+         INSERT INTO collection_samples (collection_id, sample_id) VALUES (1, 1), (2, 2);",
+    )
+    .expect("seed colliding legacy collections");
+
+    init_database(&conn).expect("merge legacy collection collisions");
+
+    let collections = conn
+        .prepare("SELECT id, name FROM collections ORDER BY id")
+        .expect("prepare collection query")
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .expect("query collections")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect collections");
+    let members = conn
+        .prepare(
+            "SELECT sample_id FROM collection_members WHERE collection_id = 1 ORDER BY position",
+        )
+        .expect("prepare member query")
+        .query_map([], |row| row.get::<_, i64>(0))
+        .expect("query members")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect members");
+    let retry = crate::db::operations::add_samples_to_collection(&mut conn, " DRUM\tKIT ", &[1])
+        .expect("add to normalized collection");
+
+    assert_eq!(collections, vec![(1, "drum kit".to_string())]);
+    assert_eq!(members, vec![1, 2]);
+    assert!(!retry.created);
+    assert_eq!(retry.collection_id, 1);
+}
+
+#[test]
+fn init_database_preserves_user_collection_named_like_a_former_migration_temp_name() {
+    let conn = Connection::open_in_memory().expect("create database");
+    conn.execute_batch(
+        "CREATE TABLE samples (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, file_name TEXT NOT NULL, bpm REAL, sample_type TEXT);
+         INSERT INTO samples (id, path, file_name) VALUES
+             (1, '/tmp/one.wav', 'one.wav'),
+             (2, '/tmp/two.wav', 'two.wav'),
+             (3, '/tmp/three.wav', 'three.wav');
+         CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+         CREATE TABLE collection_samples (
+             collection_id INTEGER NOT NULL,
+             sample_id INTEGER NOT NULL,
+             added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+             PRIMARY KEY (collection_id, sample_id)
+         );
+         INSERT INTO collections (id, name, created_at) VALUES
+             (1, ' Drum   Kit ', '2026-01-01T00:00:01Z'),
+             (2, '__osm_collection_migration_1', '2026-01-01T00:00:02Z'),
+             (3, 'drum kit', '2026-01-01T00:00:03Z');
+         INSERT INTO collection_samples (collection_id, sample_id) VALUES (1, 1), (2, 2), (3, 3);",
+    )
+    .expect("seed legacy collections including former temporary name");
+
+    init_database(&conn).expect("migrate legacy collections without temporary-name collision");
+
+    let collections = conn
+        .prepare("SELECT id, name FROM collections ORDER BY id")
+        .expect("prepare collection query")
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .expect("query collections")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect collections");
+    let drum_members = conn
+        .prepare(
+            "SELECT sample_id FROM collection_members WHERE collection_id = 1 ORDER BY position",
+        )
+        .expect("prepare drum member query")
+        .query_map([], |row| row.get::<_, i64>(0))
+        .expect("query drum members")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect drum members");
+    let user_members = conn
+        .prepare(
+            "SELECT sample_id FROM collection_members WHERE collection_id = 2 ORDER BY position",
+        )
+        .expect("prepare user member query")
+        .query_map([], |row| row.get::<_, i64>(0))
+        .expect("query user members")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect user members");
+
+    assert_eq!(
+        collections,
+        vec![
+            (1, "drum kit".to_string()),
+            (2, "__osm_collection_migration_1".to_string()),
+        ],
+    );
+    assert_eq!(drum_members, vec![1, 3]);
+    assert_eq!(user_members, vec![2]);
+}
+
+#[test]
 fn test_init_database_creates_collection_tables() {
     let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
     init_database(&conn).expect("Failed to initialize database");

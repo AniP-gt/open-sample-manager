@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { FilterState, SortState } from "../../types/sample";
 import { useCollections } from "../useCollections";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -57,6 +58,48 @@ const sampleRow = (id: number) => ({
   tags: [],
 });
 
+const collectionRow = (id: number, name: string, sampleCount: number) => ({
+  id,
+  name,
+  description: null,
+  created_at: "2026-01-01",
+  updated_at: "2026-01-01",
+  sample_count: sampleCount,
+});
+
+const savedSearchRow = () => ({
+  id: 1,
+  name: "kicks",
+  search: "kick",
+  filter_type: "all",
+  filter_bpm_min: "",
+  filter_bpm_max: "",
+  filter_instrument_type: "",
+  favorites_only: false,
+  filter_key: "",
+  directory_path: "",
+  sort_field: "id",
+  sort_direction: "asc",
+  created_at: "2026-01-01",
+  updated_at: "2026-01-01",
+});
+
+const filters: FilterState = {
+  search: "",
+  filterType: "all",
+  filterBpmMin: "",
+  filterBpmMax: "",
+  filterInstrumentType: "",
+  favoritesOnly: false,
+  hideDuplicates: false,
+  filterKey: "",
+  filterLicense: "",
+  qualityIssuesOnly: false,
+  directoryPath: "",
+};
+
+const sort: SortState = { field: "id", direction: "asc" };
+
 describe("useCollections", () => {
   beforeEach(() => {
     invokeMock.mockReset();
@@ -67,7 +110,7 @@ describe("useCollections", () => {
     const selectedSampleId = 99;
     invokeMock.mockImplementation(async (command) => {
       if (command === "list_collections") {
-        return [{ id: 7, name: "drum rack", created_at: "2026-01-01", sample_count: 2 }];
+        return [collectionRow(7, "drum rack", 2)];
       }
       if (command === "get_collection_members") return [sampleRow(3), sampleRow(1)];
       return undefined;
@@ -95,7 +138,7 @@ describe("useCollections", () => {
       if (command === "list_collections") {
         collectionRequests += 1;
         return collectionRequests === 1
-          ? [{ id: 7, name: "drum rack", created_at: "2026-01-01", sample_count: 1 }]
+          ? [collectionRow(7, "drum rack", 1)]
           : [];
       }
       if (command === "get_collection_members") return [sampleRow(3)];
@@ -145,8 +188,8 @@ describe("useCollections", () => {
     invokeMock.mockImplementation((command, args) => {
       if (command === "list_collections") {
         return Promise.resolve([
-          { id: 1, name: "A", created_at: "2026-01-01", sample_count: 1 },
-          { id: 2, name: "B", created_at: "2026-01-01", sample_count: 1 },
+          collectionRow(1, "A", 1),
+          collectionRow(2, "B", 1),
         ]);
       }
       if (command === "get_collection_members") {
@@ -182,6 +225,50 @@ describe("useCollections", () => {
     expect(result.current.activeMembers.map((sample) => sample.id)).toEqual([2]);
   });
 
+  it("keeps latest same collection members when an older same-collection request rejects", async () => {
+    // Given: the same collection is selected twice, and the second request succeeds.
+    const firstRequest = deferred<unknown>();
+    const secondRequest = deferred<unknown>();
+    let memberRequests = 0;
+    invokeMock.mockImplementation((command, args) => {
+      if (command === "list_collections") {
+        return Promise.resolve([collectionRow(1, "A", 1)]);
+      }
+      if (command === "get_collection_members" && args !== undefined && typeof args === "object" && "collectionId" in args && args.collectionId === 1) {
+        memberRequests += 1;
+        return memberRequests === 1 ? firstRequest.promise : secondRequest.promise;
+      }
+      return Promise.resolve(undefined);
+    });
+    const onError = vi.fn();
+    const { result } = renderHook(() => useCollections({ onError }));
+    await waitFor(() => expect(result.current.collections).toHaveLength(1));
+
+    let firstSelection: Promise<void>;
+    let secondSelection: Promise<void>;
+    act(() => {
+      firstSelection = result.current.selectCollection(1);
+      secondSelection = result.current.selectCollection(1);
+    });
+
+    // When: the newer request resolves, then the older one rejects.
+    await act(async () => {
+      secondRequest.resolve([sampleRow(2)]);
+      await secondRequest.promise;
+      await secondSelection;
+    });
+    await act(async () => {
+      firstRequest.reject(new Error("stale failure"));
+      await firstRequest.promise.catch(() => undefined);
+      await firstSelection;
+    });
+
+    // Then: the latest same-collection result stays active and no stale error is reported.
+    expect(result.current.activeCollectionId).toBe(1);
+    expect(result.current.activeMembers.map((sample) => sample.id)).toEqual([2]);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it("ignores an older refresh after a newer refresh invalidates the active collection", async () => {
     // Given: two refresh requests can observe different collection lists.
     const firstRefresh = deferred<unknown>();
@@ -190,7 +277,7 @@ describe("useCollections", () => {
     invokeMock.mockImplementation((command) => {
       if (command === "list_collections") {
         listCalls += 1;
-        if (listCalls === 1) return Promise.resolve([{ id: 7, name: "drum rack", created_at: "2026-01-01", sample_count: 1 }]);
+        if (listCalls === 1) return Promise.resolve([collectionRow(7, "drum rack", 1)]);
         return listCalls === 2 ? firstRefresh.promise : secondRefresh.promise;
       }
       if (command === "get_collection_members") return Promise.resolve([sampleRow(7)]);
@@ -213,7 +300,7 @@ describe("useCollections", () => {
       await newerRefresh;
     });
     await act(async () => {
-      firstRefresh.resolve([{ id: 7, name: "drum rack", created_at: "2026-01-01", sample_count: 1 }]);
+      firstRefresh.resolve([collectionRow(7, "drum rack", 1)]);
       await firstRefresh.promise;
       await olderRefresh;
     });
@@ -233,7 +320,7 @@ describe("useCollections", () => {
         listCalls += 1;
         return listCalls === 1
           ? initialRequest.promise
-          : Promise.resolve([{ id: 8, name: "fresh", created_at: "2026-01-01", sample_count: 0 }]);
+          : Promise.resolve([collectionRow(8, "fresh", 0)]);
       }
       return Promise.resolve(undefined);
     });
@@ -249,5 +336,119 @@ describe("useCollections", () => {
     // Then: the newest data remains visible without an obsolete error notification.
     expect(result.current.collections.map((collection) => collection.id)).toEqual([8]);
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("refreshes active collection members after a collection mutation", async () => {
+    let collectionCount = 1;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "list_collections") {
+        return [collectionRow(7, "drum rack", collectionCount)];
+      }
+      if (command === "get_collection_members") return collectionCount === 1 ? [sampleRow(1)] : [sampleRow(1), sampleRow(2)];
+      if (command === "add_samples_to_collection") {
+        collectionCount = 2;
+        return 1;
+      }
+      return undefined;
+    });
+    const { result } = renderHook(() => useCollections());
+    await waitFor(() => expect(result.current.collections).toHaveLength(1));
+    await act(async () => {
+      await result.current.selectCollection(7);
+      await result.current.addSelectedToCollection(7, [2]);
+    });
+
+    expect(result.current.collections[0]?.sample_count).toBe(2);
+    expect(result.current.activeMembers.map((sample) => sample.id)).toEqual([1, 2]);
+  });
+
+  it("exits collection view before applying a saved search", async () => {
+    const setFilters = vi.fn();
+    const setSort = vi.fn();
+    const runSearch = vi.fn<() => Promise<unknown>>().mockResolvedValue([]);
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "list_collections") return [collectionRow(7, "drum rack", 1)];
+      if (command === "list_saved_searches") return [];
+      if (command === "get_collection_members") return [sampleRow(1)];
+      return undefined;
+    });
+    const { result } = renderHook(() => useCollections({ filters, sort, setFilters, setSort, runSearch }));
+    await waitFor(() => expect(result.current.collections).toHaveLength(1));
+    await act(async () => {
+      await result.current.selectCollection(7);
+      await result.current.applySavedSearch({
+        id: 1,
+        name: "kicks",
+        search: "kick",
+        filter_type: "all",
+        filter_bpm_min: "",
+        filter_bpm_max: "",
+        filter_instrument_type: "",
+        favorites_only: false,
+        filter_key: "",
+        directory_path: "/packs",
+        sort_field: "bpm",
+        sort_direction: "desc",
+        created_at: "2026-01-01",
+        updated_at: "2026-01-01",
+      });
+    });
+
+    expect(result.current.isCollectionView).toBe(false);
+    expect(result.current.activeMembers).toEqual([]);
+    expect(runSearch).toHaveBeenCalledWith("kick", "/packs");
+  });
+
+  it("clears stale members when collection B fails after collection A succeeds", async () => {
+    const onError = vi.fn();
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "list_collections") return [collectionRow(1, "A", 1), collectionRow(2, "B", 1)];
+      if (command === "list_saved_searches") return [];
+      if (command === "get_collection_members" && args !== undefined && typeof args === "object" && args !== null && "collectionId" in args && args.collectionId === 1) return [sampleRow(1)];
+      if (command === "get_collection_members") throw new Error("offline");
+      return undefined;
+    });
+    const { result } = renderHook(() => useCollections({ onError }));
+    await waitFor(() => expect(result.current.collections).toHaveLength(2));
+    await act(async () => { await result.current.selectCollection(1); });
+    expect(result.current.activeMembers.map((sample) => sample.id)).toEqual([1]);
+
+    await act(async () => { await result.current.selectCollection(2); });
+
+    expect(result.current.isCollectionView).toBe(false);
+    expect(result.current.activeCollectionId).toBeNull();
+    expect(result.current.activeMembers).toEqual([]);
+    expect(onError).toHaveBeenCalledWith("Could not load collection samples.");
+  });
+
+  it("rejects malformed IPC rows before they enter collection state", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "list_collections") return [collectionRow(1, "valid", 1), { id: 2, name: "missing fields" }];
+      if (command === "list_saved_searches") return [savedSearchRow(), { id: 2, name: "missing fields" }];
+      if (command === "get_collection_members") return [sampleRow(1), { id: 2, path: "/missing.wav" }];
+      return undefined;
+    });
+    const { result } = renderHook(() => useCollections());
+    await waitFor(() => expect(result.current.collections).toHaveLength(1));
+    await act(async () => { await result.current.selectCollection(1); });
+
+    expect(result.current.savedSearches).toHaveLength(1);
+    expect(result.current.activeMembers.map((sample) => sample.id)).toEqual([1]);
+  });
+
+  it("reports and rethrows a failed collection mutation", async () => {
+    const onError = vi.fn();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "list_collections" || command === "list_saved_searches") return [];
+      if (command === "create_collection") throw new Error("offline");
+      return undefined;
+    });
+    const { result } = renderHook(() => useCollections({ onError }));
+
+    await act(async () => {
+      await expect(result.current.createCollection("drum rack", "")).rejects.toThrow("offline");
+    });
+
+    expect(onError).toHaveBeenCalledWith("Could not create collection.");
   });
 });

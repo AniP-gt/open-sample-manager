@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// A row from the `samples` table.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -66,7 +66,9 @@ pub struct SampleRow {
 pub struct CollectionRow {
     pub id: i64,
     pub name: String,
+    pub description: Option<String>,
     pub created_at: String,
+    pub updated_at: String,
     pub sample_count: i64,
 }
 
@@ -207,4 +209,43 @@ pub struct MidiTagRow {
     pub id: i64,
     pub name: String,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CollectionInput {
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SavedSearchRow {
+    pub id: i64,
+    pub name: String,
+    pub search: String,
+    pub filter_type: String,
+    pub filter_bpm_min: String,
+    pub filter_bpm_max: String,
+    pub filter_instrument_type: String,
+    pub favorites_only: bool,
+    pub filter_key: String,
+    pub directory_path: String,
+    pub sort_field: String,
+    pub sort_direction: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SavedSearchInput {
+    pub name: String,
+    pub search: String,
+    pub filter_type: String,
+    pub filter_bpm_min: String,
+    pub filter_bpm_max: String,
+    pub filter_instrument_type: String,
+    pub favorites_only: bool,
+    pub filter_key: String,
+    pub directory_path: String,
+    pub sort_field: String,
+    pub sort_direction: String,
 }

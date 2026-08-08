@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { getErrorMessage } from "../utils/sampleMapper";
+import { useCollections } from "./useCollections";
 import { useInstrumentTypes } from "./sampleState/useInstrumentTypes";
 import { useSampleClassificationState } from "./sampleState/useSampleClassificationState";
 import { useExternalResultState } from "./sampleState/useExternalResultState";
@@ -82,6 +83,15 @@ export function useSampleState({
     setLastFetchCount: searchState.setLastFetchCount,
     setCanLoadMore: searchState.setCanLoadMore,
     setCanLoadPrevious: searchState.setCanLoadPrevious,
+  });
+
+  const collectionsState = useCollections({
+    filters: searchState.filters,
+    sort: searchState.sort,
+    setFilters: searchState.setFilters,
+    setSort: searchState.setSort,
+    runSearch: searchState.runSearch,
+    onError: handleInvokeError,
   });
 
   const metadataState = useSampleMetadataState({
@@ -170,6 +180,25 @@ export function useSampleState({
     setConfirmOpen: connectedTrashState.setConfirmOpen,
     setPendingTrashSampleId: connectedTrashState.setPendingTrashSampleId,
     togglePlayback: selection.togglePlayback,
+    collections: collectionsState.collections,
+    savedSearches: collectionsState.savedSearches,
+    activeCollectionId: collectionsState.activeCollectionId,
+    refreshCollections: collectionsState.refresh,
+    refreshSavedSearches: collectionsState.refreshSavedSearches,
+    loadCollectionSamples: collectionsState.selectCollection,
+    clearCollectionMode: collectionsState.clearCollection,
+    createCollection: collectionsState.createCollection,
+    updateCollection: collectionsState.updateCollection,
+    deleteCollection: collectionsState.deleteCollection,
+    addSelectedToCollection: collectionsState.addSelectedToCollection,
+    removeSelectedFromCollection: collectionsState.removeSelectedFromCollection,
+    createSavedSearch: collectionsState.createSavedSearch,
+    updateSavedSearch: collectionsState.updateSavedSearch,
+    deleteSavedSearch: collectionsState.deleteSavedSearch,
+    applySavedSearch: collectionsState.applySavedSearch,
+    isCollectionView: collectionsState.isCollectionView,
+    collectionMembers: collectionsState.activeMembers,
+    collectionSamplePaths: collectionsState.samplePaths,
     showExternalResults: externalResultState.showExternalResults,
     restoreSearchResults: externalResultState.restoreSearchResults,
   };

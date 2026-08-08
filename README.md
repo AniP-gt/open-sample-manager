@@ -59,6 +59,7 @@ Feature guides:
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
+- **Collections and saved searches** — group hand-picked samples into persistent collections and save reusable search/filter presets; see [Collections and Saved Searches](docs/collections-saved-searches.md)
 - **License and source metadata**: track source, pack name, license, license URL, memo, and import date for each sample
 - **Duplicate visibility controls** — keep every scanned file in the library while hiding repeated content from day-to-day browsing
 - **Persistent SQLite database** — all metadata stored locally, no cloud dependency

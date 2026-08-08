@@ -32,6 +32,7 @@ type UseExternalApiCommandsParams = {
   readonly playerBarRef: RefObject<PlayerBarHandle | null>;
   readonly selectSample: (sample: Sample) => Promise<void>;
   readonly refreshCollections?: () => Promise<void>;
+  readonly clearCollectionView?: () => void;
   readonly getAppWindow?: () => ExternalAppWindow;
 };
 
@@ -76,6 +77,7 @@ export function useExternalApiCommands({
   playerBarRef,
   selectSample,
   refreshCollections,
+  clearCollectionView,
   getAppWindow = getCurrentWindow,
 }: UseExternalApiCommandsParams) {
   const isMountedRef = useRef(true);
@@ -101,6 +103,7 @@ export function useExternalApiCommands({
     }
 
     setViewMode("sample");
+    clearCollectionView?.();
     showExternalResults({
       samples,
       samplePaths: Object.fromEntries(rows.map((row) => [row.id, row.path])),
@@ -111,7 +114,7 @@ export function useExternalApiCommands({
     if (!isMountedRef.current) return "requeue";
     await appWindow.setFocus();
     return isMountedRef.current ? "ack" : "requeue";
-  }, [getAppWindow, setError, setViewMode, showExternalResults]);
+  }, [clearCollectionView, getAppWindow, setError, setViewMode, showExternalResults]);
 
   const handlePreviewSample = useCallback(async (sampleId: number): Promise<CommandDisposition> => {
     if (pendingPreviewSampleIdRef.current === sampleId) return "ack";
@@ -133,9 +136,10 @@ export function useExternalApiCommands({
     previewAwaitingPlayerRef.current = true;
     setPreviewSampleId(sampleId);
     setViewMode("sample");
+    clearCollectionView?.();
     await selectSample(mapRowToSample(row));
     return isMountedRef.current ? "ack" : "requeue";
-  }, [playerBarRef, selectSample, setError, setViewMode]);
+  }, [clearCollectionView, playerBarRef, selectSample, setError, setViewMode]);
 
   useEffect(() => {
     if (previewSampleId === null || pendingPreviewSampleIdRef.current !== previewSampleId) return;

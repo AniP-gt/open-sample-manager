@@ -1,10 +1,21 @@
 use crate::db::operations::{
-    self, CollectionAddResult, CollectionMemberRow, CollectionRow, SampleRow,
+    self, CollectionAddResult, CollectionInput, CollectionMemberRow, CollectionRow, SampleRow,
 };
 
 use super::{ManagerError, SampleManager};
 
 impl SampleManager {
+    pub fn create_collection(
+        &mut self,
+        name: String,
+        description: Option<String>,
+    ) -> Result<CollectionRow, ManagerError> {
+        Ok(operations::create_collection(
+            &mut self.conn,
+            &CollectionInput { name, description },
+        )?)
+    }
+
     pub fn list_collections(&self) -> Result<Vec<CollectionRow>, ManagerError> {
         Ok(operations::list_collections(&self.conn)?)
     }
@@ -16,6 +27,23 @@ impl SampleManager {
         Ok(operations::get_collection_by_id(&self.conn, collection_id)?)
     }
 
+    pub fn update_collection(
+        &mut self,
+        id: i64,
+        name: String,
+        description: Option<String>,
+    ) -> Result<Option<CollectionRow>, ManagerError> {
+        Ok(operations::update_collection(
+            &mut self.conn,
+            id,
+            &CollectionInput { name, description },
+        )?)
+    }
+
+    pub fn delete_collection(&mut self, id: i64) -> Result<usize, ManagerError> {
+        Ok(operations::delete_collection(&mut self.conn, id)?)
+    }
+
     pub fn add_samples_to_collection(
         &mut self,
         collection_name: &str,
@@ -25,6 +53,30 @@ impl SampleManager {
             &mut self.conn,
             collection_name,
             sample_ids,
+        )?)
+    }
+
+    pub fn add_samples_to_collection_by_id(
+        &mut self,
+        collection_id: i64,
+        sample_ids: Vec<i64>,
+    ) -> Result<usize, ManagerError> {
+        Ok(operations::add_samples_to_collection_by_id(
+            &mut self.conn,
+            collection_id,
+            &sample_ids,
+        )?)
+    }
+
+    pub fn remove_samples_from_collection(
+        &mut self,
+        collection_id: i64,
+        sample_ids: Vec<i64>,
+    ) -> Result<usize, ManagerError> {
+        Ok(operations::remove_samples_from_collection(
+            &mut self.conn,
+            collection_id,
+            &sample_ids,
         )?)
     }
 
@@ -43,6 +95,16 @@ impl SampleManager {
         collection_id: i64,
     ) -> Result<Vec<SampleRow>, ManagerError> {
         Ok(operations::get_collection_members(
+            &self.conn,
+            collection_id,
+        )?)
+    }
+
+    pub fn list_collection_samples(
+        &self,
+        collection_id: i64,
+    ) -> Result<Vec<SampleRow>, ManagerError> {
+        Ok(operations::list_collection_samples(
             &self.conn,
             collection_id,
         )?)

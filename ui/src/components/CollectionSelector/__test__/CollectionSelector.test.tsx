@@ -8,7 +8,14 @@ describe("CollectionSelector", () => {
     const onSelect = vi.fn();
     render(
       <CollectionSelector
-        collections={[{ id: 7, name: "drum rack", created_at: "2026-01-01", sample_count: 0 }]}
+        collections={[{
+          id: 7,
+          name: "drum rack",
+          description: null,
+          created_at: "2026-01-01",
+          updated_at: "2026-01-01",
+          sample_count: 0,
+        }]}
         activeCollectionId={7}
         isCollectionView={true}
         onSelectCollection={onSelect}
@@ -30,7 +37,14 @@ describe("CollectionSelector", () => {
     const onClearCollection = vi.fn();
     render(
       <CollectionSelector
-        collections={[{ id: 7, name: "drum rack", created_at: "2026-01-01", sample_count: 1 }]}
+        collections={[{
+          id: 7,
+          name: "drum rack",
+          description: null,
+          created_at: "2026-01-01",
+          updated_at: "2026-01-01",
+          sample_count: 1,
+        }]}
         activeCollectionId={7}
         isCollectionView={true}
         onSelectCollection={vi.fn()}
