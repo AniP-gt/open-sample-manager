@@ -299,6 +299,25 @@ describe("useSampleState", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_instrument_types");
   });
 
+  it("reloads the first backend page when the instrument filter changes", async () => {
+    const { result } = renderSampleHook(100);
+    await waitFor(() => expect(result.current.samples).toHaveLength(1));
+
+    invokeMock.mockClear();
+    act(() => {
+      result.current.handleFilterChange({ filterInstrumentType: "snare" });
+    });
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("list_samples_paginated", {
+        query: "instrument:snare",
+        limit: 100,
+        offset: 0,
+        directoryPath: null,
+      });
+    });
+  });
+
   it("loads more, jumps around, and loads previous samples", async () => {
     invokeMock.mockImplementation(async (command, payload) => {
       if (command === "get_instrument_types") return [];

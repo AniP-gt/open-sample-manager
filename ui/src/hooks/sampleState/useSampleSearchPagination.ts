@@ -39,6 +39,13 @@ const initialFilters: FilterState = {
   directoryPath: "",
 };
 
+function withInstrumentFilter(query: string, instrumentType: string) {
+  const trimmedQuery = query.trim();
+  if (!instrumentType) return trimmedQuery;
+  const instrumentClause = `instrument:${instrumentType}`;
+  return trimmedQuery ? `${trimmedQuery} ${instrumentClause}` : instrumentClause;
+}
+
 export function useSampleSearchPagination({
   pageLimit,
   setError,
@@ -62,8 +69,9 @@ export function useSampleSearchPagination({
 
   const runSearch = useCallback(
     async (query: string) => {
+      const backendQuery = withInstrumentFilter(query, filters.filterInstrumentType);
       const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
-        query: query || null,
+        query: backendQuery || null,
         limit: pageLimit,
         offset: 0,
         directoryPath: filters.directoryPath || null,
@@ -84,7 +92,7 @@ export function useSampleSearchPagination({
       });
       return nextSamples;
     },
-    [filters.directoryPath, pageLimit, setSelected],
+    [filters.directoryPath, filters.filterInstrumentType, pageLimit, setSelected],
   );
 
   const fetchAllSamplePaths = useCallback(async () => {
@@ -122,8 +130,9 @@ export function useSampleSearchPagination({
     setIsLoadingMore(true);
     try {
       const nextOffset = currentOffset + samples.length;
+      const backendQuery = withInstrumentFilter(filters.search, filters.filterInstrumentType);
       const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
-        query: filters.search || null,
+        query: backendQuery || null,
         limit: pageLimit,
         offset: nextOffset,
         directoryPath: filters.directoryPath || null,
@@ -143,6 +152,7 @@ export function useSampleSearchPagination({
     canLoadMore,
     currentOffset,
     filters.directoryPath,
+    filters.filterInstrumentType,
     filters.search,
     isLoadingMore,
     onInvokeError,
@@ -155,8 +165,9 @@ export function useSampleSearchPagination({
     setIsLoadingPrevious(true);
     try {
       const prevOffset = Math.max(0, currentOffset - pageLimit);
+      const backendQuery = withInstrumentFilter(filters.search, filters.filterInstrumentType);
       const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
-        query: filters.search || null,
+        query: backendQuery || null,
         limit: pageLimit,
         offset: prevOffset,
         directoryPath: filters.directoryPath || null,
@@ -177,6 +188,7 @@ export function useSampleSearchPagination({
     canLoadPrevious,
     currentOffset,
     filters.directoryPath,
+    filters.filterInstrumentType,
     filters.search,
     isLoadingPrevious,
     onInvokeError,
@@ -224,7 +236,7 @@ export function useSampleSearchPagination({
       return;
     }
     void handleSearch(filters.search);
-  }, [filters.directoryPath, handleSearch]);
+  }, [filters.directoryPath, filters.filterInstrumentType, handleSearch]);
 
   const suppressNextSearch = useCallback(() => {
     suppressSearchRef.current = true;
