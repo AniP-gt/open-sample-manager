@@ -9,9 +9,119 @@ use std::sync::Arc;
 
 use crate::http_api::contracts::{
     ApiError, ApiOperation, FindSimilarSamplesRequest, FindSimilarSamplesResponse,
-    GetSampleRequest, GetSampleResponse, SampleSimilarity, SampleSummary, SearchSamplesRequest,
-    SearchSamplesResponse,
+    GetSampleRequest, GetSampleResponse, ListMidiTagsRequest, ListMidiTagsResponse,
+    ListMidisRequest, ListMidisResponse, MidiSummary, MidiTagSummary, SampleSimilarity,
+    SampleSummary, SearchSamplesRequest, SearchSamplesResponse,
 };
+
+pub(crate) async fn list_midis_handler(
+    State(state): State<ReadHandlerState>,
+    request: Request<Body>,
+) -> Response {
+    let request =
+        match parse_typed_request::<ListMidisRequest>(request, ApiOperation::ListMidis).await {
+            Ok(r) => r,
+            Err(response) => return response,
+        };
+    let response_limit = request.payload.limit.unwrap_or(100);
+    let response_offset = request.payload.offset.unwrap_or(0);
+    let limit = response_limit as usize;
+    let offset = response_offset as usize;
+    let directory_path = request.payload.directory_path;
+    let tag_id = request.payload.tag_id;
+    let manager = Arc::clone(&state.manager);
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = manager
+            .lock()
+            .map_err(|_| ReadHandlerFailure::ManagerUnavailable)?;
+        manager
+            .list_midis_paginated(
+                limit.saturating_add(1),
+                offset,
+                directory_path.as_deref(),
+                tag_id,
+            )
+            .map_err(|_| ReadHandlerFailure::OperationFailed)
+    })
+    .await;
+    let mut rows = match result {
+        Ok(Ok(rows)) => rows,
+        Ok(Err(ReadHandlerFailure::ManagerUnavailable)) => {
+            return api_error_response(ApiError::service_unavailable(
+                &request.request_id,
+                ApiOperation::ListMidis,
+                "MIDI list is unavailable",
+            ))
+        }
+        _ => {
+            return api_error_response(ApiError::internal_error(
+                &request.request_id,
+                ApiOperation::ListMidis,
+                "MIDI list is unavailable",
+            ))
+        }
+    };
+    let has_more = rows.len() > limit;
+    rows.truncate(limit);
+    Json(ListMidisResponse {
+        request_id: request.request_id,
+        operation: ApiOperation::ListMidis,
+        results: rows.into_iter().map(MidiSummary::from).collect(),
+        limit: response_limit,
+        offset: response_offset,
+        has_more,
+    })
+    .into_response()
+}
+
+pub(crate) async fn list_midi_tags_handler(
+    State(state): State<ReadHandlerState>,
+    request: Request<Body>,
+) -> Response {
+    let request =
+        match parse_typed_request::<ListMidiTagsRequest>(request, ApiOperation::ListMidiTags).await
+        {
+            Ok(r) => r,
+            Err(response) => return response,
+        };
+    let manager = Arc::clone(&state.manager);
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = manager
+            .lock()
+            .map_err(|_| ReadHandlerFailure::ManagerUnavailable)?;
+        manager
+            .get_all_midi_tags()
+            .map_err(|_| ReadHandlerFailure::OperationFailed)
+    })
+    .await;
+    match result {
+        Ok(Ok(tags)) => Json(ListMidiTagsResponse {
+            request_id: request.request_id,
+            operation: ApiOperation::ListMidiTags,
+            tags: tags
+                .into_iter()
+                .map(|tag| MidiTagSummary {
+                    id: tag.id,
+                    name: tag.name,
+                    created_at: tag.created_at,
+                })
+                .collect(),
+        })
+        .into_response(),
+        Ok(Err(ReadHandlerFailure::ManagerUnavailable)) => {
+            api_error_response(ApiError::service_unavailable(
+                &request.request_id,
+                ApiOperation::ListMidiTags,
+                "MIDI tags are unavailable",
+            ))
+        }
+        _ => api_error_response(ApiError::internal_error(
+            &request.request_id,
+            ApiOperation::ListMidiTags,
+            "MIDI tags are unavailable",
+        )),
+    }
+}
 
 use super::{
     parsing::parse_typed_request,

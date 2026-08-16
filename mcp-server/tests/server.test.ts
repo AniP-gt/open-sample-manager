@@ -18,6 +18,10 @@ const toolNames = [
   'list_instrument_types',
   'create_instrument_type',
   'update_sample_instruments',
+  'list_midis',
+  'list_midi_tags',
+  'create_midi_tag',
+  'update_midi_tags',
 ] as const;
 
 type ToolName = (typeof toolNames)[number];
@@ -65,12 +69,12 @@ afterEach(() => {
 });
 
 describe('MCP tools', () => {
-  it('lists exactly the approved nine tools', async () => {
+  it('lists exactly the approved thirteen tools', async () => {
     const connected = await connectedClient(async () => ({}));
     try {
       const result = await connected.client.listTools();
       expect(result.tools.map((tool) => tool.name)).toEqual(toolNames);
-      expect(result.tools).toHaveLength(9);
+      expect(result.tools).toHaveLength(13);
     } finally {
       await connected.close();
     }

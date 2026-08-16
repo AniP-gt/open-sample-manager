@@ -98,6 +98,10 @@ pub fn request_body(operation: ApiOperation) -> String {
         ApiOperation::ListInstrumentTypes => r#"{"request_id":"req_list_inst","operation":"list_instrument_types"}"#.to_string(),
         ApiOperation::CreateInstrumentType => r#"{"request_id":"req_create_inst","operation":"create_instrument_type","name":"guitar"}"#.to_string(),
         ApiOperation::UpdateSampleInstruments => r#"{"request_id":"req_update_inst","operation":"update_sample_instruments","assignments":[{"sample_id":1,"instrument_type":"guitar"}]}"#.to_string(),
+        ApiOperation::ListMidis => r#"{"request_id":"req_list_midis","operation":"list_midis","limit":100,"offset":0}"#.to_string(),
+        ApiOperation::ListMidiTags => r#"{"request_id":"req_list_midi_tags","operation":"list_midi_tags"}"#.to_string(),
+        ApiOperation::CreateMidiTag => r#"{"request_id":"req_create_midi_tag","operation":"create_midi_tag","name":"melody"}"#.to_string(),
+        ApiOperation::UpdateMidiTags => r#"{"request_id":"req_update_midi_tags","operation":"update_midi_tags","assignments":[{"midi_id":1,"tag_id":1}]}"#.to_string(),
     }
 }
 

@@ -57,6 +57,10 @@ All tool inputs are JSON objects. Extra fields are rejected.
 | `show_samples_in_app` | Ordered `sample_ids`, optional `selected_id` | Queues the IDs as the desktop app's displayed result set. Omitting `selected_id` selects the first supplied ID. |
 | `preview_sample` | `sample_id` | Queues one desktop preview. |
 | `add_to_collection` | `collection_name`, ordered `sample_ids` | Atomically creates or reuses a named collection and adds the IDs in the supplied order. Existing memberships are not duplicated. |
+| `list_midis` | Optional `directory_path`, `tag_id`, `limit`, and `offset` | Lists MIDI files with metadata and their current tag. |
+| `list_midi_tags` | None | Lists tags available for MIDI classification. |
+| `create_midi_tag` | `name` | Creates a MIDI classification tag. |
+| `update_midi_tags` | 1 to 100 `{ midi_id, tag_id }` assignments | Assigns one tag to each specified MIDI file. |
 
 ### Queued desktop actions
 

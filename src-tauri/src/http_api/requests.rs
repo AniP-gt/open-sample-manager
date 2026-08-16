@@ -9,7 +9,7 @@ use super::{
 };
 
 #[cfg(test)]
-pub const ALLOWED_OPERATIONS: [ApiOperation; 9] = [
+pub const ALLOWED_OPERATIONS: [ApiOperation; 13] = [
     ApiOperation::SearchSamples,
     ApiOperation::GetSample,
     ApiOperation::FindSimilarSamples,
@@ -19,6 +19,10 @@ pub const ALLOWED_OPERATIONS: [ApiOperation; 9] = [
     ApiOperation::ListInstrumentTypes,
     ApiOperation::CreateInstrumentType,
     ApiOperation::UpdateSampleInstruments,
+    ApiOperation::ListMidis,
+    ApiOperation::ListMidiTags,
+    ApiOperation::CreateMidiTag,
+    ApiOperation::UpdateMidiTags,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,6 +37,10 @@ pub enum ApiOperation {
     ListInstrumentTypes,
     CreateInstrumentType,
     UpdateSampleInstruments,
+    ListMidis,
+    ListMidiTags,
+    CreateMidiTag,
+    UpdateMidiTags,
 }
 
 impl ApiOperation {
@@ -48,7 +56,117 @@ impl ApiOperation {
             Self::ListInstrumentTypes => "list_instrument_types",
             Self::CreateInstrumentType => "create_instrument_type",
             Self::UpdateSampleInstruments => "update_sample_instruments",
+            Self::ListMidis => "list_midis",
+            Self::ListMidiTags => "list_midi_tags",
+            Self::CreateMidiTag => "create_midi_tag",
+            Self::UpdateMidiTags => "update_midi_tags",
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListMidisRequest {
+    pub directory_path: Option<String>,
+    pub tag_id: Option<i64>,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl ListMidisRequest {
+    pub fn validate(&self, id: &str) -> Result<(), ApiError> {
+        request_id(id)?;
+        if let Some(path) = &self.directory_path {
+            field_len(
+                path,
+                MAX_TEXT_FIELD_LENGTH,
+                id,
+                ApiOperation::ListMidis,
+                "directory_path exceeds maximum length",
+            )?;
+        }
+        if let Some(tag_id) = self.tag_id {
+            sample_id(tag_id, id, ApiOperation::ListMidis)?;
+        }
+        limit(self.limit, id, ApiOperation::ListMidis)?;
+        offset(self.offset, id)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListMidiTagsRequest {}
+
+impl ListMidiTagsRequest {
+    pub fn validate(&self, id: &str) -> Result<(), ApiError> {
+        request_id(id)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateMidiTagRequest {
+    pub name: String,
+}
+
+impl CreateMidiTagRequest {
+    pub fn validate(&self, id: &str) -> Result<(), ApiError> {
+        request_id(id)?;
+        field_len(
+            &self.name,
+            MAX_TEXT_FIELD_LENGTH,
+            id,
+            ApiOperation::CreateMidiTag,
+            "name exceeds maximum length",
+        )?;
+        if self.name.trim().is_empty() {
+            return Err(ApiError::invalid_request(
+                id,
+                ApiOperation::CreateMidiTag,
+                "name is required",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MidiTagAssignment {
+    pub midi_id: i64,
+    pub tag_id: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateMidiTagsRequest {
+    pub assignments: Vec<MidiTagAssignment>,
+}
+
+impl UpdateMidiTagsRequest {
+    pub fn validate(&self, id: &str) -> Result<(), ApiError> {
+        request_id(id)?;
+        if self.assignments.is_empty() || self.assignments.len() > super::validation::MAX_SAMPLE_IDS
+        {
+            return Err(ApiError::invalid_request(
+                id,
+                ApiOperation::UpdateMidiTags,
+                "assignments must have 1..=100 entries",
+            ));
+        }
+        let mut ids = std::collections::HashSet::new();
+        for assignment in &self.assignments {
+            sample_id(assignment.midi_id, id, ApiOperation::UpdateMidiTags)?;
+            sample_id(assignment.tag_id, id, ApiOperation::UpdateMidiTags)?;
+            if !ids.insert(assignment.midi_id) {
+                return Err(ApiError::duplicate(
+                    id,
+                    ApiOperation::UpdateMidiTags,
+                    "MIDI IDs must be unique",
+                ));
+            }
+        }
+        Ok(())
     }
 }
 

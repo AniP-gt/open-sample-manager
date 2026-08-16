@@ -93,6 +93,10 @@ All inputs are JSON objects. Extra fields are rejected. IDs are positive integer
 | `list_instrument_types` | none | none | Lists the instrument types available for SampleList classification. |
 | `create_instrument_type` | `name` up to 128 characters | none | Creates a new SampleList instrument type. |
 | `update_sample_instruments` | `assignments` containing 1 to 100 unique sample IDs and registered instrument types | none | Atomically updates SampleList instrument classifications. The whole batch is rolled back if any sample or instrument type is invalid. |
+| `list_midis` | none | `directory_path`, `tag_id`, `limit` 1 to 100, `offset` 0 to 10000 | Lists MIDI files with their paths, names, musical metadata, and current tag. |
+| `list_midi_tags` | none | none | Lists the available MIDI tags. |
+| `create_midi_tag` | `name` up to 128 characters | none | Creates a MIDI tag and returns its ID. |
+| `update_midi_tags` | `assignments` containing 1 to 100 unique MIDI IDs and tag IDs | none | Assigns one tag to each MIDI file. |
 
 `show_samples_in_app` changes the running app's displayed result set. It does not play a sample or open files. `preview_sample` stops current playback, selects the target, waits for the selected player to be ready, then starts exactly one preview from the beginning. It works whether the app's normal auto-play preference is on or off.
 

@@ -12,12 +12,115 @@ use crate::{
     external_commands::{EnqueueAfterError, UiCommand, UiCommandQueueError},
     http_api::contracts::{
         AddToCollectionRequest, AddToCollectionResponse, ApiError, ApiOperation,
-        CreateInstrumentTypeRequest, CreateInstrumentTypeResponse, InstrumentTypeSummary,
-        ListInstrumentTypesRequest, ListInstrumentTypesResponse, PreviewSampleRequest,
-        PreviewSampleResponse, ShowSamplesInAppRequest, ShowSamplesInAppResponse,
-        UpdateSampleInstrumentsRequest, UpdateSampleInstrumentsResponse,
+        CreateInstrumentTypeRequest, CreateInstrumentTypeResponse, CreateMidiTagRequest,
+        CreateMidiTagResponse, InstrumentTypeSummary, ListInstrumentTypesRequest,
+        ListInstrumentTypesResponse, MidiTagSummary, PreviewSampleRequest, PreviewSampleResponse,
+        ShowSamplesInAppRequest, ShowSamplesInAppResponse, UpdateMidiTagsRequest,
+        UpdateMidiTagsResponse, UpdateSampleInstrumentsRequest, UpdateSampleInstrumentsResponse,
     },
 };
+
+pub(crate) async fn create_midi_tag_handler(
+    State(state): State<ReadHandlerState>,
+    request: Request<Body>,
+) -> Response {
+    let request =
+        match parse_typed_request::<CreateMidiTagRequest>(request, ApiOperation::CreateMidiTag)
+            .await
+        {
+            Ok(r) => r,
+            Err(response) => return response,
+        };
+    let name = request.payload.name.trim().to_string();
+    let manager = Arc::clone(&state.manager);
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = manager
+            .lock()
+            .map_err(|_| ActionTaskFailure::ManagerUnavailable)?;
+        let id = manager
+            .add_midi_tag(&name)
+            .map_err(|_| ActionTaskFailure::OperationFailed)?;
+        let tag = manager
+            .get_all_midi_tags()
+            .map_err(|_| ActionTaskFailure::OperationFailed)?
+            .into_iter()
+            .find(|tag| tag.id == id)
+            .ok_or(ActionTaskFailure::OperationFailed)?;
+        Ok::<_, ActionTaskFailure>(tag)
+    })
+    .await;
+    match result {
+        Ok(Ok(tag)) => Json(CreateMidiTagResponse {
+            request_id: request.request_id,
+            operation: ApiOperation::CreateMidiTag,
+            tag: MidiTagSummary {
+                id: tag.id,
+                name: tag.name,
+                created_at: tag.created_at,
+            },
+        })
+        .into_response(),
+        Ok(Err(error)) => action_error_response(
+            &request.request_id,
+            ApiOperation::CreateMidiTag,
+            error,
+            "MIDI tag creation is unavailable",
+        ),
+        Err(_) => api_error_response(ApiError::internal_error(
+            &request.request_id,
+            ApiOperation::CreateMidiTag,
+            "MIDI tag creation is unavailable",
+        )),
+    }
+}
+
+pub(crate) async fn update_midi_tags_handler(
+    State(state): State<ReadHandlerState>,
+    request: Request<Body>,
+) -> Response {
+    let request =
+        match parse_typed_request::<UpdateMidiTagsRequest>(request, ApiOperation::UpdateMidiTags)
+            .await
+        {
+            Ok(r) => r,
+            Err(response) => return response,
+        };
+    let requested_count = request.payload.assignments.len();
+    let assignments = request.payload.assignments;
+    let manager = Arc::clone(&state.manager);
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = manager
+            .lock()
+            .map_err(|_| ActionTaskFailure::ManagerUnavailable)?;
+        for assignment in assignments {
+            manager
+                .set_midi_file_tag(assignment.midi_id, Some(assignment.tag_id))
+                .map_err(|_| ActionTaskFailure::OperationFailed)?;
+        }
+        Ok::<_, ActionTaskFailure>(requested_count)
+    })
+    .await;
+    match result {
+        Ok(Ok(updated_count)) => Json(UpdateMidiTagsResponse {
+            request_id: request.request_id,
+            operation: ApiOperation::UpdateMidiTags,
+            requested_count,
+            updated_count,
+        })
+        .into_response(),
+        Ok(Err(error)) => action_error_response(
+            &request.request_id,
+            ApiOperation::UpdateMidiTags,
+            error,
+            "MIDI tag update is unavailable",
+        ),
+        Err(_) => api_error_response(ApiError::internal_error(
+            &request.request_id,
+            ApiOperation::UpdateMidiTags,
+            "MIDI tag update is unavailable",
+        )),
+    }
+}
 
 use super::{
     parsing::parse_typed_request,

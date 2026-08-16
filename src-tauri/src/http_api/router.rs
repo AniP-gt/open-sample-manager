@@ -14,10 +14,14 @@ use std::sync::{Arc, Mutex};
 use super::contracts::ApiOperation;
 use super::external_commands::UiCommandQueue;
 use action_handlers::{
-    add_to_collection_handler, create_instrument_type_handler, list_instrument_types_handler,
-    preview_sample_handler, show_samples_in_app_handler, update_sample_instruments_handler,
+    add_to_collection_handler, create_instrument_type_handler, create_midi_tag_handler,
+    list_instrument_types_handler, preview_sample_handler, show_samples_in_app_handler,
+    update_midi_tags_handler, update_sample_instruments_handler,
 };
-use read_handlers::{find_similar_samples_handler, get_sample_handler, search_samples_handler};
+use read_handlers::{
+    find_similar_samples_handler, get_sample_handler, list_midi_tags_handler, list_midis_handler,
+    search_samples_handler,
+};
 use response::fallback;
 use security::enforce_http_api_security;
 use state::ReadHandlerState;
@@ -89,6 +93,30 @@ pub fn build_router(token: impl Into<String>) -> Router<()> {
                 parsing::route_stub_handler(request, ApiOperation::UpdateSampleInstruments).await
             }),
         )
+        .route(
+            "/v1/list_midis",
+            post(|request| async move {
+                parsing::route_stub_handler(request, ApiOperation::ListMidis).await
+            }),
+        )
+        .route(
+            "/v1/list_midi_tags",
+            post(|request| async move {
+                parsing::route_stub_handler(request, ApiOperation::ListMidiTags).await
+            }),
+        )
+        .route(
+            "/v1/create_midi_tag",
+            post(|request| async move {
+                parsing::route_stub_handler(request, ApiOperation::CreateMidiTag).await
+            }),
+        )
+        .route(
+            "/v1/update_midi_tags",
+            post(|request| async move {
+                parsing::route_stub_handler(request, ApiOperation::UpdateMidiTags).await
+            }),
+        )
         .fallback(fallback)
         .layer(from_fn(move |request, next| {
             enforce_http_api_security(request, next, token.clone())
@@ -151,6 +179,10 @@ fn build_manager_router(token: String, state: ReadHandlerState) -> Router<()> {
             "/v1/update_sample_instruments",
             post(update_sample_instruments_handler),
         )
+        .route("/v1/list_midis", post(list_midis_handler))
+        .route("/v1/list_midi_tags", post(list_midi_tags_handler))
+        .route("/v1/create_midi_tag", post(create_midi_tag_handler))
+        .route("/v1/update_midi_tags", post(update_midi_tags_handler))
         .fallback(fallback)
         .layer(from_fn(move |request, next| {
             enforce_http_api_security(request, next, token.clone())

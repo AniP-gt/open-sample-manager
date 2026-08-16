@@ -3,7 +3,7 @@ use crate::http_api::errors::ErrorCode;
 use crate::http_api::requests::ALLOWED_OPERATIONS;
 
 #[test]
-fn local_api_contract_freezes_the_exact_nine_operations() {
+fn local_api_contract_freezes_the_exact_thirteen_operations() {
     let names = ALLOWED_OPERATIONS.map(ApiOperation::as_str);
     assert_eq!(
         names,
@@ -17,6 +17,10 @@ fn local_api_contract_freezes_the_exact_nine_operations() {
             "list_instrument_types",
             "create_instrument_type",
             "update_sample_instruments",
+            "list_midis",
+            "list_midi_tags",
+            "create_midi_tag",
+            "update_midi_tags",
         ]
     );
 }

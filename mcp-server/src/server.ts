@@ -25,6 +25,8 @@ import {
   listInstrumentTypesResponseSchema,
   updateSampleInstrumentsInputSchema,
   updateSampleInstrumentsResponseSchema,
+  listMidisInputSchema, listMidisResponseSchema, listMidiTagsInputSchema, listMidiTagsResponseSchema,
+  createMidiTagInputSchema, createMidiTagResponseSchema, updateMidiTagsInputSchema, updateMidiTagsResponseSchema,
 } from './contracts.js';
 import { HttpClientError, postJsonWithRetry } from './httpClient.js';
 import { redactSensitiveText } from './manifest.js';
@@ -59,6 +61,10 @@ const tools = [
   { name: 'list_instrument_types', description: 'List instrument types available for SampleList classification.', inputSchema: objectSchema({}) },
   { name: 'create_instrument_type', description: 'Create a new SampleList instrument type.', inputSchema: objectSchema({ name: { ...stringSchema(128), minLength: 1 } }, ['name']) },
   { name: 'update_sample_instruments', description: 'Atomically assign instrument types to up to 100 SampleList samples.', inputSchema: objectSchema({ assignments: { type: 'array', minItems: 1, maxItems: 100, items: objectSchema({ sample_id: sampleIdSchema(), instrument_type: { ...stringSchema(128), minLength: 1 } }, ['sample_id', 'instrument_type']) } }, ['assignments']) },
+  { name: 'list_midis', description: 'List MIDI files with filenames, paths, musical metadata, and current tags.', inputSchema: objectSchema({ directory_path: stringSchema(128), tag_id: sampleIdSchema(), limit: integerSchema(1, 100), offset: integerSchema(0, 10_000) }) },
+  { name: 'list_midi_tags', description: 'List tags available for MIDI classification.', inputSchema: objectSchema({}) },
+  { name: 'create_midi_tag', description: 'Create a tag for MIDI classification.', inputSchema: objectSchema({ name: { ...stringSchema(128), minLength: 1 } }, ['name']) },
+  { name: 'update_midi_tags', description: 'Assign one tag to each of up to 100 MIDI files.', inputSchema: objectSchema({ assignments: { type: 'array', minItems: 1, maxItems: 100, items: objectSchema({ midi_id: sampleIdSchema(), tag_id: sampleIdSchema() }, ['midi_id', 'tag_id']) } }, ['assignments']) },
 ] as const satisfies readonly ToolDefinition[];
 
 export function createServer(options: ServerOptions = {}): Server {
@@ -103,6 +109,14 @@ async function invokeTool(name: string, arguments_: Record<string, unknown>, req
       return invokeOperation({ operation: 'create_instrument_type', inputSchema: createInstrumentTypeInputSchema, outputSchema: createInstrumentTypeResponseSchema, arguments: arguments_, request });
     case 'update_sample_instruments':
       return invokeOperation({ operation: 'update_sample_instruments', inputSchema: updateSampleInstrumentsInputSchema, outputSchema: updateSampleInstrumentsResponseSchema, arguments: arguments_, request });
+    case 'list_midis':
+      return invokeOperation({ operation: 'list_midis', inputSchema: listMidisInputSchema, outputSchema: listMidisResponseSchema, arguments: arguments_, request });
+    case 'list_midi_tags':
+      return invokeOperation({ operation: 'list_midi_tags', inputSchema: listMidiTagsInputSchema, outputSchema: listMidiTagsResponseSchema, arguments: arguments_, request });
+    case 'create_midi_tag':
+      return invokeOperation({ operation: 'create_midi_tag', inputSchema: createMidiTagInputSchema, outputSchema: createMidiTagResponseSchema, arguments: arguments_, request });
+    case 'update_midi_tags':
+      return invokeOperation({ operation: 'update_midi_tags', inputSchema: updateMidiTagsInputSchema, outputSchema: updateMidiTagsResponseSchema, arguments: arguments_, request });
     default:
       return safeError('invalid_request', 'Unknown MCP tool', `mcp-${randomUUID()}`);
   }

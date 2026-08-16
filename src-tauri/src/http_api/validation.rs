@@ -4,8 +4,9 @@ use super::{
     errors::ApiError,
     requests::{
         AddToCollectionRequest, ApiOperation, ApiRequest, CreateInstrumentTypeRequest,
-        FindSimilarSamplesRequest, GetSampleRequest, ListInstrumentTypesRequest,
-        PreviewSampleRequest, SearchSamplesRequest, ShowSamplesInAppRequest,
+        CreateMidiTagRequest, FindSimilarSamplesRequest, GetSampleRequest,
+        ListInstrumentTypesRequest, ListMidiTagsRequest, ListMidisRequest, PreviewSampleRequest,
+        SearchSamplesRequest, ShowSamplesInAppRequest, UpdateMidiTagsRequest,
         UpdateSampleInstrumentsRequest,
     },
 };
@@ -170,6 +171,18 @@ pub fn validate_todo_one_request(
         ApiOperation::UpdateSampleInstruments => validate_typed_request::<
             UpdateSampleInstrumentsRequest,
         >(bytes, request_id, expected_operation),
+        ApiOperation::ListMidis => {
+            validate_typed_request::<ListMidisRequest>(bytes, request_id, expected_operation)
+        }
+        ApiOperation::ListMidiTags => {
+            validate_typed_request::<ListMidiTagsRequest>(bytes, request_id, expected_operation)
+        }
+        ApiOperation::CreateMidiTag => {
+            validate_typed_request::<CreateMidiTagRequest>(bytes, request_id, expected_operation)
+        }
+        ApiOperation::UpdateMidiTags => {
+            validate_typed_request::<UpdateMidiTagsRequest>(bytes, request_id, expected_operation)
+        }
     }
 }
 
@@ -196,6 +209,10 @@ impl_validated_request!(AddToCollectionRequest);
 impl_validated_request!(ListInstrumentTypesRequest);
 impl_validated_request!(CreateInstrumentTypeRequest);
 impl_validated_request!(UpdateSampleInstrumentsRequest);
+impl_validated_request!(ListMidisRequest);
+impl_validated_request!(ListMidiTagsRequest);
+impl_validated_request!(CreateMidiTagRequest);
+impl_validated_request!(UpdateMidiTagsRequest);
 
 fn validate_typed_request<T>(
     bytes: &[u8],

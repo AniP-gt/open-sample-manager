@@ -1,12 +1,14 @@
 pub use super::errors::ApiError;
 pub use super::requests::{
     AddToCollectionRequest, ApiOperation, ApiRequest, CreateInstrumentTypeRequest,
-    FindSimilarSamplesRequest, GetSampleRequest, ListInstrumentTypesRequest, PreviewSampleRequest,
-    SearchSamplesRequest, ShowSamplesInAppRequest, UpdateSampleInstrumentsRequest,
+    CreateMidiTagRequest, FindSimilarSamplesRequest, GetSampleRequest, ListInstrumentTypesRequest,
+    ListMidiTagsRequest, ListMidisRequest, PreviewSampleRequest, SearchSamplesRequest,
+    ShowSamplesInAppRequest, UpdateMidiTagsRequest, UpdateSampleInstrumentsRequest,
 };
 pub use super::responses::{
-    AddToCollectionResponse, CreateInstrumentTypeResponse, FindSimilarSamplesResponse,
-    GetSampleResponse, InstrumentTypeSummary, ListInstrumentTypesResponse, PreviewSampleResponse,
-    SampleSimilarity, SampleSummary, SearchSamplesResponse, ShowSamplesInAppResponse,
-    UpdateSampleInstrumentsResponse,
+    AddToCollectionResponse, CreateInstrumentTypeResponse, CreateMidiTagResponse,
+    FindSimilarSamplesResponse, GetSampleResponse, InstrumentTypeSummary,
+    ListInstrumentTypesResponse, ListMidiTagsResponse, ListMidisResponse, MidiSummary,
+    MidiTagSummary, PreviewSampleResponse, SampleSimilarity, SampleSummary, SearchSamplesResponse,
+    ShowSamplesInAppResponse, UpdateMidiTagsResponse, UpdateSampleInstrumentsResponse,
 };

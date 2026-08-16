@@ -83,6 +83,10 @@ pub(crate) fn operation_for_path(path: &str) -> ApiOperation {
         "/v1/list_instrument_types" => ApiOperation::ListInstrumentTypes,
         "/v1/create_instrument_type" => ApiOperation::CreateInstrumentType,
         "/v1/update_sample_instruments" => ApiOperation::UpdateSampleInstruments,
+        "/v1/list_midis" => ApiOperation::ListMidis,
+        "/v1/list_midi_tags" => ApiOperation::ListMidiTags,
+        "/v1/create_midi_tag" => ApiOperation::CreateMidiTag,
+        "/v1/update_midi_tags" => ApiOperation::UpdateMidiTags,
         _ => ApiOperation::SearchSamples,
     }
 }

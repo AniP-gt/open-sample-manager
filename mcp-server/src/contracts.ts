@@ -45,6 +45,13 @@ export const updateSampleInstrumentsInputSchema = z.object({
     context.addIssue({ code: z.ZodIssueCode.custom, message: 'sample IDs must be unique' });
   }
 });
+export const listMidisInputSchema = z.object({ directory_path: textFieldSchema.optional(), tag_id: sampleIdSchema.optional(), limit: boundedLimitSchema.optional(), offset: z.number().int().min(0).max(10_000).optional() }).strict();
+export const listMidiTagsInputSchema = z.object({}).strict();
+export const createMidiTagInputSchema = z.object({ name: textFieldSchema.min(1) }).strict();
+export const updateMidiTagsInputSchema = z.object({ assignments: z.array(z.object({ midi_id: sampleIdSchema, tag_id: sampleIdSchema }).strict()).min(1).max(100) }).strict().superRefine((value, context) => {
+  const ids = value.assignments.map((assignment) => assignment.midi_id);
+  if (new Set(ids).size !== ids.length) context.addIssue({ code: z.ZodIssueCode.custom, message: 'MIDI IDs must be unique' });
+});
 
 export const operationSchema = z.enum([
   'search_samples',
@@ -56,6 +63,10 @@ export const operationSchema = z.enum([
   'list_instrument_types',
   'create_instrument_type',
   'update_sample_instruments',
+  'list_midis',
+  'list_midi_tags',
+  'create_midi_tag',
+  'update_midi_tags',
 ]);
 export type Operation = z.infer<typeof operationSchema>;
 
@@ -154,6 +165,17 @@ export const updateSampleInstrumentsResponseSchema = responseEnvelopeSchema.exte
   requested_count: z.number().int().min(1).max(100),
   updated_count: z.number().int().min(0).max(100),
 });
+const midiSummarySchema = z.object({
+  id: sampleIdSchema, path: z.string(), file_name: z.string(), duration: nullableNumberSchema,
+  tempo: nullableNumberSchema, time_signature_numerator: z.number().int(), time_signature_denominator: z.number().int(),
+  track_count: nullableIntegerSchema, note_count: nullableIntegerSchema, channel_count: nullableIntegerSchema,
+  key_estimate: nullableTextSchema, file_size: nullableIntegerSchema, created_at: z.string(), modified_at: z.string(), tag_name: z.string(),
+}).strict();
+const midiTagSummarySchema = z.object({ id: sampleIdSchema, name: textFieldSchema, created_at: z.string() }).strict();
+export const listMidisResponseSchema = responseEnvelopeSchema.extend({ operation: z.literal('list_midis'), results: z.array(midiSummarySchema), limit: boundedLimitSchema, offset: z.number().int().min(0).max(10_000), has_more: z.boolean() });
+export const listMidiTagsResponseSchema = responseEnvelopeSchema.extend({ operation: z.literal('list_midi_tags'), tags: z.array(midiTagSummarySchema) });
+export const createMidiTagResponseSchema = responseEnvelopeSchema.extend({ operation: z.literal('create_midi_tag'), tag: midiTagSummarySchema });
+export const updateMidiTagsResponseSchema = responseEnvelopeSchema.extend({ operation: z.literal('update_midi_tags'), requested_count: z.number().int().min(1).max(100), updated_count: z.number().int().min(0).max(100) });
 
 export const apiErrorSchema = responseEnvelopeSchema.extend({
   code: z.enum([

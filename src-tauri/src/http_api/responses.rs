@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use open_sample_manager_core::db::operations::SampleRow;
+use open_sample_manager_core::db::operations::{MidiRow, SampleRow};
 
 use super::requests::ApiOperation;
 
@@ -91,6 +91,92 @@ pub struct UpdateSampleInstrumentsResponse {
     pub operation: ApiOperation,
     pub requested_count: usize,
     pub updated_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListMidisResponse {
+    pub request_id: String,
+    pub operation: ApiOperation,
+    pub results: Vec<MidiSummary>,
+    pub limit: u32,
+    pub offset: u32,
+    pub has_more: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MidiTagSummary {
+    pub id: i64,
+    pub name: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListMidiTagsResponse {
+    pub request_id: String,
+    pub operation: ApiOperation,
+    pub tags: Vec<MidiTagSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateMidiTagResponse {
+    pub request_id: String,
+    pub operation: ApiOperation,
+    pub tag: MidiTagSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateMidiTagsResponse {
+    pub request_id: String,
+    pub operation: ApiOperation,
+    pub requested_count: usize,
+    pub updated_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MidiSummary {
+    pub id: i64,
+    pub path: String,
+    pub file_name: String,
+    pub duration: Option<f64>,
+    pub tempo: Option<f64>,
+    pub time_signature_numerator: i64,
+    pub time_signature_denominator: i64,
+    pub track_count: Option<i64>,
+    pub note_count: Option<i64>,
+    pub channel_count: Option<i64>,
+    pub key_estimate: Option<String>,
+    pub file_size: Option<i64>,
+    pub created_at: String,
+    pub modified_at: String,
+    pub tag_name: String,
+}
+
+impl From<MidiRow> for MidiSummary {
+    fn from(row: MidiRow) -> Self {
+        Self {
+            id: row.id,
+            path: row.path,
+            file_name: row.file_name,
+            duration: row.duration,
+            tempo: row.tempo,
+            time_signature_numerator: row.time_signature_numerator,
+            time_signature_denominator: row.time_signature_denominator,
+            track_count: row.track_count,
+            note_count: row.note_count,
+            channel_count: row.channel_count,
+            key_estimate: row.key_estimate,
+            file_size: row.file_size,
+            created_at: row.created_at,
+            modified_at: row.modified_at,
+            tag_name: row.tag_name,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
