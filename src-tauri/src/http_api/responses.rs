@@ -60,6 +60,39 @@ pub struct AddToCollectionResponse {
     pub created: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InstrumentTypeSummary {
+    pub id: i64,
+    pub name: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListInstrumentTypesResponse {
+    pub request_id: String,
+    pub operation: ApiOperation,
+    pub instrument_types: Vec<InstrumentTypeSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateInstrumentTypeResponse {
+    pub request_id: String,
+    pub operation: ApiOperation,
+    pub instrument_type: InstrumentTypeSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateSampleInstrumentsResponse {
+    pub request_id: String,
+    pub operation: ApiOperation,
+    pub requested_count: usize,
+    pub updated_count: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SampleSummary {

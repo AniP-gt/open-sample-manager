@@ -95,6 +95,9 @@ pub fn request_body(operation: ApiOperation) -> String {
         ApiOperation::AddToCollection => {
             typed_request_body::<AddToCollectionRequest>("requests/add_to_collection.json")
         }
+        ApiOperation::ListInstrumentTypes => r#"{"request_id":"req_list_inst","operation":"list_instrument_types"}"#.to_string(),
+        ApiOperation::CreateInstrumentType => r#"{"request_id":"req_create_inst","operation":"create_instrument_type","name":"guitar"}"#.to_string(),
+        ApiOperation::UpdateSampleInstruments => r#"{"request_id":"req_update_inst","operation":"update_sample_instruments","assignments":[{"sample_id":1,"instrument_type":"guitar"}]}"#.to_string(),
     }
 }
 

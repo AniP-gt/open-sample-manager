@@ -1,9 +1,12 @@
 pub use super::errors::ApiError;
 pub use super::requests::{
-    AddToCollectionRequest, ApiOperation, ApiRequest, FindSimilarSamplesRequest, GetSampleRequest,
-    PreviewSampleRequest, SearchSamplesRequest, ShowSamplesInAppRequest,
+    AddToCollectionRequest, ApiOperation, ApiRequest, CreateInstrumentTypeRequest,
+    FindSimilarSamplesRequest, GetSampleRequest, ListInstrumentTypesRequest, PreviewSampleRequest,
+    SearchSamplesRequest, ShowSamplesInAppRequest, UpdateSampleInstrumentsRequest,
 };
 pub use super::responses::{
-    AddToCollectionResponse, FindSimilarSamplesResponse, GetSampleResponse, PreviewSampleResponse,
+    AddToCollectionResponse, CreateInstrumentTypeResponse, FindSimilarSamplesResponse,
+    GetSampleResponse, InstrumentTypeSummary, ListInstrumentTypesResponse, PreviewSampleResponse,
     SampleSimilarity, SampleSummary, SearchSamplesResponse, ShowSamplesInAppResponse,
+    UpdateSampleInstrumentsResponse,
 };

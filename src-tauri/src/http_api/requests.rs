@@ -9,13 +9,16 @@ use super::{
 };
 
 #[cfg(test)]
-pub const ALLOWED_OPERATIONS: [ApiOperation; 6] = [
+pub const ALLOWED_OPERATIONS: [ApiOperation; 9] = [
     ApiOperation::SearchSamples,
     ApiOperation::GetSample,
     ApiOperation::FindSimilarSamples,
     ApiOperation::ShowSamplesInApp,
     ApiOperation::PreviewSample,
     ApiOperation::AddToCollection,
+    ApiOperation::ListInstrumentTypes,
+    ApiOperation::CreateInstrumentType,
+    ApiOperation::UpdateSampleInstruments,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,6 +30,9 @@ pub enum ApiOperation {
     ShowSamplesInApp,
     PreviewSample,
     AddToCollection,
+    ListInstrumentTypes,
+    CreateInstrumentType,
+    UpdateSampleInstruments,
 }
 
 impl ApiOperation {
@@ -39,6 +45,9 @@ impl ApiOperation {
             Self::ShowSamplesInApp => "show_samples_in_app",
             Self::PreviewSample => "preview_sample",
             Self::AddToCollection => "add_to_collection",
+            Self::ListInstrumentTypes => "list_instrument_types",
+            Self::CreateInstrumentType => "create_instrument_type",
+            Self::UpdateSampleInstruments => "update_sample_instruments",
         }
     }
 }
@@ -191,6 +200,100 @@ impl PreviewSampleRequest {
 pub struct AddToCollectionRequest {
     pub collection_name: String,
     pub sample_ids: Vec<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListInstrumentTypesRequest {}
+
+impl ListInstrumentTypesRequest {
+    pub fn validate(&self, id: &str) -> Result<(), ApiError> {
+        request_id(id)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateInstrumentTypeRequest {
+    pub name: String,
+}
+
+impl CreateInstrumentTypeRequest {
+    pub fn validate(&self, id: &str) -> Result<(), ApiError> {
+        request_id(id)?;
+        field_len(
+            &self.name,
+            MAX_TEXT_FIELD_LENGTH,
+            id,
+            ApiOperation::CreateInstrumentType,
+            "name exceeds maximum length",
+        )?;
+        if self.name.trim().is_empty() {
+            return Err(ApiError::invalid_request(
+                id,
+                ApiOperation::CreateInstrumentType,
+                "name is required",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SampleInstrumentAssignment {
+    pub sample_id: i64,
+    pub instrument_type: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateSampleInstrumentsRequest {
+    pub assignments: Vec<SampleInstrumentAssignment>,
+}
+
+impl UpdateSampleInstrumentsRequest {
+    pub fn validate(&self, id: &str) -> Result<(), ApiError> {
+        request_id(id)?;
+        if self.assignments.is_empty() || self.assignments.len() > super::validation::MAX_SAMPLE_IDS
+        {
+            return Err(ApiError::invalid_request(
+                id,
+                ApiOperation::UpdateSampleInstruments,
+                "assignments must have 1..=100 entries",
+            ));
+        }
+        let mut ids = std::collections::HashSet::new();
+        for assignment in &self.assignments {
+            sample_id(
+                assignment.sample_id,
+                id,
+                ApiOperation::UpdateSampleInstruments,
+            )?;
+            field_len(
+                &assignment.instrument_type,
+                MAX_TEXT_FIELD_LENGTH,
+                id,
+                ApiOperation::UpdateSampleInstruments,
+                "instrument_type exceeds maximum length",
+            )?;
+            if assignment.instrument_type.trim().is_empty() {
+                return Err(ApiError::invalid_request(
+                    id,
+                    ApiOperation::UpdateSampleInstruments,
+                    "instrument_type is required",
+                ));
+            }
+            if !ids.insert(assignment.sample_id) {
+                return Err(ApiError::duplicate(
+                    id,
+                    ApiOperation::UpdateSampleInstruments,
+                    "sample IDs must be unique",
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl AddToCollectionRequest {

@@ -90,6 +90,9 @@ All inputs are JSON objects. Extra fields are rejected. IDs are positive integer
 | `show_samples_in_app` | `sample_ids` | `selected_id` | Queues the ordered IDs for the desktop UI. Without `selected_id`, it selects the first supplied ID. |
 | `preview_sample` | `sample_id` | none | Queues a desktop preview for one library sample. |
 | `add_to_collection` | `collection_name` up to 128 characters, `sample_ids` | none | Atomically creates or reuses a named collection and adds IDs in the supplied order. Existing memberships are not duplicated. |
+| `list_instrument_types` | none | none | Lists the instrument types available for SampleList classification. |
+| `create_instrument_type` | `name` up to 128 characters | none | Creates a new SampleList instrument type. |
+| `update_sample_instruments` | `assignments` containing 1 to 100 unique sample IDs and registered instrument types | none | Atomically updates SampleList instrument classifications. The whole batch is rolled back if any sample or instrument type is invalid. |
 
 `show_samples_in_app` changes the running app's displayed result set. It does not play a sample or open files. `preview_sample` stops current playback, selects the target, waits for the selected player to be ready, then starts exactly one preview from the beginning. It works whether the app's normal auto-play preference is on or off.
 

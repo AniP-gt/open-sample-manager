@@ -15,6 +15,9 @@ const toolNames = [
   'show_samples_in_app',
   'preview_sample',
   'add_to_collection',
+  'list_instrument_types',
+  'create_instrument_type',
+  'update_sample_instruments',
 ] as const;
 
 type ToolName = (typeof toolNames)[number];
@@ -62,12 +65,12 @@ afterEach(() => {
 });
 
 describe('MCP tools', () => {
-  it('lists exactly the approved six tools', async () => {
+  it('lists exactly the approved nine tools', async () => {
     const connected = await connectedClient(async () => ({}));
     try {
       const result = await connected.client.listTools();
       expect(result.tools.map((tool) => tool.name)).toEqual(toolNames);
-      expect(result.tools).toHaveLength(6);
+      expect(result.tools).toHaveLength(9);
     } finally {
       await connected.close();
     }
@@ -106,7 +109,7 @@ describe('MCP tools', () => {
     }
   });
 
-  it.each(toolNames)('maps %s request and response in one logical HTTP call', async (name) => {
+  it.each(toolNames.slice(0, 6))('maps %s request and response in one logical HTTP call', async (name) => {
     const fixture = await toolFixture(name);
     const request = vi.fn<ToolRequest>().mockResolvedValue(fixture.response);
     const connected = await connectedClient(request);
@@ -144,6 +147,27 @@ describe('MCP tools', () => {
       expect(request.mock.calls[0]?.[1]).toMatchObject({ sample_ids: [103, 101, 102] });
     } finally {
       await connected.close();
+    }
+  });
+
+  it('maps SampleList instrument management tools to their local API routes', async () => {
+    const cases = [
+      ['list_instrument_types', {}, { request_id: 'req-list', operation: 'list_instrument_types', instrument_types: [] }],
+      ['create_instrument_type', { name: 'guitar' }, { request_id: 'req-create', operation: 'create_instrument_type', instrument_type: { id: 10, name: 'guitar', created_at: '2026-08-16' } }],
+      ['update_sample_instruments', { assignments: [{ sample_id: 101, instrument_type: 'guitar' }] }, { request_id: 'req-update', operation: 'update_sample_instruments', requested_count: 1, updated_count: 1 }],
+    ] as const;
+
+    for (const [name, arguments_, response] of cases) {
+      const request = vi.fn<ToolRequest>().mockResolvedValue(response);
+      const connected = await connectedClient(request);
+      try {
+        const result = await connected.client.callTool({ name, arguments: arguments_ });
+        expect(request.mock.calls[0]?.[0]).toBe(`/v1/${name}`);
+        expect(result.isError).toBeUndefined();
+        expect(result.structuredContent).toEqual(response);
+      } finally {
+        await connected.close();
+      }
     }
   });
 

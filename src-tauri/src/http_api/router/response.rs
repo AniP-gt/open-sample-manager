@@ -80,6 +80,9 @@ pub(crate) fn operation_for_path(path: &str) -> ApiOperation {
         "/v1/show_samples_in_app" => ApiOperation::ShowSamplesInApp,
         "/v1/preview_sample" => ApiOperation::PreviewSample,
         "/v1/add_to_collection" => ApiOperation::AddToCollection,
+        "/v1/list_instrument_types" => ApiOperation::ListInstrumentTypes,
+        "/v1/create_instrument_type" => ApiOperation::CreateInstrumentType,
+        "/v1/update_sample_instruments" => ApiOperation::UpdateSampleInstruments,
         _ => ApiOperation::SearchSamples,
     }
 }

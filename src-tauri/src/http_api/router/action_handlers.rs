@@ -12,8 +12,10 @@ use crate::{
     external_commands::{EnqueueAfterError, UiCommand, UiCommandQueueError},
     http_api::contracts::{
         AddToCollectionRequest, AddToCollectionResponse, ApiError, ApiOperation,
-        PreviewSampleRequest, PreviewSampleResponse, ShowSamplesInAppRequest,
-        ShowSamplesInAppResponse,
+        CreateInstrumentTypeRequest, CreateInstrumentTypeResponse, InstrumentTypeSummary,
+        ListInstrumentTypesRequest, ListInstrumentTypesResponse, PreviewSampleRequest,
+        PreviewSampleResponse, ShowSamplesInAppRequest, ShowSamplesInAppResponse,
+        UpdateSampleInstrumentsRequest, UpdateSampleInstrumentsResponse,
     },
 };
 
@@ -94,6 +96,174 @@ pub(crate) async fn show_samples_in_app_handler(
             &request.request_id,
             ApiOperation::ShowSamplesInApp,
             "sample display is unavailable",
+        )),
+    }
+}
+
+pub(crate) async fn list_instrument_types_handler(
+    State(state): State<ReadHandlerState>,
+    request: Request<Body>,
+) -> Response {
+    let request = match parse_typed_request::<ListInstrumentTypesRequest>(
+        request,
+        ApiOperation::ListInstrumentTypes,
+    )
+    .await
+    {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
+    let manager = Arc::clone(&state.manager);
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = manager
+            .lock()
+            .map_err(|_| ActionTaskFailure::ManagerUnavailable)?;
+        manager
+            .get_all_instrument_types()
+            .map_err(|_| ActionTaskFailure::OperationFailed)
+    })
+    .await;
+    match result {
+        Ok(Ok(rows)) => Json(ListInstrumentTypesResponse {
+            request_id: request.request_id,
+            operation: ApiOperation::ListInstrumentTypes,
+            instrument_types: rows
+                .into_iter()
+                .map(|row| InstrumentTypeSummary {
+                    id: row.id,
+                    name: row.name,
+                    created_at: row.created_at,
+                })
+                .collect(),
+        })
+        .into_response(),
+        Ok(Err(error)) => action_error_response(
+            &request.request_id,
+            ApiOperation::ListInstrumentTypes,
+            error,
+            "instrument types are unavailable",
+        ),
+        Err(_) => api_error_response(ApiError::internal_error(
+            &request.request_id,
+            ApiOperation::ListInstrumentTypes,
+            "instrument types are unavailable",
+        )),
+    }
+}
+
+pub(crate) async fn create_instrument_type_handler(
+    State(state): State<ReadHandlerState>,
+    request: Request<Body>,
+) -> Response {
+    let request = match parse_typed_request::<CreateInstrumentTypeRequest>(
+        request,
+        ApiOperation::CreateInstrumentType,
+    )
+    .await
+    {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
+    let name = request.payload.name.trim().to_owned();
+    let name_for_write = name.clone();
+    let manager = Arc::clone(&state.manager);
+    let result = tokio::task::spawn_blocking(move || {
+        let manager = manager
+            .lock()
+            .map_err(|_| ActionTaskFailure::ManagerUnavailable)?;
+        let id = manager
+            .add_instrument_type(&name_for_write)
+            .map_err(|_| ActionTaskFailure::OperationFailed)?;
+        let row = manager
+            .get_all_instrument_types()
+            .map_err(|_| ActionTaskFailure::OperationFailed)?
+            .into_iter()
+            .find(|row| row.id == id)
+            .ok_or(ActionTaskFailure::OperationFailed)?;
+        Ok::<_, ActionTaskFailure>(row)
+    })
+    .await;
+    match result {
+        Ok(Ok(row)) => (
+            StatusCode::CREATED,
+            Json(CreateInstrumentTypeResponse {
+                request_id: request.request_id,
+                operation: ApiOperation::CreateInstrumentType,
+                instrument_type: InstrumentTypeSummary {
+                    id: row.id,
+                    name: row.name,
+                    created_at: row.created_at,
+                },
+            }),
+        )
+            .into_response(),
+        Ok(Err(error)) => action_error_response(
+            &request.request_id,
+            ApiOperation::CreateInstrumentType,
+            error,
+            "instrument type creation is unavailable",
+        ),
+        Err(_) => api_error_response(ApiError::internal_error(
+            &request.request_id,
+            ApiOperation::CreateInstrumentType,
+            "instrument type creation is unavailable",
+        )),
+    }
+}
+
+pub(crate) async fn update_sample_instruments_handler(
+    State(state): State<ReadHandlerState>,
+    request: Request<Body>,
+) -> Response {
+    let request = match parse_typed_request::<UpdateSampleInstrumentsRequest>(
+        request,
+        ApiOperation::UpdateSampleInstruments,
+    )
+    .await
+    {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
+    let requested_count = request.payload.assignments.len();
+    let assignments = request
+        .payload
+        .assignments
+        .into_iter()
+        .map(|assignment| {
+            (
+                assignment.sample_id,
+                assignment.instrument_type.trim().to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let manager = Arc::clone(&state.manager);
+    let result = tokio::task::spawn_blocking(move || {
+        let mut manager = manager
+            .lock()
+            .map_err(|_| ActionTaskFailure::ManagerUnavailable)?;
+        manager
+            .update_sample_instrument_types(&assignments)
+            .map_err(|_| ActionTaskFailure::OperationFailed)
+    })
+    .await;
+    match result {
+        Ok(Ok(updated_count)) => Json(UpdateSampleInstrumentsResponse {
+            request_id: request.request_id,
+            operation: ApiOperation::UpdateSampleInstruments,
+            requested_count,
+            updated_count,
+        })
+        .into_response(),
+        Ok(Err(error)) => action_error_response(
+            &request.request_id,
+            ApiOperation::UpdateSampleInstruments,
+            error,
+            "sample instrument update is unavailable",
+        ),
+        Err(_) => api_error_response(ApiError::internal_error(
+            &request.request_id,
+            ApiOperation::UpdateSampleInstruments,
+            "sample instrument update is unavailable",
         )),
     }
 }

@@ -14,7 +14,8 @@ use std::sync::{Arc, Mutex};
 use super::contracts::ApiOperation;
 use super::external_commands::UiCommandQueue;
 use action_handlers::{
-    add_to_collection_handler, preview_sample_handler, show_samples_in_app_handler,
+    add_to_collection_handler, create_instrument_type_handler, list_instrument_types_handler,
+    preview_sample_handler, show_samples_in_app_handler, update_sample_instruments_handler,
 };
 use read_handlers::{find_similar_samples_handler, get_sample_handler, search_samples_handler};
 use response::fallback;
@@ -70,6 +71,24 @@ pub fn build_router(token: impl Into<String>) -> Router<()> {
                 parsing::route_stub_handler(request, ApiOperation::AddToCollection).await
             }),
         )
+        .route(
+            "/v1/list_instrument_types",
+            post(|request| async move {
+                parsing::route_stub_handler(request, ApiOperation::ListInstrumentTypes).await
+            }),
+        )
+        .route(
+            "/v1/create_instrument_type",
+            post(|request| async move {
+                parsing::route_stub_handler(request, ApiOperation::CreateInstrumentType).await
+            }),
+        )
+        .route(
+            "/v1/update_sample_instruments",
+            post(|request| async move {
+                parsing::route_stub_handler(request, ApiOperation::UpdateSampleInstruments).await
+            }),
+        )
         .fallback(fallback)
         .layer(from_fn(move |request, next| {
             enforce_http_api_security(request, next, token.clone())
@@ -120,6 +139,18 @@ fn build_manager_router(token: String, state: ReadHandlerState) -> Router<()> {
         .route("/v1/show_samples_in_app", post(show_samples_in_app_handler))
         .route("/v1/preview_sample", post(preview_sample_handler))
         .route("/v1/add_to_collection", post(add_to_collection_handler))
+        .route(
+            "/v1/list_instrument_types",
+            post(list_instrument_types_handler),
+        )
+        .route(
+            "/v1/create_instrument_type",
+            post(create_instrument_type_handler),
+        )
+        .route(
+            "/v1/update_sample_instruments",
+            post(update_sample_instruments_handler),
+        )
         .fallback(fallback)
         .layer(from_fn(move |request, next| {
             enforce_http_api_security(request, next, token.clone())

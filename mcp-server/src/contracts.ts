@@ -32,6 +32,19 @@ export const addToCollectionInputSchema = z.object({
   collection_name: textFieldSchema,
   sample_ids: sampleIdsSchema,
 }).strict();
+export const listInstrumentTypesInputSchema = z.object({}).strict();
+export const createInstrumentTypeInputSchema = z.object({ name: textFieldSchema.min(1) }).strict();
+export const updateSampleInstrumentsInputSchema = z.object({
+  assignments: z.array(z.object({
+    sample_id: sampleIdSchema,
+    instrument_type: textFieldSchema.min(1),
+  }).strict()).min(1).max(100),
+}).strict().superRefine((value, context) => {
+  const ids = value.assignments.map((assignment) => assignment.sample_id);
+  if (new Set(ids).size !== ids.length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'sample IDs must be unique' });
+  }
+});
 
 export const operationSchema = z.enum([
   'search_samples',
@@ -40,6 +53,9 @@ export const operationSchema = z.enum([
   'show_samples_in_app',
   'preview_sample',
   'add_to_collection',
+  'list_instrument_types',
+  'create_instrument_type',
+  'update_sample_instruments',
 ]);
 export type Operation = z.infer<typeof operationSchema>;
 
@@ -119,6 +135,24 @@ export const addToCollectionResponseSchema = responseEnvelopeSchema.extend({
   requested_count: z.number().int().min(0).max(100),
   added_count: z.number().int().min(0).max(100),
   created: z.boolean(),
+});
+const instrumentTypeSummarySchema = z.object({
+  id: sampleIdSchema,
+  name: textFieldSchema,
+  created_at: z.string(),
+}).strict();
+export const listInstrumentTypesResponseSchema = responseEnvelopeSchema.extend({
+  operation: z.literal('list_instrument_types'),
+  instrument_types: z.array(instrumentTypeSummarySchema),
+});
+export const createInstrumentTypeResponseSchema = responseEnvelopeSchema.extend({
+  operation: z.literal('create_instrument_type'),
+  instrument_type: instrumentTypeSummarySchema,
+});
+export const updateSampleInstrumentsResponseSchema = responseEnvelopeSchema.extend({
+  operation: z.literal('update_sample_instruments'),
+  requested_count: z.number().int().min(1).max(100),
+  updated_count: z.number().int().min(0).max(100),
 });
 
 export const apiErrorSchema = responseEnvelopeSchema.extend({

@@ -188,6 +188,44 @@ fn manager_update_sample_classification_persists_fields() {
 }
 
 #[test]
+fn manager_bulk_instrument_update_is_atomic() {
+    let dir = TempDir::new().unwrap();
+    write_wav(&dir, "bulk_kick.wav", 11_025);
+    write_wav(&dir, "bulk_snare.wav", 11_025);
+    let mut manager = make_manager();
+    manager.scan_directory(dir.path()).expect("scan failed");
+    let samples = manager.search("bulk").expect("search failed");
+    assert_eq!(samples.len(), 2);
+
+    let assignments = samples
+        .iter()
+        .map(|sample| (sample.id, "percussion".to_string()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        manager
+            .update_sample_instrument_types(&assignments)
+            .expect("bulk update failed"),
+        2
+    );
+    assert!(manager
+        .search("bulk")
+        .unwrap()
+        .iter()
+        .all(|sample| sample.instrument_type == "percussion"));
+
+    let invalid = vec![
+        (samples[0].id, "kick".to_string()),
+        (samples[1].id, "not-registered".to_string()),
+    ];
+    assert!(manager.update_sample_instrument_types(&invalid).is_err());
+    assert!(manager
+        .search("bulk")
+        .unwrap()
+        .iter()
+        .all(|sample| sample.instrument_type == "percussion"));
+}
+
+#[test]
 fn manager_move_sample_moves_file_and_updates_database() {
     let dir = TempDir::new().unwrap();
     let old_path = write_wav(&dir, "old_move.wav", 11_025);

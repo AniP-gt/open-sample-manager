@@ -3,8 +3,10 @@ use serde::de::DeserializeOwned;
 use super::{
     errors::ApiError,
     requests::{
-        AddToCollectionRequest, ApiOperation, ApiRequest, FindSimilarSamplesRequest,
-        GetSampleRequest, PreviewSampleRequest, SearchSamplesRequest, ShowSamplesInAppRequest,
+        AddToCollectionRequest, ApiOperation, ApiRequest, CreateInstrumentTypeRequest,
+        FindSimilarSamplesRequest, GetSampleRequest, ListInstrumentTypesRequest,
+        PreviewSampleRequest, SearchSamplesRequest, ShowSamplesInAppRequest,
+        UpdateSampleInstrumentsRequest,
     },
 };
 
@@ -153,6 +155,21 @@ pub fn validate_todo_one_request(
         ApiOperation::AddToCollection => {
             validate_typed_request::<AddToCollectionRequest>(bytes, request_id, expected_operation)
         }
+        ApiOperation::ListInstrumentTypes => validate_typed_request::<ListInstrumentTypesRequest>(
+            bytes,
+            request_id,
+            expected_operation,
+        ),
+        ApiOperation::CreateInstrumentType => {
+            validate_typed_request::<CreateInstrumentTypeRequest>(
+                bytes,
+                request_id,
+                expected_operation,
+            )
+        }
+        ApiOperation::UpdateSampleInstruments => validate_typed_request::<
+            UpdateSampleInstrumentsRequest,
+        >(bytes, request_id, expected_operation),
     }
 }
 
@@ -176,6 +193,9 @@ impl_validated_request!(FindSimilarSamplesRequest);
 impl_validated_request!(ShowSamplesInAppRequest);
 impl_validated_request!(PreviewSampleRequest);
 impl_validated_request!(AddToCollectionRequest);
+impl_validated_request!(ListInstrumentTypesRequest);
+impl_validated_request!(CreateInstrumentTypeRequest);
+impl_validated_request!(UpdateSampleInstrumentsRequest);
 
 fn validate_typed_request<T>(
     bytes: &[u8],

@@ -15,6 +15,18 @@ fn http_api_router_accepts_all_valid_post_routes_without_bypassing_security() {
         (ApiOperation::ShowSamplesInApp, "/v1/show_samples_in_app"),
         (ApiOperation::PreviewSample, "/v1/preview_sample"),
         (ApiOperation::AddToCollection, "/v1/add_to_collection"),
+        (
+            ApiOperation::ListInstrumentTypes,
+            "/v1/list_instrument_types",
+        ),
+        (
+            ApiOperation::CreateInstrumentType,
+            "/v1/create_instrument_type",
+        ),
+        (
+            ApiOperation::UpdateSampleInstruments,
+            "/v1/update_sample_instruments",
+        ),
     ] {
         let body = request_body(operation);
         let response = call_router(

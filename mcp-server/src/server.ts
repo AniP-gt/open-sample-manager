@@ -19,6 +19,12 @@ import {
   showSamplesInAppInputSchema,
   showSamplesInAppResponseSchema,
   type Operation,
+  createInstrumentTypeInputSchema,
+  createInstrumentTypeResponseSchema,
+  listInstrumentTypesInputSchema,
+  listInstrumentTypesResponseSchema,
+  updateSampleInstrumentsInputSchema,
+  updateSampleInstrumentsResponseSchema,
 } from './contracts.js';
 import { HttpClientError, postJsonWithRetry } from './httpClient.js';
 import { redactSensitiveText } from './manifest.js';
@@ -50,6 +56,9 @@ const tools = [
   { name: 'show_samples_in_app', description: 'Show an ordered set of sample IDs in the running desktop app.', inputSchema: objectSchema({ sample_ids: sampleIdsSchema(), selected_id: sampleIdSchema() }, ['sample_ids']) },
   { name: 'preview_sample', description: 'Preview one sample in the running desktop app.', inputSchema: objectSchema({ sample_id: sampleIdSchema() }, ['sample_id']) },
   { name: 'add_to_collection', description: 'Atomically add ordered sample IDs to a named collection.', inputSchema: objectSchema({ collection_name: stringSchema(128), sample_ids: sampleIdsSchema() }, ['collection_name', 'sample_ids']) },
+  { name: 'list_instrument_types', description: 'List instrument types available for SampleList classification.', inputSchema: objectSchema({}) },
+  { name: 'create_instrument_type', description: 'Create a new SampleList instrument type.', inputSchema: objectSchema({ name: { ...stringSchema(128), minLength: 1 } }, ['name']) },
+  { name: 'update_sample_instruments', description: 'Atomically assign instrument types to up to 100 SampleList samples.', inputSchema: objectSchema({ assignments: { type: 'array', minItems: 1, maxItems: 100, items: objectSchema({ sample_id: sampleIdSchema(), instrument_type: { ...stringSchema(128), minLength: 1 } }, ['sample_id', 'instrument_type']) } }, ['assignments']) },
 ] as const satisfies readonly ToolDefinition[];
 
 export function createServer(options: ServerOptions = {}): Server {
@@ -88,6 +97,12 @@ async function invokeTool(name: string, arguments_: Record<string, unknown>, req
       return invokeOperation({ operation: 'preview_sample', inputSchema: previewSampleInputSchema, outputSchema: previewSampleResponseSchema, arguments: arguments_, request });
     case 'add_to_collection':
       return invokeOperation({ operation: 'add_to_collection', inputSchema: addToCollectionInputSchema, outputSchema: addToCollectionResponseSchema, arguments: arguments_, request });
+    case 'list_instrument_types':
+      return invokeOperation({ operation: 'list_instrument_types', inputSchema: listInstrumentTypesInputSchema, outputSchema: listInstrumentTypesResponseSchema, arguments: arguments_, request });
+    case 'create_instrument_type':
+      return invokeOperation({ operation: 'create_instrument_type', inputSchema: createInstrumentTypeInputSchema, outputSchema: createInstrumentTypeResponseSchema, arguments: arguments_, request });
+    case 'update_sample_instruments':
+      return invokeOperation({ operation: 'update_sample_instruments', inputSchema: updateSampleInstrumentsInputSchema, outputSchema: updateSampleInstrumentsResponseSchema, arguments: arguments_, request });
     default:
       return safeError('invalid_request', 'Unknown MCP tool', `mcp-${randomUUID()}`);
   }
