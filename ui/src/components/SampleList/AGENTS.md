@@ -20,7 +20,7 @@ Large virtualized desktop sample table. Handles local filtering/sorting, column 
 - `@tanstack/react-virtual` owns row virtualization; keep `rowHeight` and `overscan` deliberate.
 - Column widths are local state, not global settings, unlike MIDI list which persists widths.
 - Drop/import paths flow through `onImportPaths`; do not invoke scan commands here.
-- Drag-out uses `prepare_drag_file`, plugin drag commands, then best-effort temp-file deletion.
+- Drag-out passes raw files through their source paths; edited audio uses durable prepared exports with plugin drag commands.
 - Search filtering uses `matchesFuzzySearch(filters.search, [file_name, ...tags])`.
 - `focusSelected` is exposed through `SampleListHandle` for keyboard navigation and load-around flows.
 
