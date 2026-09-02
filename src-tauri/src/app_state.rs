@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use open_sample_manager_core::SampleManager;
@@ -8,22 +6,17 @@ use crate::external_commands::{NackOutcome, UiCommandId, UiCommandLease, UiComma
 #[cfg(test)]
 use crate::external_commands::{UiCommand, UiCommandQueueError};
 
-pub type PreparedTempRegistry = Arc<Mutex<HashSet<PathBuf>>>;
-
 pub struct AppRuntimeState {
-    pub prepared_temp_paths: PreparedTempRegistry,
     pub timidity_pid: Arc<Mutex<Option<u32>>>,
     pub temp_midi_preview_file: Arc<Mutex<Option<tempfile::NamedTempFile>>>,
 }
 
 impl AppRuntimeState {
     pub fn new(
-        prepared_temp_paths: PreparedTempRegistry,
         timidity_pid: Arc<Mutex<Option<u32>>>,
         temp_midi_preview_file: Arc<Mutex<Option<tempfile::NamedTempFile>>>,
     ) -> Self {
         Self {
-            prepared_temp_paths,
             timidity_pid,
             temp_midi_preview_file,
         }
@@ -32,7 +25,6 @@ impl AppRuntimeState {
 
 pub struct AppState {
     pub manager: Arc<Mutex<SampleManager>>,
-    pub prepared_temp_paths: PreparedTempRegistry,
     pub timidity_pid: Arc<Mutex<Option<u32>>>,
     pub temp_midi_preview_file: Arc<Mutex<Option<tempfile::NamedTempFile>>>,
     ui_commands: Arc<UiCommandQueue>,
@@ -42,7 +34,6 @@ impl AppState {
     pub fn new(manager: SampleManager, runtime: AppRuntimeState, queue_capacity: usize) -> Self {
         Self {
             manager: Arc::new(Mutex::new(manager)),
-            prepared_temp_paths: runtime.prepared_temp_paths,
             timidity_pid: runtime.timidity_pid,
             temp_midi_preview_file: runtime.temp_midi_preview_file,
             ui_commands: Arc::new(UiCommandQueue::with_capacity(queue_capacity)),
@@ -88,11 +79,7 @@ impl AppState {
     pub fn test_with_capacity(capacity: usize) -> Self {
         let manager =
             SampleManager::new(None).expect("in-memory manager for tests should be created");
-        let runtime = AppRuntimeState::new(
-            Arc::new(Mutex::new(HashSet::new())),
-            Arc::new(Mutex::new(None)),
-            Arc::new(Mutex::new(None)),
-        );
+        let runtime = AppRuntimeState::new(Arc::new(Mutex::new(None)), Arc::new(Mutex::new(None)));
         Self::new(manager, runtime, capacity)
     }
 }

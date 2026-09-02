@@ -2,11 +2,12 @@ use open_sample_manager_core::analysis::processed_wav::{
     render_processed_wav, ProcessedSampleRenderSeconds,
 };
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
-use crate::app_state::{AppState, PreparedTempRegistry};
+use std::sync::atomic::{AtomicU64, Ordering};
+use tauri::Manager;
 
 use super::CommandError;
+
+static PROCESSED_DRAG_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[tauri::command]
 pub fn open_folder(path: String) -> Result<(), String> {
@@ -23,35 +24,16 @@ pub fn copy_to_clipboard(text: String, app: tauri::AppHandle) -> Result<(), Stri
 }
 
 #[tauri::command]
-pub async fn prepare_drag_file(
-    path: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<String, CommandError> {
-    let prepared_temp_paths = Arc::clone(&state.prepared_temp_paths);
-    tokio::task::spawn_blocking(move || {
-        let source = Path::new(&path);
-        if !source.exists() {
-            return Err(CommandError {
-                code: "not_found".to_string(),
-                message: format!("source path does not exist: {path}"),
-                details: None,
-            });
-        }
-        let target = copy_to_prepared_temp_file(source)?;
-        register_prepared_temp_path(&prepared_temp_paths, &target)?;
-        Ok(target.to_string_lossy().to_string())
-    })
-    .await
-    .map_err(task_error)?
-}
-
-#[tauri::command]
 pub async fn prepare_processed_drag_file(
     path: String,
     params: ProcessedSampleRenderSeconds,
-    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
 ) -> Result<String, CommandError> {
-    let prepared_temp_paths = Arc::clone(&state.prepared_temp_paths);
+    let app_data_directory = app.path().app_data_dir().map_err(|error| CommandError {
+        code: "app_data_dir_unavailable".to_string(),
+        message: format!("failed to resolve application data directory: {error}"),
+        details: None,
+    })?;
     tokio::task::spawn_blocking(move || {
         let source = PathBuf::from(&path);
         if !source.exists() {
@@ -61,138 +43,31 @@ pub async fn prepare_processed_drag_file(
                 details: None,
             });
         }
-        let output_path = processed_drag_output_path(&source)?;
+        let output_path = processed_drag_output_path(&app_data_directory, &source);
         render_processed_wav(&source, &output_path, params).map_err(CommandError::from)?;
-        register_prepared_temp_path(&prepared_temp_paths, &output_path)?;
         Ok(output_path.to_string_lossy().to_string())
     })
     .await
     .map_err(task_error)?
 }
 
-#[tauri::command]
-pub fn delete_file(path: String, state: tauri::State<'_, AppState>) -> Result<(), CommandError> {
-    delete_registered_temp_file(&path, &state.prepared_temp_paths)
-}
-
-fn delete_registered_temp_file(
-    path: impl AsRef<Path>,
-    prepared_temp_paths: &PreparedTempRegistry,
-) -> Result<(), CommandError> {
-    let target = PathBuf::from(path.as_ref());
-    let canonical_target = target.canonicalize().map_err(|error| CommandError {
-        code: "io_error".to_string(),
-        message: format!("failed to resolve path for deletion: {error}"),
-        details: None,
-    })?;
-    let registered = prepared_temp_paths
-        .lock()
-        .expect("prepared temp registry mutex poisoned")
-        .contains(&canonical_target);
-    if !registered {
-        return Err(CommandError {
-            code: "invalid_path".to_string(),
-            message: "delete_file only removes app-created prepared drag files".to_string(),
-            details: None,
-        });
-    }
-    if canonical_target.is_file() {
-        std::fs::remove_file(&canonical_target).map_err(|error| CommandError {
-            code: "io_error".to_string(),
-            message: format!("failed to delete temp file: {error}"),
-            details: None,
-        })?;
-    }
-    prepared_temp_paths
-        .lock()
-        .expect("prepared temp registry mutex poisoned")
-        .remove(&canonical_target);
-    Ok(())
-}
-
-fn register_prepared_temp_path(
-    prepared_temp_paths: &PreparedTempRegistry,
-    path: &Path,
-) -> Result<(), CommandError> {
-    let canonical_path = path.canonicalize().map_err(|error| CommandError {
-        code: "io_error".to_string(),
-        message: format!("failed to register prepared drag file: {error}"),
-        details: None,
-    })?;
-    prepared_temp_paths
-        .lock()
-        .expect("prepared temp registry mutex poisoned")
-        .insert(canonical_path);
-    Ok(())
-}
-
-fn copy_to_prepared_temp_file(source: &Path) -> Result<PathBuf, CommandError> {
-    let target = prepared_drag_output_path(source, None)?;
-    let mut source_file = std::fs::File::open(source).map_err(|error| CommandError {
-        code: "io_error".to_string(),
-        message: format!("failed to open drag source file: {error}"),
-        details: None,
-    })?;
-    let mut target_file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&target)
-        .map_err(|error| CommandError {
-            code: "io_error".to_string(),
-            message: format!("failed to create prepared drag file: {error}"),
-            details: None,
-        })?;
-    if let Err(error) = std::io::copy(&mut source_file, &mut target_file) {
-        let _ = std::fs::remove_file(&target);
-        return Err(CommandError {
-            code: "io_error".to_string(),
-            message: format!("failed to prepare drag file: {error}"),
-            details: None,
-        });
-    }
-    Ok(target)
-}
-
-fn processed_drag_output_path(source: &Path) -> Result<PathBuf, CommandError> {
-    prepared_drag_output_path(source, Some("wav"))
-}
-
-fn prepared_drag_output_path(
-    source: &Path,
-    extension_override: Option<&str>,
-) -> Result<PathBuf, CommandError> {
-    let output_dir = app_drag_temp_dir()?;
-    std::fs::create_dir_all(&output_dir).map_err(|error| CommandError {
-        code: "io_error".to_string(),
-        message: format!("failed to create drag temp directory: {error}"),
-        details: None,
-    })?;
+fn processed_drag_output_path(app_data_directory: &Path, source: &Path) -> PathBuf {
+    let output_directory = app_data_directory.join("processed-drag");
     let stem = source
         .file_stem()
         .and_then(|value| value.to_str())
         .filter(|value| !value.is_empty())
         .unwrap_or("sample");
-    let extension =
-        extension_override.or_else(|| source.extension().and_then(|value| value.to_str()));
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
         .unwrap_or(0);
-    let process_id = std::process::id();
-    let mut output_path = output_dir;
-    match extension {
-        Some(extension) if !extension.is_empty() => {
-            output_path.push(format!("{stem}-{process_id}-{timestamp}.{extension}"));
-        }
-        _ => output_path.push(format!("{stem}-{process_id}-{timestamp}")),
-    }
-    Ok(output_path)
-}
+    let sequence = PROCESSED_DRAG_SEQUENCE.fetch_add(1, Ordering::Relaxed);
 
-fn app_drag_temp_dir() -> Result<PathBuf, CommandError> {
-    let mut output_dir = std::env::temp_dir();
-    output_dir.push("open-sample-manager-drag");
-    Ok(output_dir)
+    output_directory.join(format!(
+        "{stem}-{}-{timestamp}-{sequence}.wav",
+        std::process::id()
+    ))
 }
 
 #[tauri::command]
@@ -300,32 +175,50 @@ fn task_error(error: tokio::task::JoinError) -> CommandError {
 
 #[cfg(test)]
 mod tests {
-    use super::delete_registered_temp_file;
-    use crate::app_state::PreparedTempRegistry;
-    use std::collections::HashSet;
-    use std::sync::{Arc, Mutex};
+    use super::{processed_drag_output_path, render_processed_wav, ProcessedSampleRenderSeconds};
+    use std::path::Path;
 
     #[test]
-    fn delete_registered_temp_file_rejects_unregistered_file() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("unregistered.wav");
-        std::fs::write(&path, b"not app-created").unwrap();
-        let registry: PreparedTempRegistry = Arc::new(Mutex::new(HashSet::new()));
-        let error = delete_registered_temp_file(&path, &registry).unwrap_err();
-        assert_eq!(error.code, "invalid_path");
-        assert!(path.exists());
+    fn processed_drag_output_path_uses_app_data_directory_when_rendering() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        let source = Path::new("/samples/kick.flac");
+
+        let output = processed_drag_output_path(app_data_directory.path(), source);
+
+        assert_eq!(
+            output.parent(),
+            Some(app_data_directory.path().join("processed-drag").as_path())
+        );
+        assert_eq!(
+            output.extension().and_then(|extension| extension.to_str()),
+            Some("wav")
+        );
     }
 
     #[test]
-    fn delete_registered_temp_file_removes_registered_file() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("registered.wav");
-        std::fs::write(&path, b"app-created").unwrap();
-        let canonical_path = path.canonicalize().unwrap();
-        let registry: PreparedTempRegistry = Arc::new(Mutex::new(HashSet::new()));
-        registry.lock().unwrap().insert(canonical_path);
-        delete_registered_temp_file(&path, &registry).unwrap();
-        assert!(!path.exists());
-        assert!(registry.lock().unwrap().is_empty());
+    fn processed_drag_output_path_generates_unique_wav_names() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        let source = Path::new("/samples/kick.flac");
+
+        let first = processed_drag_output_path(app_data_directory.path(), source);
+        let second = processed_drag_output_path(app_data_directory.path(), source);
+
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn processed_drag_render_writes_wav_under_app_data_directory() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        let source =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../core/tests/fixtures/sine_440hz_1s.wav");
+        let output = processed_drag_output_path(app_data_directory.path(), &source);
+
+        render_processed_wav(&source, &output, ProcessedSampleRenderSeconds::default()).unwrap();
+
+        assert!(output.is_file());
+        assert_eq!(
+            output.parent(),
+            Some(app_data_directory.path().join("processed-drag").as_path())
+        );
     }
 }

@@ -9,7 +9,7 @@ mod external_commands;
 mod http_api;
 mod local_api_runtime;
 
-use crate::app_state::{AppRuntimeState, AppState, PreparedTempRegistry};
+use crate::app_state::{AppRuntimeState, AppState};
 use crate::commands::*;
 use crate::external_commands::emit_ui_command_wake as emit_ui_command_wake_event;
 use std::sync::{Arc, Mutex};
@@ -54,12 +54,9 @@ fn main() {
                 std::io::Error::other(format!("failed to open database: {error}"))
             })?;
 
-            let prepared_temp_paths: PreparedTempRegistry =
-                Arc::new(Mutex::new(std::collections::HashSet::new()));
             let timidity_pid = Arc::new(Mutex::new(None));
             let temp_midi_preview_file = Arc::new(Mutex::new(None));
-            let runtime =
-                AppRuntimeState::new(prepared_temp_paths, timidity_pid, temp_midi_preview_file);
+            let runtime = AppRuntimeState::new(timidity_pid, temp_midi_preview_file);
             let app_state = AppState::with_defaults(manager, runtime);
             let manager = Arc::clone(&app_state.manager);
             let ui_commands = app_state.ui_command_queue();
@@ -135,9 +132,7 @@ fn main() {
         update_instrument_type,
         open_folder,
         copy_to_clipboard,
-        prepare_drag_file,
         prepare_processed_drag_file,
-        delete_file,
         get_drag_icon_path,
         debug_start_drag,
         debug_try_deserialize,
