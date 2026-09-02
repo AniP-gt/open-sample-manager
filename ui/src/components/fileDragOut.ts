@@ -21,12 +21,12 @@ export function prepareDragFile(
   if (!path || preparedPathsRef.current[key]) return;
 
   const hasEdits = hasSampleProcessingEdits(processingSettings);
-  const command = hasEdits ? "prepare_processed_drag_file" : "prepare_drag_file";
-  const payload = hasEdits && processingSettings
-    ? { path, params: toProcessedDragParams(processingSettings) }
-    : { path };
+  if (!hasEdits || !processingSettings) return;
 
-  void invoke<string>(command, payload).then((preparedPath) => {
+  void invoke<string>("prepare_processed_drag_file", {
+    path,
+    params: toProcessedDragParams(processingSettings),
+  }).then((preparedPath) => {
     if (typeof preparedPath === "string" && preparedPath) {
       preparedPathsRef.current[key] = preparedPath;
     }
@@ -51,6 +51,13 @@ export function startFileDrag(
   const hasEdits = hasSampleProcessingEdits(processingSettings);
   const preparedPath = preparedPathsRef.current[key];
 
+  if (!hasEdits) {
+    void startDrag({ item: [path], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
+      console.warn(`${logPrefix} startDrag failed:`, err);
+    });
+    return;
+  }
+
   if (hasEdits && !preparedPath && processingSettings) {
     void invoke<string>("prepare_processed_drag_file", {
       path,
@@ -67,7 +74,9 @@ export function startFileDrag(
     return;
   }
 
-  void startDrag({ item: [preparedPath || path], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
+  if (!preparedPath) return;
+
+  void startDrag({ item: [preparedPath], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
     console.warn(`${logPrefix} startDrag failed:`, err);
   });
 }

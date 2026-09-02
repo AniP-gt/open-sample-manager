@@ -12,8 +12,6 @@ vi.mock('../../../store/useRecentStore');
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockImplementation((cmd) => {
     if (cmd === 'get_drag_icon_path') return Promise.resolve('/tmp/icon.png');
-    if (cmd === 'prepare_drag_file') return Promise.resolve('/tmp/prepared.wav');
-    if (cmd === 'delete_file') return Promise.resolve();
     return Promise.resolve();
   }),
 }));
@@ -135,7 +133,8 @@ describe('FilterSidebar', () => {
     expect(fileNode).toBeInTheDocument();
 
     fireEvent.mouseDown(fileNode as Element, { button: 0 });
-    expect(invoke).toHaveBeenCalledWith('prepare_drag_file', { path: '/Users/test/samples/kick.wav' });
+    expect(invoke).not.toHaveBeenCalledWith('prepare_drag_file', { path: '/Users/test/samples/kick.wav' });
+    expect(invoke).not.toHaveBeenCalledWith('delete_file', expect.anything());
 
     fireEvent.dragStart(fileNode as Element);
     expect(startDrag).toHaveBeenCalledWith({ item: ['/Users/test/samples/kick.wav'], icon: '/tmp/osm_drag_icon.png' });

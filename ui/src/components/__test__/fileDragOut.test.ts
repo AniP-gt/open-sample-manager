@@ -19,15 +19,14 @@ describe("fileDragOut", () => {
     vi.useRealTimers();
   });
 
-  it("prepares raw drag files when processing settings are unchanged", async () => {
+  it("does not prepare raw drag files when processing settings are unchanged", async () => {
     const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: {} };
-    vi.mocked(invoke).mockResolvedValueOnce("/tmp/raw.wav");
 
     prepareDragFile("/samples/kick.wav", 1, preparedPathsRef);
     await Promise.resolve();
 
-    expect(invoke).toHaveBeenCalledWith("prepare_drag_file", { path: "/samples/kick.wav" });
-    expect(preparedPathsRef.current[1]).toBe("/tmp/raw.wav");
+    expect(invoke).not.toHaveBeenCalledWith("prepare_drag_file", { path: "/samples/kick.wav" });
+    expect(preparedPathsRef.current).toStrictEqual({});
   });
 
   it("prepares processed WAVs when processing settings are edited", async () => {
@@ -220,10 +219,9 @@ describe("fileDragOut", () => {
     expect(preparedPathsRef.current["edited-cleanup"]).toBe("/tmp/processed.wav");
   });
 
-  it("keeps an already prepared raw drag path cached after cleanup delay", async () => {
+  it("uses the source path instead of a stale prepared raw drag path", async () => {
     vi.useFakeTimers();
     const preparedPathsRef: React.MutableRefObject<Record<string, string>> = { current: { "raw-cleanup": "/tmp/raw.wav" } };
-    vi.mocked(invoke).mockResolvedValue(undefined);
     vi.mocked(startDrag).mockResolvedValue(undefined);
     const event = { preventDefault: vi.fn() } as unknown as React.DragEvent;
 
@@ -236,13 +234,9 @@ describe("fileDragOut", () => {
       "[test]",
     );
     await Promise.resolve();
-    await Promise.resolve();
 
-    vi.advanceTimersByTime(2000);
-    await Promise.resolve();
-
-    expect(startDrag).toHaveBeenCalledWith({ item: ["/tmp/raw.wav"], icon: "/tmp/icon.png" });
-    expect(invoke).not.toHaveBeenCalledWith("delete_file", { path: "/tmp/raw.wav" });
+    expect(startDrag).toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" });
+    expect(invoke).not.toHaveBeenCalledWith("prepare_drag_file", { path: "/samples/kick.wav" });
     expect(preparedPathsRef.current["raw-cleanup"]).toBe("/tmp/raw.wav");
   });
 });
