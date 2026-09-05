@@ -1,40 +1,10 @@
-import React from "react";
-import { FilterSidebar, SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
-import type { Sample, SampleProcessingSettings } from "../../types/sample";
-import type { Midi } from "../../types/midi";
-import type { Collection } from "../../types/collection";
-import type { SampleListHandle } from "../SampleList/types";
-import type { MidiListHandle, PlayerBarHandle } from "..";
+import { SampleList, MidiList, DetailPanel, MidiDetailPanel } from "..";
+import type { Sample } from "../../types/sample";
+import { AppMainPaneSidebar } from "./AppMainPaneSidebar";
+import { AppMainPaneResizeHandle } from "./AppMainPaneResizeHandle";
+import type { AppMainPaneProps } from "./AppMainPaneTypes";
 
-import type { useUIState } from "../../hooks/useUIState";
-import type { useScanState } from "../../hooks/useScanState";
-import type { useSampleState } from "../../hooks/useSampleState";
-import type { useMidiState } from "../../hooks/useMidiState";
-import { useFavoritesStore } from "../../store/useFavoritesStore";
-import { useMidiFavoritesStore } from "../../store/useMidiFavoritesStore";
-
-interface AppMainPaneProps {
-  uiState: ReturnType<typeof useUIState>;
-  scanState: ReturnType<typeof useScanState>;
-  sampleState: ReturnType<typeof useSampleState>;
-  midiState: ReturnType<typeof useMidiState>;
-  playerBarRef: React.RefObject<PlayerBarHandle>;
-  sampleListRef: React.RefObject<SampleListHandle>;
-  midiListRef: React.RefObject<MidiListHandle>;
-  displayedSamples: Sample[];
-  samplePaths: Record<number, string>;
-  collections: readonly Collection[];
-  activeCollectionId: number | null;
-  isCollectionView: boolean;
-  onSelectCollection: (collectionId: number) => void;
-  onClearCollection: () => void;
-  filteredMidis: Midi[];
-  instrumentColorCoding: boolean;
-  directoryClickFiltering: boolean;
-  showSampleMetadataQuality: boolean;
-  handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
-  getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
-}
+export type { AppMainPaneProps } from "./AppMainPaneTypes";
 
 export function AppMainPane({
   uiState,
@@ -57,11 +27,13 @@ export function AppMainPane({
   showSampleMetadataQuality,
   handleSampleSelectWithRecent,
   getSampleProcessingSettings,
+  providerBrowser = null,
 }: AppMainPaneProps) {
-  const { favorites: sampleFavorites } = useFavoritesStore();
-  const { favorites: midiFavorites } = useMidiFavoritesStore();
-  const duplicateSampleCount = sampleState.samples.filter((sample) => (sample.duplicate_count ?? 1) > 1).length;
   const instrumentTypeOptions = sampleState.instrumentTypes.map((type) => type.name) as Sample["instrument_type"][];
+
+  if (uiState.viewMode === "web") {
+    return <main style={{ display: "flex", flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>{providerBrowser}</main>;
+  }
   
   return (
     <div
@@ -74,124 +46,22 @@ export function AppMainPane({
         transition: "height 0.3s ease",
       }}
     >
-      <FilterSidebar
-        scannedPaths={uiState.viewMode === "midi" ? midiState.midiScannedPaths : sampleState.scannedPaths}
-        filePaths={uiState.viewMode === "midi" ? midiState.allMidiPaths : sampleState.allSamplePaths}
-        selectedPath={
-          uiState.viewMode === "midi"
-            ? midiState.selectedMidi
-              ? midiState.selectedMidi.path
-              : midiState.directoryPath || null
-            : sampleState.selected
-              ? sampleState.samplePaths[sampleState.selected.id]
-              : sampleState.filters.directoryPath || null
-        }
-        onPathSelect={(path) => {
-          const normalizedPath = path.replace(/\\/g, "/");
-          const filePaths = uiState.viewMode === "midi" ? midiState.allMidiPaths : sampleState.allSamplePaths;
-          const isFile = filePaths.some((filePath: string) => filePath.replace(/\\/g, "/") === normalizedPath);
-
-          if (isFile) {
-            if (uiState.viewMode === "midi") {
-              if (midiState.directoryPath) {
-                midiState.suppressNextMidiSearch();
-                midiState.setDirectoryPath("");
-              }
-              void midiState.loadMidiByPath(path, "");
-              return;
-            }
-
-            if (sampleState.filters.directoryPath) {
-              sampleState.suppressNextSearch();
-              sampleState.handleFilterChange({ directoryPath: "" });
-            }
-            void sampleState.loadSampleByPath(path);
-            return;
-          }
-
-          if (uiState.viewMode === "midi") {
-            if (!directoryClickFiltering) return;
-
-            if (midiState.isMidiPlaying) {
-              void midiState.togglePlaySelectedMidi();
-            }
-            midiState.setSelectedMidi(null);
-            midiState.setDirectoryPath(midiState.directoryPath === normalizedPath ? "" : normalizedPath);
-            return;
-          }
-
-          if (!directoryClickFiltering) return;
-
-          playerBarRef.current?.stop();
-          sampleState.setSelected(null);
-          sampleState.handleFilterChange({
-            directoryPath: sampleState.filters.directoryPath === normalizedPath ? "" : normalizedPath,
-          });
-        }}
-        onImportPaths={scanState.handleSidebarImport}
-        width={uiState.sidebarWidth}
-        bottomInset={
-          (uiState.viewMode === "sample" && sampleState.selected) ||
-          (uiState.viewMode === "midi" && midiState.selectedMidi)
-            ? 160
-            : 0
-        }
-        favoritesOnly={uiState.viewMode === "midi" ? midiState.favoritesOnly : sampleState.filters.favoritesOnly}
-        favoritesCount={uiState.viewMode === "midi" ? midiFavorites.length : sampleFavorites.length}
-        hideDuplicates={uiState.viewMode === "sample" ? sampleState.filters.hideDuplicates : false}
-        duplicateCount={uiState.viewMode === "sample" ? duplicateSampleCount : 0}
-        filterKey={uiState.viewMode === "midi" ? midiState.midiFilterKey : sampleState.filters.filterKey}
-        samples={sampleState.samples}
-        collections={uiState.viewMode === "sample" ? collections : []}
+      <AppMainPaneSidebar
         activeCollectionId={activeCollectionId}
-        isCollectionView={uiState.viewMode === "sample" && isCollectionView}
-        onSelectCollection={onSelectCollection}
+        collections={collections}
+        directoryClickFiltering={directoryClickFiltering}
+        handleSampleSelectWithRecent={handleSampleSelectWithRecent}
+        isCollectionView={isCollectionView}
+        midiState={midiState}
         onClearCollection={onClearCollection}
-        onFilterChange={(filters) => {
-          if (uiState.viewMode === "midi") {
-            if (filters.favoritesOnly !== undefined) {
-              midiState.setFavoritesOnly(filters.favoritesOnly);
-            }
-            if (filters.filterKey !== undefined) {
-              midiState.setMidiFilterKey(filters.filterKey);
-            }
-          } else {
-            sampleState.handleFilterChange(filters);
-          }
-        }}
-        onSampleSelect={(s) => {
-          void handleSampleSelectWithRecent(s);
-        }}
-        activeDirectoryPath={
-          uiState.viewMode === "midi"
-            ? midiState.directoryPath || null
-            : sampleState.filters.directoryPath || null
-        }
-        onClearDirectoryPath={() => {
-          if (uiState.viewMode === "midi") {
-            midiState.setDirectoryPath("");
-          } else {
-            sampleState.handleFilterChange({ directoryPath: "" });
-          }
-        }}
+        onSelectCollection={onSelectCollection}
+        playerBarRef={playerBarRef}
+        sampleState={sampleState}
+        scanState={scanState}
+        uiState={uiState}
       />
 
-      <div
-        onMouseDown={uiState.handleMouseDown}
-        style={{
-          width: "4px",
-          background: uiState.isResizing ? "#f97316" : "#1f2937",
-          cursor: "col-resize",
-          transition: "background 0.2s",
-          flexShrink: 0,
-        }}
-        onMouseEnter={(e) => {
-          if (!uiState.isResizing) e.currentTarget.style.background = "#374151";
-        }}
-        onMouseLeave={(e) => {
-          if (!uiState.isResizing) e.currentTarget.style.background = "#1f2937";
-        }}
-      />
+      <AppMainPaneResizeHandle isResizing={uiState.isResizing} onMouseDown={uiState.handleMouseDown} />
 
       {uiState.viewMode === "sample" ? (
         <SampleList
