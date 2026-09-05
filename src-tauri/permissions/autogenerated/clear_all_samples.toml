@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-clear-all-samples"
+description = "Enables the clear_all_samples command without any pre-configured scope."
+commands.allow = ["clear_all_samples"]
+
+[[permission]]
+identifier = "deny-clear-all-samples"
+description = "Denies the clear_all_samples command without any pre-configured scope."
+commands.deny = ["clear_all_samples"]

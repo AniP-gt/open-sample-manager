@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hide-provider-browser"
+description = "Enables the hide_provider_browser command without any pre-configured scope."
+commands.allow = ["hide_provider_browser"]
+
+[[permission]]
+identifier = "deny-hide-provider-browser"
+description = "Denies the hide_provider_browser command without any pre-configured scope."
+commands.deny = ["hide_provider_browser"]

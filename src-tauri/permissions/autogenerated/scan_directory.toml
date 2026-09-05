@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-scan-directory"
+description = "Enables the scan_directory command without any pre-configured scope."
+commands.allow = ["scan_directory"]
+
+[[permission]]
+identifier = "deny-scan-directory"
+description = "Denies the scan_directory command without any pre-configured scope."
+commands.deny = ["scan_directory"]

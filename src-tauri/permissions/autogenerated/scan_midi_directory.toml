@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-scan-midi-directory"
+description = "Enables the scan_midi_directory command without any pre-configured scope."
+commands.allow = ["scan_midi_directory"]
+
+[[permission]]
+identifier = "deny-scan-midi-directory"
+description = "Denies the scan_midi_directory command without any pre-configured scope."
+commands.deny = ["scan_midi_directory"]

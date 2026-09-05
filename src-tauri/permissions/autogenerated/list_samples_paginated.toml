@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-samples-paginated"
+description = "Enables the list_samples_paginated command without any pre-configured scope."
+commands.allow = ["list_samples_paginated"]
+
+[[permission]]
+identifier = "deny-list-samples-paginated"
+description = "Denies the list_samples_paginated command without any pre-configured scope."
+commands.deny = ["list_samples_paginated"]

@@ -4,10 +4,13 @@
 use open_sample_manager_core::SampleManager;
 
 mod app_state;
+#[macro_use]
+mod command_manifest;
 mod commands;
 mod external_commands;
 mod http_api;
 mod local_api_runtime;
+mod providers;
 
 use crate::app_state::{AppRuntimeState, AppState};
 use crate::commands::*;
@@ -100,67 +103,10 @@ fn main() {
         }
     });
 
-    builder = builder.invoke_handler(tauri::generate_handler![
-        health_check,
-        scan_directory,
-        export_library_database,
-        import_library_database,
-        import_file,
-        search_samples,
-        // Paginated listing/search exposed to renderer. list_samples_paginated
-        // currently ignores the `query` parameter and returns a LIMIT/OFFSET
-        // paginated listing. Future change will wire server-side FTS filtering.
-        list_samples_paginated,
-        list_samples_around_id,
-        search_by_embedding,
-        get_sample,
-        get_samples_by_ids,
-        list_collections,
-        get_collection_members,
-        list_all_sample_paths,
-        list_duplicate_groups,
-        delete_sample,
-        clear_all_samples,
-        re_scan_all_samples,
-        move_sample,
-        send_to_trash,
-        update_sample_classification,
-        update_sample_license_metadata,
-        get_instrument_types,
-        add_instrument_type,
-        delete_instrument_type,
-        update_instrument_type,
-        open_folder,
-        copy_to_clipboard,
-        prepare_processed_drag_file,
-        get_drag_icon_path,
-        debug_start_drag,
-        debug_try_deserialize,
-        claim_ui_command_queue,
-        acknowledge_ui_command,
-        nack_ui_command,
-        emit_ui_command_wake,
-        // MIDI commands
-        check_timidity,
-        play_midi,
-        stop_midi,
-        scan_midi_directory,
-        list_midis_paginated,
-        list_midis_around_id,
-        get_all_midi_paths,
-        get_midi,
-        delete_midi,
-        clear_all_midis,
-        search_midis,
-        search_midis_paginated,
-        // MIDI tag commands
-        get_midi_tags,
-        add_midi_tag,
-        delete_midi_tag,
-        update_midi_tag,
-        set_midi_file_tag,
-        get_midi_file_tags,
-    ]);
+    macro_rules! command_handler {
+        ($($command:ident),* $(,)?) => { tauri::generate_handler![$($command),*] };
+    }
+    builder = builder.invoke_handler(app_commands!(command_handler));
     let app = match builder.build(tauri::generate_context!()) {
         Ok(app) => app,
         Err(error) => {

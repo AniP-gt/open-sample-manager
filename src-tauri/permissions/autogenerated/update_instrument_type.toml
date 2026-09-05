@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-instrument-type"
+description = "Enables the update_instrument_type command without any pre-configured scope."
+commands.allow = ["update_instrument_type"]
+
+[[permission]]
+identifier = "deny-update-instrument-type"
+description = "Denies the update_instrument_type command without any pre-configured scope."
+commands.deny = ["update_instrument_type"]

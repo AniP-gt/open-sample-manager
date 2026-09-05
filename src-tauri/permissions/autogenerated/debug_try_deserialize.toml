@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-debug-try-deserialize"
+description = "Enables the debug_try_deserialize command without any pre-configured scope."
+commands.allow = ["debug_try_deserialize"]
+
+[[permission]]
+identifier = "deny-debug-try-deserialize"
+description = "Denies the debug_try_deserialize command without any pre-configured scope."
+commands.deny = ["debug_try_deserialize"]

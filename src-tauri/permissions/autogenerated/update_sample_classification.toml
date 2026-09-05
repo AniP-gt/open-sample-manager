@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-sample-classification"
+description = "Enables the update_sample_classification command without any pre-configured scope."
+commands.allow = ["update_sample_classification"]
+
+[[permission]]
+identifier = "deny-update-sample-classification"
+description = "Denies the update_sample_classification command without any pre-configured scope."
+commands.deny = ["update_sample_classification"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-delete-midi-tag"
+description = "Enables the delete_midi_tag command without any pre-configured scope."
+commands.allow = ["delete_midi_tag"]
+
+[[permission]]
+identifier = "deny-delete-midi-tag"
+description = "Denies the delete_midi_tag command without any pre-configured scope."
+commands.deny = ["delete_midi_tag"]

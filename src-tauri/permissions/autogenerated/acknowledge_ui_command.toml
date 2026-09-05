@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-acknowledge-ui-command"
+description = "Enables the acknowledge_ui_command command without any pre-configured scope."
+commands.allow = ["acknowledge_ui_command"]
+
+[[permission]]
+identifier = "deny-acknowledge-ui-command"
+description = "Denies the acknowledge_ui_command command without any pre-configured scope."
+commands.deny = ["acknowledge_ui_command"]

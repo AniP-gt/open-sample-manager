@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-re-scan-all-samples"
+description = "Enables the re_scan_all_samples command without any pre-configured scope."
+commands.allow = ["re_scan_all_samples"]
+
+[[permission]]
+identifier = "deny-re-scan-all-samples"
+description = "Denies the re_scan_all_samples command without any pre-configured scope."
+commands.deny = ["re_scan_all_samples"]

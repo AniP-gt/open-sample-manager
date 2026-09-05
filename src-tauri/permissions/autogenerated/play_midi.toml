@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-play-midi"
+description = "Enables the play_midi command without any pre-configured scope."
+commands.allow = ["play_midi"]
+
+[[permission]]
+identifier = "deny-play-midi"
+description = "Denies the play_midi command without any pre-configured scope."
+commands.deny = ["play_midi"]

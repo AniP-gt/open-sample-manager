@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-sample-license-metadata"
+description = "Enables the update_sample_license_metadata command without any pre-configured scope."
+commands.allow = ["update_sample_license_metadata"]
+
+[[permission]]
+identifier = "deny-update-sample-license-metadata"
+description = "Denies the update_sample_license_metadata command without any pre-configured scope."
+commands.deny = ["update_sample_license_metadata"]
