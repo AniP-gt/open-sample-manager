@@ -32,7 +32,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 }))
 
 describe('Header view toggle', () => {
-  it('renders buttons and calls onViewModeChange with "midi" when MIDI List clicked', async () => {
+  it('renders buttons and calls onViewModeChange with "midi" when MIDI is clicked', async () => {
     const { Header } = await import('../components/Header/Header')
     const mockChange = vi.fn()
     render(
@@ -41,12 +41,16 @@ describe('Header view toggle', () => {
         scanned={false}
         onScanClick={() => {}}
         onSettingsClick={() => {}}
+        onBackToSources={() => {}}
+        onGoBack={() => {}}
+        onGoForward={() => {}}
+        showProviderControls={false}
         viewMode={'sample'}
         onViewModeChange={mockChange}
       />,
     )
 
-    const midiButton = screen.getByText('MIDI List')
+    const midiButton = screen.getByText('MIDI')
     expect(midiButton).toBeInTheDocument()
     fireEvent.click(midiButton)
     expect(mockChange).toHaveBeenCalledWith('midi')
@@ -125,8 +129,8 @@ describe('TiMidity prompt in App', () => {
     const { App } = await import('../App')
     render(<App />)
 
-    // Click MIDI List to trigger loading midis
-    const midiButton2 = await screen.findByText('MIDI List')
+    // Click MIDI to trigger loading midis
+    const midiButton2 = await screen.findByText('MIDI')
     fireEvent.click(midiButton2)
 
     const midiRow = await screen.findByText('b.mid')

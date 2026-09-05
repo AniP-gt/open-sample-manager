@@ -98,7 +98,7 @@ describe('App drag/drop integration', () => {
 
     await waitFor(() => expect((invoke as any).mock.calls.some((c: any[]) => c[0] === 'search_samples' || c[0] === 'list_samples_paginated')).toBeTruthy());
 
-    const midiButton = getByText(/midi list/i);
+    const midiButton = getByText(/midi/i);
     fireEvent.click(midiButton);
 
     await waitFor(() => expect((invoke as any).mock.calls.some((c: any[]) => c[0] === 'list_midis_paginated')).toBeTruthy());

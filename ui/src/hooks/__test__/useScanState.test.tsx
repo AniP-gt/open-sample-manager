@@ -119,6 +119,19 @@ describe("useScanState", () => {
     await waitFor(() => expect(result.current.scanning).toBe(false));
   });
 
+  it("retains the heuristic drop import when plugin-fs metadata fails", async () => {
+    statMock.mockRejectedValue(new Error("plugin-fs unavailable"));
+    const { result, props } = renderScanHook({ viewMode: "sample" });
+
+    await act(async () => {
+      await expect(result.current.handleImportPaths(["/Users/alice/samples/kick.wav"])).resolves.toBeUndefined();
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("import_file", { path: "/Users/alice/samples/kick.wav" });
+    expect(props.fetchAllSamplePaths).toHaveBeenCalled();
+    expect(result.current.scanning).toBe(false);
+  });
+
   it("re-scans all samples and records a complete progress message", async () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "re_scan_all_samples") return 4;

@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import type { PlayerBarHandle } from "../components";
-
-type ViewMode = "sample" | "midi";
+import type { ViewMode } from "../types/viewMode";
 
 type SampleState = {
   selected: { id: number } | null;
