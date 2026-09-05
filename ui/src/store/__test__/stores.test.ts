@@ -15,6 +15,8 @@ describe("persisted UI stores", () => {
       instrumentColorCoding: false,
       directoryClickFiltering: true,
       showSampleMetadataQuality: true,
+      providerDownloadRoot: null,
+      providerBrowserMode: "window",
     });
   });
 
@@ -60,15 +62,23 @@ describe("persisted UI stores", () => {
     expect(useRecentStore.getState().recentIds).toEqual([]);
   });
 
-  it("updates playback and color coding settings", () => {
+  it("updates playback, display, and provider download settings", () => {
     useSettingsStore.getState().setAutoPlayOnSelect(true);
     useSettingsStore.getState().setInstrumentColorCoding(true);
     useSettingsStore.getState().setDirectoryClickFiltering(false);
     useSettingsStore.getState().setShowSampleMetadataQuality(false);
+    useSettingsStore.getState().setProviderDownloadRoot("/Users/alice/Provider Downloads");
+    useSettingsStore.getState().setProviderBrowserMode("embedded");
 
     expect(useSettingsStore.getState().autoPlayOnSelect).toBe(true);
     expect(useSettingsStore.getState().instrumentColorCoding).toBe(true);
     expect(useSettingsStore.getState().directoryClickFiltering).toBe(false);
     expect(useSettingsStore.getState().showSampleMetadataQuality).toBe(false);
+    expect(useSettingsStore.getState().providerDownloadRoot).toBe("/Users/alice/Provider Downloads");
+    expect(useSettingsStore.getState().providerBrowserMode).toBe("embedded");
+    expect(localStorage.getItem("osm_settings")).toContain("providerDownloadRoot");
+
+    useSettingsStore.getState().setProviderDownloadRoot(null);
+    expect(useSettingsStore.getState().providerDownloadRoot).toBeNull();
   });
 });
