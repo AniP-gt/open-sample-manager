@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-export-library-database"
+description = "Enables the export_library_database command without any pre-configured scope."
+commands.allow = ["export_library_database"]
+
+[[permission]]
+identifier = "deny-export-library-database"
+description = "Denies the export_library_database command without any pre-configured scope."
+commands.deny = ["export_library_database"]

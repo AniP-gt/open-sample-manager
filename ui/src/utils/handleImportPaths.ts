@@ -1,9 +1,9 @@
 import { resolveDroppedPaths } from './importHelpers';
 import type { ScanProgress } from '../types/scan';
 
-export type InvokeFn = (cmd: string, payload: unknown) => Promise<any>;
-export type ListenFn = <T = any>(event: string, cb: (e: { payload: T }) => void) => Promise<() => void>;
-export type RunSearchFn = (query: string) => Promise<any>;
+export type InvokeFn = (cmd: "scan_directory", payload: { readonly path: string }) => Promise<unknown>;
+export type ListenFn = (event: "scan-progress", cb: (e: { readonly payload: ScanProgress }) => void) => Promise<() => void>;
+export type RunSearchFn = (query: string) => Promise<unknown>;
 
 export async function handleImportPaths(
   rawPaths: string[],
@@ -31,7 +31,7 @@ export async function handleImportPaths(
 
   const statFn = undefined; // leave to callers if they want to use plugin-fs
 
-  const uniqueDirs = await resolveDroppedPaths(rawPaths, statFn as any);
+  const uniqueDirs = await resolveDroppedPaths(rawPaths, statFn);
 
   for (const dir of uniqueDirs) {
     try {
@@ -39,7 +39,7 @@ export async function handleImportPaths(
       onScanProgress?.(null);
       setError?.(null);
 
-      const unlisten = await listenFn<ScanProgress>('scan-progress', (e) => {
+      const unlisten = await listenFn('scan-progress', (e) => {
         onScanProgress?.(e.payload ?? null);
       });
 

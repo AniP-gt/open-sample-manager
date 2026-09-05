@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-provider-browser"
+description = "Enables the open_provider_browser command without any pre-configured scope."
+commands.allow = ["open_provider_browser"]
+
+[[permission]]
+identifier = "deny-open-provider-browser"
+description = "Denies the open_provider_browser command without any pre-configured scope."
+commands.deny = ["open_provider_browser"]

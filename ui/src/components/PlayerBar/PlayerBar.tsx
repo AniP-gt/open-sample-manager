@@ -116,6 +116,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
       <PlayerBarWaveform
         sample={sample}
         stablePath={playback.stablePath}
+        audioUrl={playback.audioUrl}
         autoPlay={autoPlay}
         playing={playback.playing}
         currentTime={playback.currentTime}

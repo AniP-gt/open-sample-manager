@@ -1,3 +1,7 @@
+import type { ViewMode } from "../../types/viewMode";
+import { HeaderBrand } from "./HeaderBrand";
+import { HeaderViewTabs } from "./HeaderViewTabs";
+
 interface HeaderProps {
   sampleCount: number;
   scanned: boolean;
@@ -7,12 +11,15 @@ interface HeaderProps {
   onReScanClick?: () => void;
   // When true, show the import drop affordance (app-level drag is active)
   isDragOver?: boolean;
-  // View mode toggle
-  viewMode: 'sample' | 'midi';
-  onViewModeChange: (mode: 'sample' | 'midi') => void;
+  onBackToSources: () => void;
+  onGoBack: () => void;
+  onGoForward: () => void;
+  showProviderControls: boolean;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
-export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, viewMode, onViewModeChange }: HeaderProps) {
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, onBackToSources, onGoBack, onGoForward, showProviderControls, viewMode, onViewModeChange }: HeaderProps) {
   return (
     <div
       style={{
@@ -21,87 +28,29 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        flexWrap: "wrap",
+        rowGap: "10px",
+        columnGap: "16px",
         background: "#0a0c12",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-        <div
-          style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "3px",
-            background: "linear-gradient(135deg, #f97316, #ea580c)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 0 12px #f9731640",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-            <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z" />
-          </svg>
-        </div>
-        <div>
-          <div
-            style={{
-              fontSize: "18px",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              color: "#f1f5f9",
-            }}
-          >
-            OPEN SAMPLE MANAGER
-          </div>
-          <div
-            style={{
-              fontSize: "14px",
-              color: "#374151",
-              letterSpacing: "0.12em",
-            }}
-          >
-            v0.1.0-alpha · Logic Pro AU · LOCAL
-          </div>
-        </div>
-      </div>
+      <HeaderBrand />
 
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        {/* Sample/MIDI View Toggle */}
-        <div style={{ display: "flex", gap: "2px", background: "#1f2937", padding: "2px", borderRadius: "4px" }}>
-          <button
-            onClick={() => onViewModeChange('sample')}
-            style={{
-              background: viewMode === 'sample' ? "#3b82f6" : "transparent",
-              border: "none",
-              color: viewMode === 'sample' ? "white" : "#9ca3af",
-              padding: "6px 12px",
-              borderRadius: "3px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontFamily: "'Courier New', monospace",
-              letterSpacing: "0.05em",
-              transition: "all 0.15s ease",
-            }}
-          >
-            Sample List
-          </button>
-          <button
-            onClick={() => onViewModeChange('midi')}
-            style={{
-              background: viewMode === 'midi' ? "#3b82f6" : "transparent",
-              border: "none",
-              color: viewMode === 'midi' ? "white" : "#9ca3af",
-              padding: "6px 12px",
-              borderRadius: "3px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontFamily: "'Courier New', monospace",
-              letterSpacing: "0.05em",
-              transition: "all 0.15s ease",
-            }}
-          >
-            MIDI List
-          </button>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", flex: "1 1 auto", flexWrap: "wrap", gap: "8px", justifyContent: "flex-end", minWidth: 0 }}>
+        <HeaderViewTabs viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        {showProviderControls && (
+          <>
+            <button type="button" title="Go back" aria-label="Go back" onClick={onGoBack} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
+              BACK
+            </button>
+            <button type="button" title="Go forward" aria-label="Go forward" onClick={onGoForward} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
+              FORWARD
+            </button>
+            <button type="button" title="Back to sources" aria-label="Back to sources" onClick={onBackToSources} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
+              BACK TO SOURCES
+            </button>
+          </>
+        )}
 
         {scanned && (
           <div

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-go-back-provider-browser"
+description = "Enables the go_back_provider_browser command without any pre-configured scope."
+commands.allow = ["go_back_provider_browser"]
+
+[[permission]]
+identifier = "deny-go-back-provider-browser"
+description = "Denies the go_back_provider_browser command without any pre-configured scope."
+commands.deny = ["go_back_provider_browser"]

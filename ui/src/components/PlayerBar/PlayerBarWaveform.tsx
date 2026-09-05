@@ -1,6 +1,5 @@
 import { lazy, Suspense } from "react";
 import type WaveSurfer from "wavesurfer.js";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Sample } from "../../types/sample";
 import { WaveformDisplay } from "../WaveformDisplay/WaveformDisplay";
 
@@ -9,6 +8,7 @@ const LazyWaveSurferPlayer = lazy(() => import("../WaveSurferPlayer/WaveSurferPl
 interface PlayerBarWaveformProps {
   readonly sample: Sample;
   readonly stablePath: string | undefined;
+  readonly audioUrl: string | null;
   readonly autoPlay: boolean | undefined;
   readonly playing: boolean;
   readonly currentTime: number;
@@ -18,7 +18,7 @@ interface PlayerBarWaveformProps {
   readonly onWaveSurferReady: (wavesurfer: WaveSurfer) => void;
 }
 
-export function PlayerBarWaveform({ sample, stablePath, autoPlay, playing, currentTime, duration, onClose, onSeek, onWaveSurferReady }: PlayerBarWaveformProps) {
+export function PlayerBarWaveform({ sample, stablePath, audioUrl, autoPlay, playing, currentTime, duration, onClose, onSeek, onWaveSurferReady }: PlayerBarWaveformProps) {
   return (
     <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
       <div style={{ position: "absolute", top: 8, right: 8, zIndex: 200 }}>
@@ -29,12 +29,12 @@ export function PlayerBarWaveform({ sample, stablePath, autoPlay, playing, curre
         </button>
       </div>
 
-      {!autoPlay && stablePath ? (
+      {!autoPlay && stablePath && audioUrl ? (
         <Suspense fallback={<WaveformDisplay sample={sample} isPlaying={playing} currentTime={currentTime} duration={duration || sample.duration} height={100} />}>
           <LazyWaveSurferPlayer
             sample={sample}
             filePath={stablePath}
-            blobUrl={convertFileSrc(stablePath)}
+            blobUrl={audioUrl}
             isPlaying={playing}
             currentTime={currentTime}
             duration={duration || sample.duration}

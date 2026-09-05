@@ -87,20 +87,6 @@ impl Drop for LocalApiRuntime {
     }
 }
 
-pub fn start_local_api(
-    app_data_dir: LocalApiDataDirectory,
-    manager: Arc<Mutex<SampleManager>>,
-    ui_commands: Arc<UiCommandQueue>,
-) -> Result<LocalApiRuntime, LocalApiLifecycleError> {
-    start_local_api_with_manager_and_wake(
-        app_data_dir,
-        manager,
-        ui_commands,
-        std::sync::Arc::new(|| false),
-        bind_local_api_listener,
-    )
-}
-
 pub fn start_local_api_with_manager_and_wake_default(
     app_data_dir: LocalApiDataDirectory,
     manager: Arc<Mutex<SampleManager>>,
@@ -147,6 +133,7 @@ where
     start_local_api_with_router(app_data_dir, bind, build_router)
 }
 
+#[cfg(test)]
 pub(crate) fn start_local_api_with_manager<Bind>(
     app_data_dir: LocalApiDataDirectory,
     manager: Arc<Mutex<SampleManager>>,

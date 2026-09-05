@@ -2,6 +2,9 @@
   "name": "open-sample-manager",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "npm run dev --prefix ui",
     "build": "npm run build --prefix ui",
@@ -16,6 +19,6 @@
     "tauri:build": "tauri build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.10.0"
+    "@tauri-apps/cli": "2.11.1"
   }
 }

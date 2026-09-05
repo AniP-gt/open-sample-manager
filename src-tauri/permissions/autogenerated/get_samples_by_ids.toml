@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-samples-by-ids"
+description = "Enables the get_samples_by_ids command without any pre-configured scope."
+commands.allow = ["get_samples_by_ids"]
+
+[[permission]]
+identifier = "deny-get-samples-by-ids"
+description = "Denies the get_samples_by_ids command without any pre-configured scope."
+commands.deny = ["get_samples_by_ids"]

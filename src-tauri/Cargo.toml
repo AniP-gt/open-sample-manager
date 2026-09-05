@@ -6,11 +6,11 @@ description = "Open Sample Manager - A standalone application for managing audio
 authors = ["Open Sample Manager Team"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.6.1", features = [] }
 
 [dependencies]
 axum = { version = "0.7", features = ["json"] }
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "2.11.1", features = ["unstable"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
@@ -22,7 +22,14 @@ sha2 = "0.10"
 subtle = "2"
 rand = "0.8"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time", "fs", "io-util"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+url = "2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+unicode-normalization = "0.1"
+fs2 = "0.4"
+futures-util = "0.3"
+thiserror = "2"
 open-sample-manager-core = { path = "../core" }
 trash = "5"
 dirs = "4"

@@ -1,3 +1,4 @@
+mod audio_file;
 mod collections;
 mod file_operations;
 mod instrument_types;
@@ -5,17 +6,20 @@ mod midi_catalog;
 mod midi_playback;
 mod midi_preview_transform;
 mod midi_tags;
+mod provider_browser;
 mod sample_catalog;
 mod sample_mutations;
 mod shared;
 mod ui_queue;
 
+pub use audio_file::*;
 pub use collections::*;
 pub use file_operations::*;
 pub use instrument_types::*;
 pub use midi_catalog::*;
 pub use midi_playback::*;
 pub use midi_tags::*;
+pub use provider_browser::*;
 pub use sample_catalog::*;
 pub use sample_mutations::*;
 pub(crate) use shared::*;

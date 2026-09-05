@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
@@ -13,7 +16,7 @@
   "dependencies": {
     "@crabnebula/tauri-plugin-drag": "^2.1.0",
     "@tanstack/react-virtual": "^3.13.23",
-    "@tauri-apps/api": "^2",
+    "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-shell": "^2",
@@ -23,17 +26,27 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.10.0",
+    "@tauri-apps/cli": "2.11.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.13.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.2",
+    "@vitejs/plugin-react-swc": "4.1.0",
     "jsdom": "^28.1.0",
-    "playwright": "^1.40.0",
+    "playwright": "1.55.1",
     "typescript": "^5.6.2",
-    "vite": "^5.4.10",
-    "vitest": "^4.0.18"
+    "vite": "^7.3.6",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "@babel/core": "7.29.6",
+    "esbuild": "0.28.1",
+    "vitest": {
+      "vite": "7.3.6",
+      "@vitest/mocker": {
+        "vite": "7.3.6"
+      }
+    }
   }
 }

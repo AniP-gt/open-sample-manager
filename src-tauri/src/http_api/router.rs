@@ -30,6 +30,7 @@ pub const LOCALHOST_API_HOST: &str = "127.0.0.1:37421";
 pub const MAX_JSON_BODY_BYTES: usize = 64 * 1024;
 pub type UiCommandWakeCallback = Arc<dyn Fn() -> bool + Send + Sync + 'static>;
 
+#[cfg(test)]
 fn no_wake_callback() -> UiCommandWakeCallback {
     Arc::new(|| false)
 }
@@ -131,6 +132,7 @@ pub fn build_router_with_manager(
     build_router_with_manager_and_queue(token, manager, Arc::new(UiCommandQueue::with_capacity(64)))
 }
 
+#[cfg(test)]
 pub fn build_router_with_manager_and_queue(
     token: impl Into<String>,
     manager: Arc<Mutex<SampleManager>>,

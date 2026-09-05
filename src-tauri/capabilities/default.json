@@ -1,8 +1,9 @@
 {
   "identifier": "default",
   "description": "Default capabilities for Open Sample Manager",
-  "windows": ["main"],
+  "webviews": ["main"],
   "permissions": [
+    "allow-health-check", "allow-scan-directory", "allow-export-library-database", "allow-import-library-database", "allow-import-file", "allow-search-samples", "allow-list-samples-paginated", "allow-list-samples-around-id", "allow-search-by-embedding", "allow-get-sample", "allow-get-samples-by-ids", "allow-list-collections", "allow-get-collection-members", "allow-list-all-sample-paths", "allow-list-duplicate-groups", "allow-delete-sample", "allow-clear-all-samples", "allow-re-scan-all-samples", "allow-move-sample", "allow-send-to-trash", "allow-update-sample-classification", "allow-update-sample-license-metadata", "allow-get-instrument-types", "allow-add-instrument-type", "allow-delete-instrument-type", "allow-update-instrument-type", "allow-open-folder", "allow-copy-to-clipboard", "allow-prepare-processed-drag-file", "allow-get-drag-icon-path", "allow-debug-start-drag", "allow-debug-try-deserialize", "allow-claim-ui-command-queue", "allow-acknowledge-ui-command", "allow-nack-ui-command", "allow-emit-ui-command-wake", "allow-open-provider-browser", "allow-set-provider-browser-bounds", "allow-show-provider-browser", "allow-hide-provider-browser", "allow-close-all-provider-browsers", "allow-close-embedded-provider-browser", "allow-go-back-provider-browser", "allow-go-forward-provider-browser", "allow-read-audio-file", "allow-check-timidity", "allow-play-midi", "allow-stop-midi", "allow-scan-midi-directory", "allow-list-midis-paginated", "allow-list-midis-around-id", "allow-get-all-midi-paths", "allow-get-midi", "allow-delete-midi", "allow-clear-all-midis", "allow-search-midis", "allow-search-midis-paginated", "allow-get-midi-tags", "allow-add-midi-tag", "allow-delete-midi-tag", "allow-update-midi-tag", "allow-set-midi-file-tag", "allow-get-midi-file-tags",
     "core:default",
     "shell:allow-open",
     "dialog:allow-open",

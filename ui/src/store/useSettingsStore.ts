@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ProviderBrowserMode } from "../types/provider";
 
 interface SettingsState {
   autoPlayOnSelect: boolean;
@@ -10,6 +11,10 @@ interface SettingsState {
   setDirectoryClickFiltering: (value: boolean) => void;
   showSampleMetadataQuality: boolean;
   setShowSampleMetadataQuality: (value: boolean) => void;
+  providerDownloadRoot: string | null;
+  setProviderDownloadRoot: (value: string | null) => void;
+  providerBrowserMode: ProviderBrowserMode;
+  setProviderBrowserMode: (value: ProviderBrowserMode) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -23,6 +28,10 @@ export const useSettingsStore = create<SettingsState>()(
       setDirectoryClickFiltering: (value) => set({ directoryClickFiltering: value }),
       showSampleMetadataQuality: true,
       setShowSampleMetadataQuality: (value) => set({ showSampleMetadataQuality: value }),
+      providerDownloadRoot: null,
+      setProviderDownloadRoot: (value) => set({ providerDownloadRoot: value }),
+      providerBrowserMode: "window",
+      setProviderBrowserMode: (value) => set({ providerBrowserMode: value }),
     }),
     {
       name: "osm_settings",

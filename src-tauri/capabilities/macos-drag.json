@@ -1,7 +1,7 @@
 {
   "identifier": "macos-drag",
   "description": "Allow native drag-out from the main window on macOS",
-  "windows": ["main"],
+  "webviews": ["main"],
   "platforms": ["macOS"],
   "permissions": ["drag:allow-start-drag"]
 }

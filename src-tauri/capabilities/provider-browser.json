@@ -1,0 +1,7 @@
+{
+  "identifier": "provider-browser",
+  "description": "Unprivileged external provider browser; imports stay in Rust.",
+  "windows": ["provider-musicradar", "provider-fiftysounds"],
+  "webviews": ["provider-child-musicradar", "provider-child-fiftysounds"],
+  "permissions": []
+}

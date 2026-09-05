@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-import-library-database"
+description = "Enables the import_library_database command without any pre-configured scope."
+commands.allow = ["import_library_database"]
+
+[[permission]]
+identifier = "deny-import-library-database"
+description = "Denies the import_library_database command without any pre-configured scope."
+commands.deny = ["import_library_database"]

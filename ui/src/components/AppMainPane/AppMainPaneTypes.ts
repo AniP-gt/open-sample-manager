@@ -1,0 +1,34 @@
+import type React from "react";
+import type { useMidiState } from "../../hooks/useMidiState";
+import type { useSampleState } from "../../hooks/useSampleState";
+import type { useScanState } from "../../hooks/useScanState";
+import type { useUIState } from "../../hooks/useUIState";
+import type { Collection } from "../../types/collection";
+import type { Midi } from "../../types/midi";
+import type { Sample, SampleProcessingSettings } from "../../types/sample";
+import type { MidiListHandle, PlayerBarHandle } from "..";
+import type { SampleListHandle } from "../SampleList/types";
+
+export type AppMainPaneProps = {
+  readonly uiState: ReturnType<typeof useUIState>;
+  readonly scanState: ReturnType<typeof useScanState>;
+  readonly sampleState: ReturnType<typeof useSampleState>;
+  readonly midiState: ReturnType<typeof useMidiState>;
+  readonly playerBarRef: React.RefObject<PlayerBarHandle>;
+  readonly sampleListRef: React.RefObject<SampleListHandle>;
+  readonly midiListRef: React.RefObject<MidiListHandle>;
+  readonly displayedSamples: Sample[];
+  readonly samplePaths: Record<number, string>;
+  readonly collections: readonly Collection[];
+  readonly activeCollectionId: number | null;
+  readonly isCollectionView: boolean;
+  readonly onSelectCollection: (collectionId: number) => void;
+  readonly onClearCollection: () => void;
+  readonly filteredMidis: Midi[];
+  readonly instrumentColorCoding: boolean;
+  readonly directoryClickFiltering: boolean;
+  readonly showSampleMetadataQuality: boolean;
+  readonly handleSampleSelectWithRecent: (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => Promise<void>;
+  readonly getSampleProcessingSettings?: (sample: Sample, path?: string) => SampleProcessingSettings | undefined;
+  readonly providerBrowser?: React.ReactNode;
+};

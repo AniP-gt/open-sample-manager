@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Sample } from "../../types/sample";
 
 interface WaveSurferPlayerProps {
   sample: Sample;
   filePath: string;
-  /** Pre-loaded asset URL — if provided, avoids a second convertFileSrc call. */
   blobUrl?: string | null;
   isPlaying: boolean;
   currentTime: number;
@@ -137,7 +135,8 @@ export function WaveSurferPlayer({
       setError(null);
 
       try {
-        const url = externalBlobUrl || convertFileSrc(filePath);
+          if (!externalBlobUrl) throw new Error("audio preview is unavailable");
+          const url = externalBlobUrl;
 
         if (cancelled) return;
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-search-samples"
+description = "Enables the search_samples command without any pre-configured scope."
+commands.allow = ["search_samples"]
+
+[[permission]]
+identifier = "deny-search-samples"
+description = "Denies the search_samples command without any pre-configured scope."
+commands.deny = ["search_samples"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-midi-tags"
+description = "Enables the get_midi_tags command without any pre-configured scope."
+commands.allow = ["get_midi_tags"]
+
+[[permission]]
+identifier = "deny-get-midi-tags"
+description = "Denies the get_midi_tags command without any pre-configured scope."
+commands.deny = ["get_midi_tags"]

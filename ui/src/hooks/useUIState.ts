@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { PlayerBarHandle } from "../components";
 import type { Sample } from "../types/sample";
+import type { ViewMode } from "../types/viewMode";
 
 type UseUIStateParams = {
   getHandleImportPaths: () => ((paths: string[]) => Promise<void>) | null;
@@ -13,12 +14,12 @@ export function useUIState({ getHandleImportPaths }: UseUIStateParams) {
   const [sidebarWidth, setSidebarWidth] = useState(180);
   const [isResizing, setIsResizing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [viewMode, setViewMode] = useState<"sample" | "midi">("sample");
+  const [viewMode, setViewMode] = useState<ViewMode>("sample");
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
   const pageLimit = 100;
 
   const handleViewModeChange = async (
-    mode: "sample" | "midi",
+    mode: ViewMode,
     deps: {
       isMidiPlaying: boolean;
       setIsMidiPlaying: (value: boolean) => void;

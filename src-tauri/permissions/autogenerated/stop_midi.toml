@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stop-midi"
+description = "Enables the stop_midi command without any pre-configured scope."
+commands.allow = ["stop_midi"]
+
+[[permission]]
+identifier = "deny-stop-midi"
+description = "Denies the stop_midi command without any pre-configured scope."
+commands.deny = ["stop_midi"]

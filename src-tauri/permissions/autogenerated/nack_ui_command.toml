@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-nack-ui-command"
+description = "Enables the nack_ui_command command without any pre-configured scope."
+commands.allow = ["nack_ui_command"]
+
+[[permission]]
+identifier = "deny-nack-ui-command"
+description = "Denies the nack_ui_command command without any pre-configured scope."
+commands.deny = ["nack_ui_command"]

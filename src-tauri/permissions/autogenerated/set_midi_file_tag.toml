@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-midi-file-tag"
+description = "Enables the set_midi_file_tag command without any pre-configured scope."
+commands.allow = ["set_midi_file_tag"]
+
+[[permission]]
+identifier = "deny-set-midi-file-tag"
+description = "Denies the set_midi_file_tag command without any pre-configured scope."
+commands.deny = ["set_midi_file_tag"]
