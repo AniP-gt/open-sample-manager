@@ -28,7 +28,7 @@ written portably, but this does not replace native operating-system verification
 All platforms require:
 
 - Rust stable and Cargo
-- Node.js 20 LTS or later and npm
+- Node.js `^20.19.0 || >=22.12.0` and npm
 - CMake 3.22 or later
 
 Platform-specific requirements:

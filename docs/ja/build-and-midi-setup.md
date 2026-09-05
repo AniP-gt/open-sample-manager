@@ -20,7 +20,7 @@ macOS 以外で判明している制限です。
 すべてのプラットフォームで必要です。
 
 - Rust stable と Cargo
-- Node.js 20 LTS 以降と npm
+- Node.js `^20.19.0 || >=22.12.0` と npm
 - CMake 3.22 以降
 
 プラットフォーム固有の要件です。

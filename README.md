@@ -56,6 +56,16 @@ Feature guides:
 - **Tag system** — create and assign custom tags to MIDI files
 - **Search** — full-text search over MIDI filenames
 
+### WEB Sources and Provider Downloads
+
+Open the `WEB` workspace to browse approved sample sources. It currently includes MusicRadar SampleRadar and FiftySounds Free Sound Library. Choose either a separate provider window or an embedded browser in `Settings > Provider Downloads`.
+
+Set a download folder in the same settings section. The default uses the app data folder; a chosen folder must already exist, be absolute, and be writable. Approved archive contents are extracted directly into that folder, then scanned into the local library. The app doesn't create a `provider-imports` subfolder.
+
+Imports never overwrite files. If an extracted filename, including a case-insensitive equivalent, already exists in the destination or appears twice in one archive, the import fails and leaves the destination unchanged. An import can also fail for a network problem, insufficient disk space, a size limit, an unsafe archive, or because another provider import is already running.
+
+Provider browsing and downloads are intentionally restricted. The browser permits only approved HTTPS pages for each provider, and downloads must match an approved provider ZIP address. Archives accept only validated WAV, MP3, FLAC, Ogg, AIFF, MIDI, and `.mid` files. Encrypted archives, nested archives, unsafe paths, unsupported files, invalid file signatures, and oversized extraction requests are rejected. Check each provider's terms and license before using a download.
+
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels
 - **Classification editing** — override auto-detected playback type and instrument type per sample
@@ -80,20 +90,20 @@ Use the local Node.js stdio MCP server to search the indexed library, find simil
 
 - **Xcode Command Line Tools**: `xcode-select --install`
 - **Rust** (stable): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Node.js 20 LTS** or later
+- **Node.js `^20.19.0 || >=22.12.0`**
 - **CMake 3.22** or later
 
 ### Linux
 
 - Rust (stable): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- Node.js 20 LTS or later
+- Node.js `^20.19.0 || >=22.12.0`
 - CMake 3.22 or later
 - Tauri system dependencies: see [Tauri Linux prerequisites](https://tauri.app/start/prerequisites/#linux)
 
 ### Windows
 
 - Rust (stable): install via [rustup.rs](https://rustup.rs)
-- Node.js 20 LTS or later
+- Node.js `^20.19.0 || >=22.12.0`
 - CMake 3.22 or later
 - Microsoft C++ Build Tools (via Visual Studio Installer)
 
@@ -221,6 +231,8 @@ Open Sample Manager is local-first. It stores metadata in a local SQLite databas
 Settings can export that metadata database as `samples.db` for PC migration. The export does not copy audio or MIDI files, so the files must exist at the same paths on the target computer before imported metadata can resolve them.
 
 During the developer preview, review the source and build locally if you want to test the app. The Tauri permission model, asset access, and installer signing are still being hardened before public binary releases.
+
+Provider imports use a private staging directory beneath the selected root. Existing absolute writable directories are accepted, including mounted and shared roots, when normal filesystem operations work. Availability still depends on platform permissions and filesystem behavior.
 
 ---
 

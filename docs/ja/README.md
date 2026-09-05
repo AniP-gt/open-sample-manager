@@ -33,7 +33,7 @@ Open Sample Manager は、オーディオサンプルと MIDI ファイルを扱
 
 ## はじめに
 
-必要なツールは Rust stable、Node.js 20 LTS 以降、npm、CMake 3.22 以降です。macOS では Xcode Command Line Tools、Linux では [Tauri の Linux 前提条件](https://tauri.app/start/prerequisites/#linux)、Windows では Visual Studio Installer から Microsoft C++ Build Tools も必要です。
+必要なツールは Rust stable、Node.js `^20.19.0 || >=22.12.0`、npm、CMake 3.22 以降です。macOS では Xcode Command Line Tools、Linux では [Tauri の Linux 前提条件](https://tauri.app/start/prerequisites/#linux)、Windows では Visual Studio Installer から Microsoft C++ Build Tools も必要です。
 
 リポジトリのルートで依存関係を確認して UI 依存関係を入れるには、次を実行します。
 

@@ -16,7 +16,7 @@ The app creates a new bearer token and instance ID at each start. Before every r
 
 ## Quick start
 
-1. Install Node.js 20 or newer and run the project bootstrap if needed.
+1. Install Node.js `^20.19.0 || >=22.12.0` and run the project bootstrap if needed.
 2. Install the MCP package dependencies, then build the entry point from the repository root:
 
    ```bash
