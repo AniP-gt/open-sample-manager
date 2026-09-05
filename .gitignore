@@ -12,3 +12,9 @@
 .sisyphus/
 .local/
 ui/coverage/
+
+# Local browser and manual QA artifacts
+/.playwright-mcp/
+/header-*.png
+/provider-manual-qa-console.log
+/スクリーンショット ????-??-?? ??.??.??.png
