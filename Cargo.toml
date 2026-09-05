@@ -7,3 +7,15 @@ strip = true
 lto = true
 codegen-units = 1
 panic = "abort"
+
+[profile.dev.package.wry]
+debug-assertions = false
+
+[profile.dev.package.tauri-runtime-wry]
+debug-assertions = false
+
+[profile.dev.package.tauri-runtime]
+debug-assertions = false
+
+[profile.dev.package.tauri]
+debug-assertions = false

@@ -1,12 +1,10 @@
-/// <reference types="vitest" />
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react-swc";
 
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   plugins: [react()],
-  // @ts-ignore
   test: {
     globals: true,
     environment: "jsdom",
@@ -28,4 +26,4 @@ export default defineConfig({
       ignored: ["**/src-tauri/**"],
     },
   },
-} as any);
+});
