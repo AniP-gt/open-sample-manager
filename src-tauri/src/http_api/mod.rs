@@ -8,7 +8,7 @@ pub mod validation;
 
 pub(crate) use crate::external_commands;
 
-pub use router::{build_router_with_manager_and_queue, LOCALHOST_API_HOST};
+pub use router::LOCALHOST_API_HOST;
 
 #[cfg(test)]
 pub use router::build_router;
