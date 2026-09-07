@@ -1,0 +1,1 @@
+export { FreesoundWorkspace } from "./FreesoundWorkspace";

@@ -39,8 +39,29 @@ describe("SettingsModal", () => {
     renderSettingsModal({ onClose: onCloseMock });
 
     const closeButton = screen.getByText("✕");
+    expect(closeButton).toHaveAccessibleName("Close settings");
     fireEvent.click(closeButton);
     expect(onCloseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the dialog and closes it with Escape", () => {
+    const onCloseMock = vi.fn();
+    renderSettingsModal({ onClose: onCloseMock });
+
+    const dialog = screen.getByRole("dialog", { name: "SETTINGS" });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(onCloseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Freesound key configuration without displaying a saved key", () => {
+    renderSettingsModal({ freesoundWorkspace: {
+      credential: "configured", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), openHomepage: vi.fn(),
+    } });
+
+    expect(screen.getByLabelText("Freesound API key")).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: "REPLACE KEY" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "REMOVE KEY" })).toBeInTheDocument();
+    expect(screen.getByText("A key is configured. Its value is never shown.")).toBeInTheDocument();
   });
 
 });

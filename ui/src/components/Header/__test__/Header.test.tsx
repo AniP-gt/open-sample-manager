@@ -12,7 +12,8 @@ function renderHeader(overrides: Partial<ComponentProps<typeof Header>> = {}) {
     onGoBack: vi.fn(),
     onGoForward: vi.fn(),
     onBackToSources: vi.fn(),
-    showProviderControls: false,
+    showBackToSources: false,
+    showProviderHistoryControls: false,
     viewMode: "sample" as const,
     onViewModeChange: vi.fn(),
     ...overrides,
@@ -40,10 +41,11 @@ describe("Header", () => {
     expect(screen.queryByRole("button", { name: "BACK TO SOURCES" })).not.toBeInTheDocument();
   });
 
-  test("renders provider controls beside WEB tabs only when enabled", () => {
+  test("renders provider history and source-return controls beside WEB tabs when enabled", () => {
     const { onGoBack, onGoForward, onBackToSources } = renderHeader({
       viewMode: "web",
-      showProviderControls: true,
+      showBackToSources: true,
+      showProviderHistoryControls: true,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Go back" }));

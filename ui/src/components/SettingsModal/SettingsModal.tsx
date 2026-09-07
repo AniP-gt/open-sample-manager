@@ -1,4 +1,6 @@
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import type { ProviderBrowserMode } from "../../types/provider";
+import type { FreesoundWorkspace } from "../../hooks/useFreesoundWorkspace";
 import { AboutSettingsSection } from "./AboutSettingsSection";
 import { DatabaseSettingsSection } from "./DatabaseSettingsSection";
 import { DisplaySettingsSection } from "./DisplaySettingsSection";
@@ -28,6 +30,7 @@ interface SettingsModalProps {
   readonly onClearProviderDownloadRoot: () => void;
   readonly providerBrowserMode?: ProviderBrowserMode;
   readonly onProviderBrowserModeChange?: (mode: ProviderBrowserMode) => void;
+  readonly freesoundWorkspace: FreesoundWorkspace;
 }
 
 export function SettingsModal({
@@ -47,11 +50,42 @@ export function SettingsModal({
   onClearProviderDownloadRoot,
   providerBrowserMode = "window",
   onProviderBrowserModeChange = () => {},
+  freesoundWorkspace,
   onDatabaseExport,
   onDatabaseImport,
   databaseMigrationBusy,
   databaseMigrationStatus,
 }: Omit<SettingsModalProps, "onClearAllSamples">) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.querySelector<HTMLButtonElement>("[data-settings-close]")?.focus();
+    return () => previouslyFocusedRef.current?.focus();
+  }, [isOpen]);
+
+  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])") ?? []);
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -78,7 +112,7 @@ export function SettingsModal({
           border: "1px solid #1f2937",
           borderRadius: "4px",
           padding: "24px",
-          minWidth: "400px",
+          width: "min(500px, 100%)",
           maxWidth: "500px",
           maxHeight: "calc(100vh - 48px)",
           overflowY: "auto",
@@ -86,7 +120,10 @@ export function SettingsModal({
         }}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="settings-modal-title"
+        ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
       >
         <div
           style={{
@@ -98,11 +135,13 @@ export function SettingsModal({
             borderBottom: "1px solid #1f2937",
           }}
         >
-          <h2 style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.1em", color: "#f1f5f9", margin: 0 }}>
+          <h2 id="settings-modal-title" style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.1em", color: "#f1f5f9", margin: 0 }}>
             SETTINGS
           </h2>
           <button
             onClick={onClose}
+            data-settings-close
+            aria-label="Close settings"
             style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "20px", padding: "4px 8px" }}
           >
             ✕
@@ -125,6 +164,7 @@ export function SettingsModal({
           onClearProviderDownloadRoot={onClearProviderDownloadRoot}
           providerBrowserMode={providerBrowserMode}
           onProviderBrowserModeChange={onProviderBrowserModeChange}
+          freesoundWorkspace={freesoundWorkspace}
         />
         <DatabaseSettingsSection
           sampleCount={sampleCount}
