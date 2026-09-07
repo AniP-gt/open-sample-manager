@@ -92,7 +92,7 @@ describe('App embedded provider navigation', () => {
     expect(screen.queryByRole('region', { name: 'Freesound setup' })).not.toBeInTheDocument();
   });
 
-  test('preserves Freesound when cleanup fails while returning to sources in window mode', async () => {
+  test('returns to sources when cleanup fails while returning from Freesound in window mode', async () => {
     await renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
     fireEvent.click(screen.getByRole('button', { name: /FREESOUND API Search/i }));
@@ -104,7 +104,7 @@ describe('App embedded provider navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to sources' }));
 
     expect(await screen.findByText('Provider browser could not be closed.')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Freesound setup' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Web sources' })).toBeInTheDocument();
   });
 
   test('clears a stale provider-root error when entering Freesound', async () => {
