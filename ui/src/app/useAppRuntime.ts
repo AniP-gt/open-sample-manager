@@ -16,6 +16,7 @@ import { useMidiFavoritesStore } from "../store/useMidiFavoritesStore";
 import { useRecentStore } from "../store/useRecentStore";
 import { useSettingsStore } from "../store/useSettingsStore";
 import type { FilterState, Sample } from "../types/sample";
+import { hasFormattedTauriCommandErrorCode } from "../utils/tauriError";
 import { useAppDerivedState } from "./useAppDerivedState";
 import { useAppEffects } from "./useAppEffects";
 import { useAppRefs } from "./useAppRefs";
@@ -24,6 +25,8 @@ const defaultFilters: FilterState = {
   search: "", filterType: "all", filterBpmMin: "", filterBpmMax: "", filterInstrumentType: "",
   favoritesOnly: false, hideDuplicates: false, filterKey: "", filterLicense: "", qualityIssuesOnly: false, directoryPath: "",
 };
+
+const providerRootErrorCodes = ["provider_root_invalid", "provider_root_unusable", "provider_root_storage_error"] as const;
 
 export function useAppRuntime() {
   const [freesoundWorkspaceActive, setFreesoundWorkspaceActive] = useState(false);
@@ -75,7 +78,7 @@ export function useAppRuntime() {
   refs.scanImportHandlerRef.current = scanState.handleImportPaths;
   const handleSampleSelectWithRecent = async (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => { addRecent(sample.id); await sampleState.handleSampleSelect(sample, isShift, rangeIds); };
   const clearActiveProvider = useCallback(async () => { try { await providerBrowser.clearActiveProvider(); setFreesoundWorkspaceActive(false); } catch { scanState.setError("Provider browser could not be closed."); } }, [providerBrowser.clearActiveProvider, scanState.setError]);
-  const openFreesoundWorkspace = useCallback(async () => { try { await providerBrowser.clearActiveProvider(); setFreesoundWorkspaceActive(true); } catch { scanState.setError("Provider browser could not be closed."); } }, [providerBrowser.clearActiveProvider, scanState.setError]);
+  const openFreesoundWorkspace = useCallback(async () => { try { await providerBrowser.clearActiveProvider(); if (hasFormattedTauriCommandErrorCode(scanState.error, providerRootErrorCodes)) scanState.setError(null); setFreesoundWorkspaceActive(true); } catch { scanState.setError("Provider browser could not be closed."); } }, [providerBrowser.clearActiveProvider, scanState.error, scanState.setError]);
   const handleViewModeChange = useCallback((mode: typeof uiState.viewMode) => { void (async () => { if (mode === "web" && uiState.viewMode === "web" && providerBrowser.activeProvider !== null) { await clearActiveProvider(); return; } if (mode !== "web" && !await providerBrowser.hideEmbeddedBrowserBeforeLeavingWeb()) return; await uiState.handleViewModeChange(mode, { isMidiPlaying: midiState.isMidiPlaying, setIsMidiPlaying: midiState.setIsMidiPlaying, playerBarRef: refs.playerBarRef, setSelected: sampleState.setSelected, setMidiSearch: midiState.setMidiSearch }); })(); }, [clearActiveProvider, midiState.isMidiPlaying, midiState.setIsMidiPlaying, midiState.setMidiSearch, providerBrowser, refs.playerBarRef, sampleState.setSelected, uiState]);
   const showProviderHistoryControls = uiState.viewMode === "web" && providerBrowserMode === "embedded" && providerBrowser.activeProvider !== null;
   const showBackToSources = uiState.viewMode === "web" && (freesoundWorkspaceActive || showProviderHistoryControls);

@@ -106,4 +106,34 @@ describe('App embedded provider navigation', () => {
     expect(await screen.findByText('Provider browser could not be closed.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Freesound setup' })).toBeInTheDocument();
   });
+
+  test('clears a stale provider-root error when entering Freesound', async () => {
+    getInvokeMock().mockImplementation((command: string) => command === 'open_provider_browser'
+      ? Promise.reject(JSON.stringify({ code: 'provider_root_invalid', message: 'invalid root', details: null }))
+      : defaultInvokeMock(command));
+    await renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
+    fireEvent.click(screen.getByText('MUSICRADAR'));
+    expect(await screen.findByText(/provider_root_invalid/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /FREESOUND API Search/i }));
+
+    expect(await screen.findByRole('region', { name: 'Freesound setup' })).toBeInTheDocument();
+    expect(screen.queryByText(/provider_root_invalid/)).not.toBeInTheDocument();
+  });
+
+  test('preserves unrelated global errors when entering Freesound', async () => {
+    getInvokeMock().mockImplementation((command: string) => command === 'open_provider_browser'
+      ? Promise.reject(new Error('native provider failure'))
+      : defaultInvokeMock(command));
+    await renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
+    fireEvent.click(screen.getByText('MUSICRADAR'));
+    expect(await screen.findByText('Provider browser could not be opened.: native provider failure')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /FREESOUND API Search/i }));
+
+    expect(await screen.findByRole('region', { name: 'Freesound setup' })).toBeInTheDocument();
+    expect(screen.getByText('Provider browser could not be opened.: native provider failure')).toBeInTheDocument();
+  });
 });
