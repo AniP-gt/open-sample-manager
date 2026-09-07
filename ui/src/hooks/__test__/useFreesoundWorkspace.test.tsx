@@ -29,6 +29,30 @@ describe("useFreesoundWorkspace", () => {
     expect(result.current.credential).toBe("configured");
   });
 
+  it("keeps a completed save when the initial credential status resolves late", async () => {
+    let resolveStatus: (value: unknown) => void = () => undefined;
+    const statusResponse = new Promise<unknown>((resolve) => { resolveStatus = resolve; });
+    invokeMock.mockReturnValueOnce(statusResponse).mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
+
+    await act(async () => { await result.current.saveApiKey("private-key"); });
+    await act(async () => { resolveStatus({ configured: false }); await statusResponse; });
+
+    expect(result.current.credential).toBe("configured");
+  });
+
+  it("keeps a completed delete when the initial credential status resolves late", async () => {
+    let resolveStatus: (value: unknown) => void = () => undefined;
+    const statusResponse = new Promise<unknown>((resolve) => { resolveStatus = resolve; });
+    invokeMock.mockReturnValueOnce(statusResponse).mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
+
+    await act(async () => { await result.current.deleteApiKey(); });
+    await act(async () => { resolveStatus({ configured: true }); await statusResponse; });
+
+    expect(result.current.credential).toBe("unset");
+  });
+
   it("searches explicitly and replaces results when changing pages", async () => {
     invokeMock.mockResolvedValueOnce({ configured: true })
       .mockResolvedValueOnce({ page: 1, pageSize: 20, totalCount: 2, hasPrevious: false, hasNext: true, sounds: [{ id: 1, name: "Kick", uploader: "alice", license: "CC0", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/", pageUrl: "https://sound", previewUrl: "https://preview" }] });
@@ -41,6 +65,24 @@ describe("useFreesoundWorkspace", () => {
     expect(result.current.results[0]?.name).toBe("Kick");
   });
 
+  it("preserves query text entered while a search is pending", async () => {
+    let resolveSearch: (value: unknown) => void = () => undefined;
+    const searchResponse = new Promise<unknown>((resolve) => { resolveSearch = resolve; });
+    invokeMock.mockResolvedValueOnce({ configured: true }).mockReturnValueOnce(searchResponse);
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
+    await waitFor(() => expect(result.current.credential).toBe("configured"));
+
+    let request: Promise<void> = Promise.resolve();
+    await act(async () => { request = result.current.search("kick", 1); });
+    act(() => { result.current.setQuery("snare"); });
+    await act(async () => {
+      resolveSearch({ page: 1, pageSize: 20, totalCount: 0, hasPrevious: false, hasNext: false, sounds: [] });
+      await request;
+    });
+
+    expect(result.current.query).toBe("snare");
+  });
+
   it("does not search empty input and reports authorization and rate errors", async () => {
     invokeMock.mockResolvedValueOnce({ configured: true });
     const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
@@ -49,13 +91,15 @@ describe("useFreesoundWorkspace", () => {
     await act(async () => { await result.current.search("", 1); });
     expect(invokeMock).toHaveBeenCalledTimes(1);
 
-    invokeMock.mockRejectedValueOnce({ code: "freesound_unauthorized" });
+    invokeMock.mockRejectedValueOnce(JSON.stringify({ code: "freesound_unauthorized", message: "key=secret /Users/alice/private", details: "https://private.example.test" }));
     await act(async () => { await result.current.search("kick", 1); });
-    expect(result.current.error).toContain("rejected");
+    expect(result.current.error).toBe("Freesound rejected this API key. Replace it in settings.");
+    expect(result.current.error).not.toContain("secret");
+    expect(result.current.error).not.toContain("/Users/");
 
-    invokeMock.mockRejectedValueOnce({ code: "freesound_rate_limited" });
+    invokeMock.mockRejectedValueOnce(JSON.stringify({ code: "freesound_rate_limited", message: "https://private.example.test", details: "internal details" }));
     await act(async () => { await result.current.search("kick", 2); });
-    expect(result.current.error).toContain("rate limiting");
+    expect(result.current.error).toBe("Freesound is rate limiting requests. Try again shortly.");
   });
 
   it("deletes the key without retaining a secret or preview", async () => {
@@ -70,7 +114,7 @@ describe("useFreesoundWorkspace", () => {
     expect(JSON.stringify(result.current)).not.toContain("private-key");
   });
 
-  it("converts Tauri byte arrays and cleans preview URLs when replacing and unmounting", async () => {
+  it("consumes raw Tauri preview bytes and cleans preview URLs when replacing and unmounting", async () => {
     const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
     const blobs: Blob[] = [];
     const createObjectURL = vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
@@ -78,7 +122,7 @@ describe("useFreesoundWorkspace", () => {
       blobs.push(blob);
       return `blob:${blobs.length}`;
     });
-    invokeMock.mockResolvedValueOnce({ configured: true }).mockResolvedValueOnce([0, 127, 255]).mockResolvedValueOnce([1]);
+    invokeMock.mockResolvedValueOnce({ configured: true }).mockResolvedValueOnce(new Uint8Array([0, 127, 255]).buffer).mockResolvedValueOnce(new Uint8Array([1]).buffer);
     const { result, unmount } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
     await waitFor(() => expect(result.current.credential).toBe("configured"));
 
@@ -98,9 +142,9 @@ describe("useFreesoundWorkspace", () => {
     const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
     invokeMock.mockResolvedValueOnce({ configured: true })
-      .mockResolvedValueOnce([1])
+      .mockResolvedValueOnce(new Uint8Array([1]).buffer)
       .mockResolvedValueOnce({ page: 2, pageSize: 20, totalCount: 0, hasPrevious: true, hasNext: false, sounds: [] })
-      .mockResolvedValueOnce([2]);
+      .mockResolvedValueOnce(new Uint8Array([2]).buffer);
     const { result, rerender } = renderHook(({ enabled }) => useFreesoundWorkspace(enabled, invokeMock), { initialProps: { enabled: true } });
     await waitFor(() => expect(result.current.credential).toBe("configured"));
 
@@ -141,7 +185,7 @@ describe("useFreesoundWorkspace", () => {
     let request: Promise<void> = Promise.resolve();
     await act(async () => { request = result.current.fetchPreview("https://preview"); });
     await act(async () => { rerender({ enabled: false }); });
-    await act(async () => { resolvePreview([1]); await request; });
+    await act(async () => { resolvePreview(new Uint8Array([1]).buffer); await request; });
 
     expect(result.current.previewUrl).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledTimes(createObjectURL.mock.calls.length);
@@ -159,7 +203,7 @@ describe("useFreesoundWorkspace", () => {
     let request: Promise<void> = Promise.resolve();
     await act(async () => { request = result.current.fetchPreview("https://preview"); });
     await act(async () => { unmount(); });
-    await act(async () => { resolvePreview([1]); await request; });
+    await act(async () => { resolvePreview(new Uint8Array([1]).buffer); await request; });
 
     expect(revokeObjectURL).toHaveBeenCalledTimes(createObjectURL.mock.calls.length);
   });
@@ -176,7 +220,7 @@ describe("useFreesoundWorkspace", () => {
 
     let request: Promise<void> = Promise.resolve();
     await act(async () => { request = result.current.fetchPreview("https://preview"); });
-    await act(async () => { resolvePreview([1]); await request; });
+    await act(async () => { resolvePreview(new Uint8Array([1]).buffer); await request; });
 
     expect(result.current.previewUrl).toBe("blob:strict-preview");
   });
@@ -192,14 +236,14 @@ describe("useFreesoundWorkspace", () => {
 
     let request: Promise<void> = Promise.resolve();
     await act(async () => { request = result.current.fetchPreview("https://preview"); result.current.stopPreview(); });
-    await act(async () => { resolvePreview([1]); await request; });
+    await act(async () => { resolvePreview(new Uint8Array([1]).buffer); await request; });
 
     expect(result.current.previewUrl).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledTimes(createObjectURL.mock.calls.length);
   });
 
-  it("rejects preview values that cannot be serialized from Rust Vec<u8>", async () => {
-    invokeMock.mockResolvedValueOnce({ configured: true }).mockResolvedValueOnce([0, 256]).mockResolvedValueOnce([1.5]);
+  it("rejects preview values that are not raw Tauri IPC bytes", async () => {
+    invokeMock.mockResolvedValueOnce({ configured: true }).mockResolvedValueOnce([0, 255]).mockResolvedValueOnce({ bytes: [1] });
     const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
     await waitFor(() => expect(result.current.credential).toBe("configured"));
 
@@ -208,5 +252,20 @@ describe("useFreesoundWorkspace", () => {
 
     await act(async () => { await result.current.fetchPreview("https://preview"); });
     expect(result.current.error).toContain("request failed");
+  });
+
+  it("cleans a failed current preview through stopPreview generation handling", async () => {
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
+    invokeMock.mockResolvedValueOnce({ configured: true }).mockResolvedValueOnce(new Uint8Array([1]).buffer);
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
+    await waitFor(() => expect(result.current.credential).toBe("configured"));
+
+    await act(async () => { await result.current.fetchPreview("https://preview"); });
+    act(() => { result.current.failPreview("blob:preview"); });
+
+    expect(result.current.previewUrl).toBeNull();
+    expect(result.current.error).toBe("Audio preview could not be played.");
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 });

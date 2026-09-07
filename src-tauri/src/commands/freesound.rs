@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager};
+use tauri::{ipc::Response, AppHandle, Manager};
 
 use crate::freesound::{
     credential_path, credential_status, delete_credential, fetch_preview, save_credential, search,
@@ -105,15 +105,21 @@ pub async fn search_freesound(
 }
 
 #[tauri::command]
-pub async fn fetch_freesound_preview(preview_url: String) -> Result<Vec<u8>, CommandError> {
+pub async fn fetch_freesound_preview(preview_url: String) -> Result<Response, CommandError> {
     fetch_preview(&preview_url)
         .await
+        .map(preview_response)
         .map_err(CommandError::from)
+}
+
+fn preview_response(bytes: Vec<u8>) -> Response {
+    Response::new(bytes)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::ipc::{InvokeResponseBody, IpcResponse};
 
     #[test]
     fn api_authentication_errors_have_stable_public_codes_without_details() {
@@ -124,5 +130,17 @@ mod tests {
         assert_eq!(rate_limited.code, "freesound_rate_limited");
         assert_eq!(unauthorized.details, None);
         assert_eq!(rate_limited.details, None);
+    }
+
+    #[test]
+    fn preview_response_uses_raw_ipc_bytes() {
+        let body = preview_response(vec![0, 127, 255])
+            .body()
+            .expect("response body");
+
+        match body {
+            InvokeResponseBody::Raw(bytes) => assert_eq!(bytes, vec![0, 127, 255]),
+            InvokeResponseBody::Json(_) => panic!("expected raw preview bytes"),
+        }
     }
 }

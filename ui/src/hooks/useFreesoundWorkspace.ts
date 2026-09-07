@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-shell";
 import type { FreesoundSearchResponse, FreesoundSound } from "../types/freesound";
+import { getTauriCommandErrorCode } from "../utils/tauriError";
 
 export type FreesoundCredentialState = "loading" | "unset" | "configured";
 export type FreesoundInvoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -25,23 +26,22 @@ export type FreesoundWorkspace = {
   readonly stopPreview: () => void;
   readonly totalCount: number;
   readonly deleteApiKey: () => Promise<void>;
+  readonly failPreview: (previewUrl: string) => void;
   readonly openHomepage: () => Promise<void>;
   readonly openRegistration: () => Promise<void>;
 };
 
 function messageFor(error: unknown): string {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    if (error.code === "freesound_unauthorized") return "Freesound rejected this API key. Replace it in settings.";
-    if (error.code === "freesound_rate_limited") return "Freesound is rate limiting requests. Try again shortly.";
+  const code = getTauriCommandErrorCode(error, ["freesound_unauthorized", "freesound_rate_limited"]);
+  if (code === "freesound_unauthorized") {
+    return "Freesound rejected this API key. Replace it in settings.";
   }
+  if (code === "freesound_rate_limited") return "Freesound is rate limiting requests. Try again shortly.";
   return "Freesound request failed. Try again.";
 }
 
 function previewBytes(value: unknown): ArrayBuffer | null {
-  if (!Array.isArray(value) || !value.every((byte) => typeof byte === "number" && Number.isInteger(byte) && byte >= 0 && byte <= 255)) return null;
-  const buffer = new ArrayBuffer(value.length);
-  new Uint8Array(buffer).set(value);
-  return buffer;
+  return value instanceof ArrayBuffer ? value : null;
 }
 
 function isCredentialStatus(value: unknown): value is { readonly configured: boolean } {
@@ -77,6 +77,7 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const previewGenerationRef = useRef(0);
+  const credentialGenerationRef = useRef(0);
   const requestBusyRef = useRef(false);
   const enabledRef = useRef(enabled);
   const mountedRef = useRef(true);
@@ -90,23 +91,33 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
     setPreviewUrl(null);
   }, []);
 
+  const failPreview = useCallback((failedPreviewUrl: string) => {
+    if (previewUrlRef.current !== failedPreviewUrl) return;
+    stopPreview();
+    setError("Audio preview could not be played.");
+  }, [stopPreview]);
+
   const loadCredential = useCallback(async () => {
+    const generation = ++credentialGenerationRef.current;
     try {
       const status = await invokeCommand("get_freesound_credential_status");
       if (!isCredentialStatus(status)) throw new Error("Invalid Freesound credential status.");
+      if (!mountedRef.current || !enabledRef.current || credentialGenerationRef.current !== generation) return;
       setCredential(status.configured ? "configured" : "unset");
     } catch (requestError) {
+      if (!mountedRef.current || !enabledRef.current || credentialGenerationRef.current !== generation) return;
       setCredential("unset");
       setError(messageFor(requestError));
     }
   }, [invokeCommand]);
 
-  useEffect(() => { if (enabled) void loadCredential(); else stopPreview(); }, [enabled, loadCredential, stopPreview]);
+  useEffect(() => { if (enabled) void loadCredential(); else { credentialGenerationRef.current += 1; stopPreview(); } }, [enabled, loadCredential, stopPreview]);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; stopPreview(); }; }, [stopPreview]);
   useEffect(() => stopPreview, [stopPreview]);
 
   const saveApiKey = useCallback(async (apiKey: string) => {
     if (requestBusyRef.current) return;
+    credentialGenerationRef.current += 1;
     requestBusyRef.current = true;
     setIsBusy(true); setError(null);
     try {
@@ -119,6 +130,7 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
 
   const deleteApiKey = useCallback(async () => {
     if (requestBusyRef.current) return;
+    credentialGenerationRef.current += 1;
     requestBusyRef.current = true;
     setIsBusy(true); setError(null); stopPreview();
     try {
@@ -154,7 +166,7 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
     try {
       const response = await invokeCommand("search_freesound", { query: nextQuery.trim(), page: nextPage });
       if (!isSearchResponse(response)) throw new Error("Invalid Freesound search response.");
-      setQuery(nextQuery); setPage(nextPage); setResults(response.sounds); setTotalCount(response.totalCount);
+      setPage(nextPage); setResults(response.sounds); setTotalCount(response.totalCount);
     } catch (requestError) {
       setError(messageFor(requestError));
     } finally { requestBusyRef.current = false; setIsBusy(false); }
@@ -181,5 +193,5 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
     } finally { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); }
   }, [invokeCommand, stopPreview]);
 
-  return { credential, error, fetchPreview, isBusy, page, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, openHomepage, openRegistration };
+  return { credential, error, fetchPreview, isBusy, page, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, failPreview, openHomepage, openRegistration };
 }
