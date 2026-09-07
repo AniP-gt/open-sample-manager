@@ -1,6 +1,7 @@
 mod audio_file;
 mod collections;
 mod file_operations;
+mod freesound;
 mod instrument_types;
 mod midi_catalog;
 mod midi_playback;
@@ -15,6 +16,7 @@ mod ui_queue;
 pub use audio_file::*;
 pub use collections::*;
 pub use file_operations::*;
+pub use freesound::*;
 pub use instrument_types::*;
 pub use midi_catalog::*;
 pub use midi_playback::*;
