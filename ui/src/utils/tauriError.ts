@@ -8,17 +8,27 @@ function isErrorRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function parseErrorRecord(value: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isErrorRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function formatTauriCommandError(value: unknown, fallback: string): string {
+  const error = typeof value === "string" ? parseErrorRecord(value) ?? value : value;
   const base = fallback.endsWith(".") ? fallback.slice(0, -1) : fallback;
-  const code = isErrorRecord(value) && typeof value.code === "string" && /^[a-z0-9_]{1,64}$/.test(value.code)
-    ? value.code
+  const code = isErrorRecord(error) && typeof error.code === "string" && /^[a-z0-9_]{1,64}$/.test(error.code)
+    ? error.code
     : null;
-  const message = typeof value === "string"
-    ? sanitizeErrorText(value)
-    : value instanceof Error
-      ? sanitizeErrorText(value.message)
-      : isErrorRecord(value) && typeof value.message === "string"
-        ? sanitizeErrorText(value.message)
+  const message = typeof error === "string"
+    ? sanitizeErrorText(error)
+    : error instanceof Error
+      ? sanitizeErrorText(error.message)
+      : isErrorRecord(error) && typeof error.message === "string"
+        ? sanitizeErrorText(error.message)
         : "";
 
   if (code && message) return `${base} (${code}): ${message}`;
