@@ -11,7 +11,7 @@ function workspace(overrides: Partial<FreesoundWorkspaceState> = {}): FreesoundW
     credential: "configured", error: null, fetchPreview: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), isBusy: false, page: 1,
     previewUrl: null, query: "kick", results: [sound], saveApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     search: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 1,
-    deleteApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openHomepage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openRegistration: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), ...overrides,
+    deleteApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), failPreview: vi.fn(), openHomepage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openRegistration: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), ...overrides,
   };
 }
 
@@ -37,6 +37,7 @@ describe("FreesoundWorkspace", () => {
   });
 
   it("clears the preview identity when the preview URL is removed", async () => {
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     function ControlledWorkspace() {
       const [previewUrl, setPreviewUrl] = useState<string | null>(null);
       const currentWorkspace = workspace({
@@ -52,5 +53,24 @@ describe("FreesoundWorkspace", () => {
     expect(await screen.findByRole("button", { name: "STOP" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "STOP" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "PREVIEW" })).toBeInTheDocument());
+  });
+
+  it("cleans the current preview when audio playback is rejected", async () => {
+    const failPreview = vi.fn();
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockRejectedValue(new Error("autoplay denied"));
+    render(<FreesoundWorkspace workspace={workspace({ previewUrl: "blob:preview", failPreview })} onOpenSettings={vi.fn()} />);
+
+    await waitFor(() => expect(failPreview).toHaveBeenCalledWith("blob:preview"));
+  });
+
+  it("cleans the current preview when the audio element reports an error", () => {
+    const failPreview = vi.fn();
+    const { container } = render(<FreesoundWorkspace workspace={workspace({ previewUrl: "blob:preview", failPreview })} onOpenSettings={vi.fn()} />);
+    const audio = container.querySelector("audio");
+    if (!audio) throw new Error("expected preview audio element");
+
+    fireEvent.error(audio);
+
+    expect(failPreview).toHaveBeenCalledWith("blob:preview");
   });
 });
