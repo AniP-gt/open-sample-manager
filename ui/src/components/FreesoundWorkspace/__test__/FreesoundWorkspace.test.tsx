@@ -9,7 +9,7 @@ const sound = { id: 1, name: "Kick", uploader: "alice", license: "CC0", licenseU
 function workspace(overrides: Partial<FreesoundWorkspaceState> = {}): FreesoundWorkspaceState {
   return {
     credential: "configured", error: null, fetchPreview: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), isBusy: false, page: 1,
-    previewUrl: null, query: "kick", results: [sound], saveApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    activeQuery: "kick", previewUrl: null, query: "kick", results: [sound], saveApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     search: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 1,
     deleteApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), failPreview: vi.fn(), openHomepage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openRegistration: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), ...overrides,
   };
@@ -34,6 +34,15 @@ describe("FreesoundWorkspace", () => {
     render(<FreesoundWorkspace workspace={workspace()} onOpenSettings={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "OPEN IN BROWSER" })).toBeEnabled();
+  });
+
+  it("uses the submitted query rather than a newer draft for page two", () => {
+    const search = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    render(<FreesoundWorkspace workspace={workspace({ activeQuery: "kick", page: 1, query: "snare", search, totalCount: 40 })} onOpenSettings={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "NEXT" }));
+
+    expect(search).toHaveBeenCalledWith("kick", 2);
   });
 
   it("clears the preview identity when the preview URL is removed", async () => {
