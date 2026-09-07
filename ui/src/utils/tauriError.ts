@@ -17,12 +17,30 @@ function parseErrorRecord(value: string): Record<string, unknown> | null {
   }
 }
 
+function errorRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "string") return parseErrorRecord(value);
+  return isErrorRecord(value) ? value : null;
+}
+
+function isStableCode(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z0-9_]{1,64}$/.test(value);
+}
+
+export function getTauriCommandErrorCode(value: unknown, allowedCodes?: readonly string[]): string | null {
+  const record = errorRecord(value);
+  const code = record?.code;
+  if (!isStableCode(code)) return null;
+  return allowedCodes === undefined || allowedCodes.includes(code) ? code : null;
+}
+
+export function hasFormattedTauriCommandErrorCode(value: string | null, allowedCodes: readonly string[]): boolean {
+  return value !== null && allowedCodes.some((code) => value.includes(`(${code})`));
+}
+
 export function formatTauriCommandError(value: unknown, fallback: string): string {
   const error = typeof value === "string" ? parseErrorRecord(value) ?? value : value;
   const base = fallback.endsWith(".") ? fallback.slice(0, -1) : fallback;
-  const code = isErrorRecord(error) && typeof error.code === "string" && /^[a-z0-9_]{1,64}$/.test(error.code)
-    ? error.code
-    : null;
+  const code = getTauriCommandErrorCode(error);
   const message = typeof error === "string"
     ? sanitizeErrorText(error)
     : error instanceof Error

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTauriCommandError } from "../tauriError";
+import { formatTauriCommandError, getTauriCommandErrorCode } from "../tauriError";
 
 describe("formatTauriCommandError", () => {
   it("formats a serialized CommandError record", () => {
@@ -39,5 +39,16 @@ describe("formatTauriCommandError", () => {
 
     // Then: the original sanitized string behavior remains unchanged.
     expect(message).toBe('Provider browser could not be opened.: {"code":"provider_root_invalid"');
+  });
+
+  it("extracts only allowed stable codes from serialized command errors", () => {
+    const rejection = JSON.stringify({
+      code: "freesound_unauthorized",
+      message: "key=secret /Users/alice/private",
+      details: "https://private.example.test",
+    });
+
+    expect(getTauriCommandErrorCode(rejection, ["freesound_unauthorized", "freesound_rate_limited"])).toBe("freesound_unauthorized");
+    expect(getTauriCommandErrorCode(rejection, ["freesound_rate_limited"])).toBeNull();
   });
 });
