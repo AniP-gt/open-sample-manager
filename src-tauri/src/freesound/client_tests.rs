@@ -90,6 +90,22 @@ fn search_response_rejects_unapproved_renderer_links() {
 }
 
 #[test]
+fn search_response_accepts_the_canonical_sampling_plus_license() {
+    let body = r#"{"count":1,"next":null,"previous":null,"results":[{"id":7,"name":"Kick","url":"https://freesound.org/apiv2/sounds/7/","username":"maker","license":"https://creativecommons.org/licenses/sampling+/1.0/","previews":{"preview-hq-mp3":"https://cdn.freesound.org/previews/1/7_1-hq.mp3"}}]}"#;
+
+    let response = serde_json::from_str::<SearchBody>(body)
+        .expect("Sampling+ response shape")
+        .into_public(1, 20)
+        .expect("Sampling+ public response");
+
+    assert_eq!(response.sounds[0].license, "CC Sampling+ 1.0");
+    assert_eq!(
+        response.sounds[0].license_url,
+        "https://creativecommons.org/licenses/sampling+/1.0/"
+    );
+}
+
+#[test]
 fn authentication_statuses_map_to_public_api_errors() {
     assert!(matches!(
         super::api_error_for_status(StatusCode::UNAUTHORIZED),
