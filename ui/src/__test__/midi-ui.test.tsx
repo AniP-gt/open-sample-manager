@@ -44,7 +44,8 @@ describe('Header view toggle', () => {
         onBackToSources={() => {}}
         onGoBack={() => {}}
         onGoForward={() => {}}
-        showProviderControls={false}
+        showBackToSources={false}
+        showProviderHistoryControls={false}
         viewMode={'sample'}
         onViewModeChange={mockChange}
       />,
