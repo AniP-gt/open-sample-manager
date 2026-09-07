@@ -5,15 +5,20 @@ type FreesoundErrorOwner = "browser" | "credential" | "preview" | "search";
 export function useFreesoundErrorState() {
   const [error, setError] = useState<string | null>(null);
   const ownerRef = useRef<FreesoundErrorOwner | null>(null);
-  const clearOwnedError = useCallback((owner: FreesoundErrorOwner) => {
-    if (ownerRef.current !== owner) return;
-    ownerRef.current = null;
-    setError(null);
+  const revisionRef = useRef(0);
+  const beginErrorOperation = useCallback((owner: FreesoundErrorOwner) => {
+    const revision = ++revisionRef.current;
+    if (ownerRef.current === owner) {
+      ownerRef.current = null;
+      setError(null);
+    }
+    return revision;
   }, []);
-  const setOwnedError = useCallback((owner: FreesoundErrorOwner, message: string) => {
+  const setOwnedError = useCallback((owner: FreesoundErrorOwner, message: string, revision: number) => {
+    if (revisionRef.current !== revision) return;
     ownerRef.current = owner;
     setError(message);
   }, []);
 
-  return { clearOwnedError, error, setOwnedError };
+  return { beginErrorOperation, error, setOwnedError };
 }
