@@ -26,7 +26,7 @@ const defaultProps: SettingsModalProps = {
   onSelectProviderDownloadRoot: vi.fn(),
   onClearProviderDownloadRoot: vi.fn(),
   freesoundWorkspace: {
-    credential: "unset", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), openHomepage: vi.fn(),
+    credential: "unset", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), openHomepage: vi.fn(), openRegistration: vi.fn(),
   } satisfies FreesoundWorkspace,
 };
 

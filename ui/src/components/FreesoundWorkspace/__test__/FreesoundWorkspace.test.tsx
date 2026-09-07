@@ -11,7 +11,7 @@ function workspace(overrides: Partial<FreesoundWorkspaceState> = {}): FreesoundW
     credential: "configured", error: null, fetchPreview: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), isBusy: false, page: 1,
     previewUrl: null, query: "kick", results: [sound], saveApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     search: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 1,
-    deleteApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openHomepage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), ...overrides,
+    deleteApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openHomepage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openRegistration: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), ...overrides,
   };
 }
 
@@ -21,10 +21,13 @@ describe("FreesoundWorkspace", () => {
     expect(screen.getByRole("button", { name: "PREVIEW" })).toBeDisabled();
   });
 
-  it("shows the browser action while setting up Freesound", () => {
-    render(<FreesoundWorkspace workspace={workspace({ credential: "unset", results: [] })} onOpenSettings={vi.fn()} />);
+  it("opens API registration from the unconfigured setup state", () => {
+    const openRegistration = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    render(<FreesoundWorkspace workspace={workspace({ credential: "unset", results: [], openRegistration })} onOpenSettings={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "OPEN IN BROWSER" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "GET API KEY" }));
+
+    expect(openRegistration).toHaveBeenCalledTimes(1);
   });
 
   it("shows the browser action while searching Freesound", () => {

@@ -99,7 +99,7 @@ export function ProviderSettingsSection({
         <div style={{ borderTop: "1px solid #1f2937", marginTop: "12px", paddingTop: "12px" }}>
           <div style={{ color: "#d1d5db", fontSize: "14px", marginBottom: "4px" }}>Freesound API</div>
           <div style={{ color: "#9ca3af", fontSize: "12px", marginBottom: "12px" }}>Configure, replace, or remove your personal API key. The saved key is never shown.</div>
-          <FreesoundCredentialForm credential={freesoundWorkspace.credential} isBusy={freesoundWorkspace.isBusy} onSave={freesoundWorkspace.saveApiKey} onDelete={() => { void freesoundWorkspace.deleteApiKey(); }} />
+          <FreesoundCredentialForm credential={freesoundWorkspace.credential} isBusy={freesoundWorkspace.isBusy} onSave={freesoundWorkspace.saveApiKey} onDelete={() => { void freesoundWorkspace.deleteApiKey(); }} onOpenRegistration={freesoundWorkspace.openRegistration} />
           {freesoundWorkspace.error && <div role="alert" style={{ color: "#f97316", fontSize: "11px", marginTop: "8px" }}>{freesoundWorkspace.error}</div>}
         </div>
       </div>

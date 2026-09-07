@@ -55,13 +55,24 @@ describe("SettingsModal", () => {
 
   it("offers Freesound key configuration without displaying a saved key", () => {
     renderSettingsModal({ freesoundWorkspace: {
-      credential: "configured", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), openHomepage: vi.fn(),
+      credential: "configured", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), openHomepage: vi.fn(), openRegistration: vi.fn(),
     } });
 
     expect(screen.getByLabelText("Freesound API key")).toHaveAttribute("type", "password");
     expect(screen.getByRole("button", { name: "REPLACE KEY" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "REMOVE KEY" })).toBeInTheDocument();
     expect(screen.getByText("A key is configured. Its value is never shown.")).toBeInTheDocument();
+  });
+
+  it("opens API registration from unconfigured Freesound settings", () => {
+    const openRegistration = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    renderSettingsModal({ freesoundWorkspace: {
+      credential: "unset", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), openHomepage: vi.fn(), openRegistration,
+    } });
+
+    fireEvent.click(screen.getByRole("button", { name: "GET API KEY" }));
+
+    expect(openRegistration).toHaveBeenCalledTimes(1);
   });
 
 });
