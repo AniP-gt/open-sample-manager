@@ -156,8 +156,8 @@ export function useProviderBrowserLifecycle({
 
   const clearActiveProvider = useCallback(async () => {
     const provider = stateRef.current.activeProvider;
-    await surface.queueCloseProviderAndAll(provider, true);
     advanceIntent();
+    await surface.queueCloseProviderAndAll(provider, true);
     stateRef.current = { ...stateRef.current, activeProvider: null };
     setActiveProvider(null);
     setStatus(null);

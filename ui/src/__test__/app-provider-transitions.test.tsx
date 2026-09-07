@@ -11,8 +11,8 @@ function useEmbeddedProviderMode() {
 
 async function openEmbeddedProvider() {
   await renderApp();
-  fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
-  fireEvent.click(screen.getByText('MUSICRADAR'));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'WEB' })); });
+  await act(async () => { fireEvent.click(screen.getByText('MUSICRADAR')); });
   expect(await screen.findByRole('region', { name: 'Web provider browser' })).toBeInTheDocument();
 }
 
@@ -32,7 +32,7 @@ describe('App embedded provider transitions', () => {
     try {
       await openEmbeddedProvider();
       await waitFor(() => expect(getInvokeMock()).toHaveBeenCalledWith('open_provider_browser', expect.anything()));
-      fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' }));
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' })); });
       await closeStarted;
       expect(screen.getByRole('button', { name: 'WEB' })).toHaveStyle({ background: '#3b82f6' });
       expect(screen.getByRole('region', { name: 'Web provider browser' })).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe('App embedded provider transitions', () => {
     getInvokeMock().mockImplementation((command: string) => command === 'close_embedded_provider_browser'
       ? Promise.reject(new Error('native close failed')) : defaultInvokeMock(command));
     await openEmbeddedProvider();
-    fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' })); });
     expect(await screen.findByText('Provider browser could not be closed.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'WEB' })).toHaveStyle({ background: '#3b82f6' });
     expect(screen.getByRole('region', { name: 'Web provider browser' })).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe('App embedded provider transitions', () => {
     getInvokeMock().mockImplementation((command: string) => command === 'close_embedded_provider_browser'
       ? Promise.resolve('https://www.musicradar.com/samples/resume-test') : defaultInvokeMock(command));
     await openEmbeddedProvider();
-    fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' })); });
     await waitFor(() => {
       expect(getInvokeMock()).toHaveBeenCalledWith('close_embedded_provider_browser', { provider: 'music_radar' });
       expect(getInvokeMock()).toHaveBeenCalledWith('close_all_provider_browsers');
@@ -68,7 +68,7 @@ describe('App embedded provider transitions', () => {
       expect(screen.queryByRole('region', { name: 'Web provider browser' })).not.toBeInTheDocument();
     });
     expect(getInvokeMock()).not.toHaveBeenCalledWith('hide_provider_browser', expect.anything());
-    fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'WEB' })); });
     await waitFor(() => expect(getInvokeMock()).toHaveBeenLastCalledWith('open_provider_browser', expect.objectContaining({
       mode: 'embedded', provider: 'music_radar', url: 'https://www.musicradar.com/samples/resume-test',
     })));
@@ -79,10 +79,10 @@ describe('App embedded provider transitions', () => {
     getInvokeMock().mockImplementation((command: string) => command === 'open_provider_browser'
       ? Promise.reject({ code: 'provider_surface_unavailable', message: 'native surface unavailable' }) : defaultInvokeMock(command));
     await renderApp();
-    fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
-    fireEvent.click(screen.getByText('MUSICRADAR'));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'WEB' })); });
+    await act(async () => { fireEvent.click(screen.getByText('MUSICRADAR')); });
     expect(await screen.findByText('Provider browser could not be opened (provider_surface_unavailable): native surface unavailable')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'SAMPLE' })); });
     await waitFor(() => {
       expect(getInvokeMock()).toHaveBeenCalledWith('close_all_provider_browsers');
       expect(screen.getByRole('button', { name: 'SAMPLE' })).toHaveStyle({ background: '#3b82f6' });

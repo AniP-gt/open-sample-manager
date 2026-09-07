@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import { defaultInvokeMock, getInvokeMock, renderApp, useAppTestHarness } from './appTestHarness';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -15,9 +15,9 @@ describe('App embedded provider navigation', () => {
   test('returns an active embedded web provider to sources from the Header', async () => {
     useSettingsStore.getState().setProviderBrowserMode('embedded');
     await renderApp();
-    fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
-    fireEvent.click(screen.getByText('MUSICRADAR'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to sources' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'WEB' })); });
+    await act(async () => { fireEvent.click(screen.getByText('MUSICRADAR')); });
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Back to sources' })); });
     expect(await screen.findByRole('region', { name: 'Web sources' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Go back' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Go forward' })).not.toBeInTheDocument();
@@ -41,18 +41,18 @@ describe('App embedded provider navigation', () => {
     useEmbeddedProviderMode();
     await renderApp();
 
-    fireEvent.click(screen.getByRole('button', { name: 'WEB' }));
-    fireEvent.click(screen.getByRole('button', { name: /FREESOUND API Search/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'WEB' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /FREESOUND API Search/i })); });
     expect(await screen.findByRole('region', { name: 'Freesound setup' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to sources' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Back to sources' })); });
     expect(await screen.findByRole('region', { name: 'Web sources' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('MUSICRADAR'));
+    await act(async () => { fireEvent.click(screen.getByText('MUSICRADAR')); });
     expect(await screen.findByText('MUSICRADAR / SampleRadar')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to sources' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Back to sources' })); });
     expect(await screen.findByRole('region', { name: 'Web sources' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('FIFTYSOUNDS'));
+    await act(async () => { fireEvent.click(screen.getByText('FIFTYSOUNDS')); });
     expect(await screen.findByText('FIFTYSOUNDS / Free Sound Library')).toBeInTheDocument();
   });
 
