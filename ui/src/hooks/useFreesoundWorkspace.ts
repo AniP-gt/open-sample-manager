@@ -8,6 +8,7 @@ export type FreesoundInvoke = (command: string, args?: Record<string, unknown>) 
 export type FreesoundOpen = (url: string) => Promise<void>;
 
 const FREESOUND_HOMEPAGE_URL = "https://freesound.org/";
+const FREESOUND_REGISTRATION_URL = "https://freesound.org/apiv2/apply/";
 
 export type FreesoundWorkspace = {
   readonly credential: FreesoundCredentialState;
@@ -25,6 +26,7 @@ export type FreesoundWorkspace = {
   readonly totalCount: number;
   readonly deleteApiKey: () => Promise<void>;
   readonly openHomepage: () => Promise<void>;
+  readonly openRegistration: () => Promise<void>;
 };
 
 function messageFor(error: unknown): string {
@@ -136,6 +138,15 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
     }
   }, [openExternal]);
 
+  const openRegistration = useCallback(async () => {
+    setError(null);
+    try {
+      await openExternal(FREESOUND_REGISTRATION_URL);
+    } catch (requestError) {
+      setError(messageFor(requestError));
+    }
+  }, [openExternal]);
+
   const search = useCallback(async (nextQuery: string, nextPage: number) => {
     if (requestBusyRef.current || nextQuery.trim().length === 0) return;
     stopPreview(); requestBusyRef.current = true;
@@ -170,5 +181,5 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
     } finally { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); }
   }, [invokeCommand, stopPreview]);
 
-  return { credential, error, fetchPreview, isBusy, page, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, openHomepage };
+  return { credential, error, fetchPreview, isBusy, page, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, openHomepage, openRegistration };
 }
