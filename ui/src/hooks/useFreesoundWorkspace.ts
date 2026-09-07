@@ -16,6 +16,7 @@ export type FreesoundWorkspace = {
   readonly error: string | null;
   readonly fetchPreview: (previewUrl: string) => Promise<void>;
   readonly isBusy: boolean;
+  readonly activeQuery: string;
   readonly page: number;
   readonly previewUrl: string | null;
   readonly query: string;
@@ -69,6 +70,7 @@ function isSearchResponse(value: unknown): value is FreesoundSearchResponse {
 export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundInvoke = invoke, openExternal: FreesoundOpen = open): FreesoundWorkspace {
   const [credential, setCredential] = useState<FreesoundCredentialState>("loading");
   const [query, setQuery] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
   const [results, setResults] = useState<readonly FreesoundSound[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -78,6 +80,7 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
   const previewUrlRef = useRef<string | null>(null);
   const previewGenerationRef = useRef(0);
   const credentialGenerationRef = useRef(0);
+  const operationGenerationRef = useRef(0);
   const requestBusyRef = useRef(false);
   const enabledRef = useRef(enabled);
   const mountedRef = useRef(true);
@@ -104,6 +107,7 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
       if (!isCredentialStatus(status)) throw new Error("Invalid Freesound credential status.");
       if (!mountedRef.current || !enabledRef.current || credentialGenerationRef.current !== generation) return;
       setCredential(status.configured ? "configured" : "unset");
+      setError(null);
     } catch (requestError) {
       if (!mountedRef.current || !enabledRef.current || credentialGenerationRef.current !== generation) return;
       setCredential("unset");
@@ -111,34 +115,36 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
     }
   }, [invokeCommand]);
 
-  useEffect(() => { if (enabled) void loadCredential(); else { credentialGenerationRef.current += 1; stopPreview(); } }, [enabled, loadCredential, stopPreview]);
+  useEffect(() => { if (enabled) void loadCredential(); else { credentialGenerationRef.current += 1; operationGenerationRef.current += 1; requestBusyRef.current = false; setIsBusy(false); stopPreview(); } }, [enabled, loadCredential, stopPreview]);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; stopPreview(); }; }, [stopPreview]);
   useEffect(() => stopPreview, [stopPreview]);
 
   const saveApiKey = useCallback(async (apiKey: string) => {
-    if (requestBusyRef.current) return;
+    if (requestBusyRef.current || !enabledRef.current) return;
     credentialGenerationRef.current += 1;
+    const generation = ++operationGenerationRef.current;
     requestBusyRef.current = true;
     setIsBusy(true); setError(null);
     try {
       await invokeCommand("save_freesound_api_key", { apiKey });
-      setCredential("configured");
+      if (mountedRef.current && enabledRef.current && operationGenerationRef.current === generation) setCredential("configured");
     } catch (requestError) {
-      setError(messageFor(requestError));
-    } finally { requestBusyRef.current = false; setIsBusy(false); }
+      if (mountedRef.current && enabledRef.current && operationGenerationRef.current === generation) setError(messageFor(requestError));
+    } finally { if (operationGenerationRef.current === generation) { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); } }
   }, [invokeCommand]);
 
   const deleteApiKey = useCallback(async () => {
-    if (requestBusyRef.current) return;
+    if (requestBusyRef.current || !enabledRef.current) return;
     credentialGenerationRef.current += 1;
+    const generation = ++operationGenerationRef.current;
     requestBusyRef.current = true;
     setIsBusy(true); setError(null); stopPreview();
     try {
       await invokeCommand("delete_freesound_api_key");
-      setCredential("unset"); setResults([]); setTotalCount(0);
+      if (mountedRef.current && enabledRef.current && operationGenerationRef.current === generation) { setCredential("unset"); setResults([]); setTotalCount(0); }
     } catch (requestError) {
-      setError(messageFor(requestError));
-    } finally { requestBusyRef.current = false; setIsBusy(false); }
+      if (mountedRef.current && enabledRef.current && operationGenerationRef.current === generation) setError(messageFor(requestError));
+    } finally { if (operationGenerationRef.current === generation) { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); } }
   }, [invokeCommand, stopPreview]);
 
   const openHomepage = useCallback(async () => {
@@ -160,22 +166,24 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
   }, [openExternal]);
 
   const search = useCallback(async (nextQuery: string, nextPage: number) => {
-    if (requestBusyRef.current || nextQuery.trim().length === 0) return;
+    if (requestBusyRef.current || !enabledRef.current || nextQuery.trim().length === 0) return;
     stopPreview(); requestBusyRef.current = true;
+    const generation = ++operationGenerationRef.current;
     setIsBusy(true); setError(null);
     try {
       const response = await invokeCommand("search_freesound", { query: nextQuery.trim(), page: nextPage });
       if (!isSearchResponse(response)) throw new Error("Invalid Freesound search response.");
-      setPage(nextPage); setResults(response.sounds); setTotalCount(response.totalCount);
+      if (mountedRef.current && enabledRef.current && operationGenerationRef.current === generation) { setActiveQuery(nextQuery.trim()); setPage(nextPage); setResults(response.sounds); setTotalCount(response.totalCount); }
     } catch (requestError) {
-      setError(messageFor(requestError));
-    } finally { requestBusyRef.current = false; setIsBusy(false); }
+      if (mountedRef.current && enabledRef.current && operationGenerationRef.current === generation) setError(messageFor(requestError));
+    } finally { if (operationGenerationRef.current === generation) { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); } }
   }, [invokeCommand, stopPreview]);
 
   const fetchPreview = useCallback(async (sourceUrl: string) => {
     if (requestBusyRef.current || !enabledRef.current) return;
     stopPreview();
-    const generation = previewGenerationRef.current;
+    const previewGeneration = previewGenerationRef.current;
+    const generation = ++operationGenerationRef.current;
     requestBusyRef.current = true;
     setIsBusy(true); setError(null);
     try {
@@ -183,15 +191,15 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
       const preview = previewBytes(bytes);
       if (!preview) throw new Error("Invalid Freesound preview response.");
       const nextUrl = URL.createObjectURL(new Blob([preview], { type: "audio/mpeg" }));
-      if (!mountedRef.current || !enabledRef.current || previewGenerationRef.current !== generation) {
+      if (!mountedRef.current || !enabledRef.current || previewGenerationRef.current !== previewGeneration || operationGenerationRef.current !== generation) {
         URL.revokeObjectURL(nextUrl);
         return;
       }
       previewUrlRef.current = nextUrl; setPreviewUrl(nextUrl);
     } catch (requestError) {
-      if (mountedRef.current && enabledRef.current && previewGenerationRef.current === generation) setError(messageFor(requestError));
-    } finally { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); }
+      if (mountedRef.current && enabledRef.current && previewGenerationRef.current === previewGeneration && operationGenerationRef.current === generation) setError(messageFor(requestError));
+    } finally { if (operationGenerationRef.current === generation) { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); } }
   }, [invokeCommand, stopPreview]);
 
-  return { credential, error, fetchPreview, isBusy, page, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, failPreview, openHomepage, openRegistration };
+  return { credential, error, fetchPreview, isBusy, page, activeQuery, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, failPreview, openHomepage, openRegistration };
 }
