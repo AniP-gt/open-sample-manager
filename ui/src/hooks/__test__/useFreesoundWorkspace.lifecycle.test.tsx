@@ -63,4 +63,16 @@ describe("useFreesoundWorkspace lifecycle", () => {
     expect(result.current.error).toBeNull();
     expect(result.current.isBusy).toBe(false);
   });
+
+  it("does not let a successful credential reload clear a newer search error", async () => {
+    const status = deferred<unknown>();
+    const invoke = vi.fn<FreesoundInvoke>().mockReturnValueOnce(status.promise).mockRejectedValueOnce(new Error("search failed"));
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invoke));
+
+    await act(async () => { await result.current.search("kick", 1); });
+    await act(async () => { status.resolve({ configured: true }); await status.promise; });
+
+    expect(result.current.credential).toBe("configured");
+    expect(result.current.error).toBe("Freesound request failed. Try again.");
+  });
 });
