@@ -31,6 +31,10 @@ Open Sample Manager は、オーディオサンプルと MIDI ファイルを扱
 - オーディオと MIDI のプレビュー、DAW へのドラッグ、サンプルの加工済み WAV ドラッグ書き出し
 - MIDI タグ、編集可能な楽器ラベル、ライセンスと出所のメタデータ、ローカル SQLite ライブラリの移行
 
+## Freesound
+
+Freesound は個人用 API キーで検索、プレビュー、および設定済みのプロバイダーダウンロードフォルダーへの承認済み HQ MP3 プレビューのダウンロードに対応しています。保存したプレビューはライブラリへ取り込まれます。API キー方式ではオリジナルファイルはダウンロードできません。オリジナルには Freesound OAuth2 が必要です。
+
 ## はじめに
 
 必要なツールは Rust stable、Node.js `^20.19.0 || >=22.12.0`、npm、CMake 3.22 以降です。macOS では Xcode Command Line Tools、Linux では [Tauri の Linux 前提条件](https://tauri.app/start/prerequisites/#linux)、Windows では Visual Studio Installer から Microsoft C++ Build Tools も必要です。
