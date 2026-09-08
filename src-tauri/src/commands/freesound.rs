@@ -2,8 +2,8 @@ use tauri::{ipc::Response, AppHandle, Manager};
 
 use crate::freesound::{
     credential_path, credential_status, delete_credential, fetch_preview, save_credential, search,
-    CredentialStatus, FreesoundApiError, FreesoundApiKey, FreesoundCredentialError,
-    FreesoundSearchResponse,
+    write_preview_download, CredentialStatus, FreesoundApiError, FreesoundApiKey,
+    FreesoundCredentialError, FreesoundSearchResponse, PreviewDownloadError,
 };
 
 use super::CommandError;
@@ -36,6 +36,21 @@ impl From<FreesoundApiError> for CommandError {
             FreesoundApiError::Request => "freesound_request_failed",
             FreesoundApiError::Response => "freesound_response_invalid",
             FreesoundApiError::TooLarge => "freesound_preview_too_large",
+        };
+        Self {
+            code: code.to_owned(),
+            message: value.to_string(),
+            details: None,
+        }
+    }
+}
+
+impl From<PreviewDownloadError> for CommandError {
+    fn from(value: PreviewDownloadError) -> Self {
+        let code = match value {
+            PreviewDownloadError::InvalidDestination => "freesound_download_destination_invalid",
+            PreviewDownloadError::DestinationExists => "freesound_download_destination_exists",
+            PreviewDownloadError::Storage(_) => "freesound_download_storage_failed",
         };
         Self {
             code: code.to_owned(),
@@ -112,6 +127,37 @@ pub async fn fetch_freesound_preview(preview_url: String) -> Result<Response, Co
         .map_err(CommandError::from)
 }
 
+#[tauri::command]
+pub async fn download_freesound_preview(
+    preview_url: String,
+    result_name: String,
+    destination_directory: String,
+) -> Result<String, CommandError> {
+    let bytes = fetch_preview(&preview_url)
+        .await
+        .map_err(CommandError::from)?;
+    let path = tokio::task::spawn_blocking(move || {
+        write_preview_download(
+            std::path::Path::new(&destination_directory),
+            &result_name,
+            &bytes,
+        )
+    })
+    .await
+    .map_err(|_| CommandError {
+        code: "freesound_download_storage_failed".to_owned(),
+        message: "Freesound preview storage failed".to_owned(),
+        details: None,
+    })??;
+    path.into_os_string()
+        .into_string()
+        .map_err(|_| CommandError {
+            code: "freesound_download_path_invalid".to_owned(),
+            message: "Freesound preview destination path is not UTF-8".to_owned(),
+            details: None,
+        })
+}
+
 fn preview_response(bytes: Vec<u8>) -> Response {
     Response::new(bytes)
 }
@@ -142,5 +188,20 @@ mod tests {
             InvokeResponseBody::Raw(bytes) => assert_eq!(bytes, vec![0, 127, 255]),
             InvokeResponseBody::Json(_) => panic!("expected raw preview bytes"),
         }
+    }
+
+    #[test]
+    fn preview_download_errors_have_stable_public_codes_without_details() {
+        let invalid_destination = CommandError::from(PreviewDownloadError::InvalidDestination);
+        let storage_failure = CommandError::from(PreviewDownloadError::Storage(
+            std::io::Error::other("disk full"),
+        ));
+
+        assert_eq!(
+            invalid_destination.code,
+            "freesound_download_destination_invalid"
+        );
+        assert_eq!(storage_failure.code, "freesound_download_storage_failed");
+        assert_eq!(storage_failure.details, None);
     }
 }
