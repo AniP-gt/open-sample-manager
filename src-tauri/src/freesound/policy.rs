@@ -34,13 +34,16 @@ mod tests {
             &Url::parse("https://creativecommons.org/licenses/by/4.0/").expect("license URL")
         ));
         assert!(is_license_url(
-            &Url::parse("https://creativecommons.org/licenses/sampling+/1.0/").expect("sampling URL")
+            &Url::parse("https://creativecommons.org/licenses/sampling+/1.0/")
+                .expect("sampling URL")
         ));
         assert!(!is_license_url(
-            &Url::parse("https://creativecommons.org/licenses/sampling+/1.0").expect("missing slash URL")
+            &Url::parse("https://creativecommons.org/licenses/sampling+/1.0")
+                .expect("missing slash URL")
         ));
         assert!(!is_license_url(
-            &Url::parse("https://creativecommons.org/licenses/sampling+/1.0/?source=freesound").expect("query URL")
+            &Url::parse("https://creativecommons.org/licenses/sampling+/1.0/?source=freesound")
+                .expect("query URL")
         ));
         assert!(!is_license_url(
             &Url::parse("https://example.com/licenses/by/4.0/").expect("unapproved license URL")
