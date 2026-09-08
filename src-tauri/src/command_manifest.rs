@@ -50,6 +50,7 @@ macro_rules! app_commands {
             delete_freesound_api_key,
             search_freesound,
             fetch_freesound_preview,
+            download_freesound_preview,
             read_audio_file,
             check_timidity,
             play_midi,
@@ -107,6 +108,7 @@ mod tests {
             "delete_freesound_api_key",
             "search_freesound",
             "fetch_freesound_preview",
+            "download_freesound_preview",
         ] {
             assert!(commands.contains(&command));
         }

@@ -46,4 +46,59 @@ describe("useFreesoundWorkspace", () => {
     invokeMock.mockResolvedValueOnce({ configured: true }).mockResolvedValueOnce(undefined); const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock)); await waitFor(() => expect(result.current.credential).toBe("configured")); await act(async () => { await result.current.deleteApiKey(); });
     expect(invokeMock).toHaveBeenLastCalledWith("delete_freesound_api_key"); expect(result.current.credential).toBe("unset"); expect(JSON.stringify(result.current)).not.toContain("private-key");
   });
+
+  it("downloads a saved preview then imports the exact returned path", async () => {
+    const onDownloaded = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined);
+    invokeMock.mockResolvedValueOnce({ configured: true }).mockResolvedValueOnce("/Users/alice/Downloads/Kick.mp3");
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock, async () => undefined, { providerDownloadRoot: "/Users/alice/Downloads", onDownloaded }));
+    await waitFor(() => expect(result.current.credential).toBe("configured"));
+
+    await act(async () => { await result.current.downloadPreview({ id: 1, name: "Kick.wav", uploader: "alice", license: "CC0", licenseUrl: "https://license", pageUrl: "https://page", previewUrl: "https://preview" }); });
+
+    expect(invokeMock).toHaveBeenLastCalledWith("download_freesound_preview", { previewUrl: "https://preview", resultName: "Kick.wav", destinationDirectory: "/Users/alice/Downloads" });
+    expect(onDownloaded).toHaveBeenCalledWith("/Users/alice/Downloads/Kick.mp3");
+  });
+
+  it("does not start duplicate preview downloads while a download is pending", async () => {
+    let resolveDownload: (path: unknown) => void = () => undefined;
+    const downloadResponse = new Promise<unknown>((resolve) => { resolveDownload = resolve; });
+    invokeMock.mockResolvedValueOnce({ configured: true }).mockReturnValueOnce(downloadResponse);
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock, async () => undefined, { providerDownloadRoot: "/Users/alice/Downloads", onDownloaded: async () => undefined }));
+    await waitFor(() => expect(result.current.credential).toBe("configured"));
+    const sound = { id: 1, name: "Kick.wav", uploader: "alice", license: "CC0", licenseUrl: "https://license", pageUrl: "https://page", previewUrl: "https://preview" };
+
+    await act(async () => { void result.current.downloadPreview(sound); void result.current.downloadPreview(sound); });
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => { resolveDownload("/Users/alice/Downloads/Kick.mp3"); await downloadResponse; });
+  });
+
+  it("rejects download actions without a configured root and reports a collision safely", async () => {
+    invokeMock.mockResolvedValueOnce({ configured: true });
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock));
+    await waitFor(() => expect(result.current.credential).toBe("configured"));
+
+    await act(async () => { await result.current.downloadPreview({ id: 1, name: "Kick.wav", uploader: "alice", license: "CC0", licenseUrl: "https://license", pageUrl: "https://page", previewUrl: "https://preview" }); });
+
+    expect(result.current.error).toContain("download folder");
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["freesound_download_destination_invalid", "The download folder is invalid."],
+    ["freesound_download_destination_exists", "A file with this preview name already exists"],
+    ["freesound_download_storage_failed", "The preview could not be saved."],
+    ["freesound_request_failed", "Check your network connection"],
+    ["freesound_preview_too_large", "The preview exceeds the 15 MB download limit."],
+  ])("explains the %s preview download failure", async (code, expectedMessage) => {
+    const onDownloaded = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined);
+    invokeMock.mockResolvedValueOnce({ configured: true }).mockRejectedValueOnce(JSON.stringify({ code }));
+    const { result } = renderHook(() => useFreesoundWorkspace(true, invokeMock, async () => undefined, { providerDownloadRoot: "/Users/alice/Downloads", onDownloaded }));
+    await waitFor(() => expect(result.current.credential).toBe("configured"));
+
+    await act(async () => { await result.current.downloadPreview({ id: 1, name: "Kick.wav", uploader: "alice", license: "CC0", licenseUrl: "https://license", pageUrl: "https://page", previewUrl: "https://preview" }); });
+
+    expect(result.current.error).toContain(expectedMessage);
+    expect(onDownloaded).not.toHaveBeenCalled();
+  });
 });

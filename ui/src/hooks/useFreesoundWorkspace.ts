@@ -11,6 +11,8 @@ const FREESOUND_HOMEPAGE_URL = "https://freesound.org/";
 const FREESOUND_REGISTRATION_URL = "https://freesound.org/apiv2/apply/";
 export type FreesoundWorkspace = {
   readonly credential: FreesoundCredentialState;
+  readonly canDownload: boolean;
+  readonly downloadPreview: (sound: FreesoundSound) => Promise<void>;
   readonly error: string | null;
   readonly fetchPreview: (previewUrl: string) => Promise<void>;
   readonly isBusy: boolean;
@@ -29,12 +31,25 @@ export type FreesoundWorkspace = {
   readonly openHomepage: () => Promise<void>;
   readonly openRegistration: () => Promise<void>;
 };
+export type FreesoundWorkspaceOptions = {
+  readonly providerDownloadRoot: string | null;
+  readonly onDownloaded: (path: string) => Promise<void>;
+};
+const defaultWorkspaceOptions: FreesoundWorkspaceOptions = {
+  providerDownloadRoot: null,
+  onDownloaded: async () => undefined,
+};
 function messageFor(error: unknown): string {
-  const code = getTauriCommandErrorCode(error, ["freesound_unauthorized", "freesound_rate_limited"]);
+  const code = getTauriCommandErrorCode(error, ["freesound_unauthorized", "freesound_rate_limited", "freesound_download_destination_invalid", "freesound_download_destination_exists", "freesound_download_storage_failed", "freesound_preview_too_large", "freesound_request_failed"]);
   if (code === "freesound_unauthorized") {
     return "Freesound rejected this API key. Replace it in settings.";
   }
   if (code === "freesound_rate_limited") return "Freesound is rate limiting requests. Try again shortly.";
+  if (code === "freesound_download_destination_invalid") return "The download folder is invalid. Choose an existing absolute folder in Settings.";
+  if (code === "freesound_download_destination_exists") return "A file with this preview name already exists in the download folder.";
+  if (code === "freesound_download_storage_failed") return "The preview could not be saved. Check the download folder and available storage.";
+  if (code === "freesound_preview_too_large") return "The preview exceeds the 15 MB download limit.";
+  if (code === "freesound_request_failed") return "Freesound preview download failed. Check your network connection and try again.";
   return "Freesound request failed. Try again.";
 }
 function previewBytes(value: unknown): ArrayBuffer | null {
@@ -63,7 +78,7 @@ function isSearchResponse(value: unknown): value is FreesoundSearchResponse {
     && value.sounds.every(isFreesoundSound) && "totalCount" in value && typeof value.totalCount === "number";
 }
 
-export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundInvoke = invoke, openExternal: FreesoundOpen = open): FreesoundWorkspace {
+export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundInvoke = invoke, openExternal: FreesoundOpen = open, options: FreesoundWorkspaceOptions = defaultWorkspaceOptions): FreesoundWorkspace {
   const [credential, setCredential] = useState<FreesoundCredentialState>("loading");
   const [query, setQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
@@ -80,8 +95,10 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
   const operationGenerationRef = useRef(0);
   const requestBusyRef = useRef(false);
   const enabledRef = useRef(enabled);
+  const optionsRef = useRef(options);
   const mountedRef = useRef(true);
   enabledRef.current = enabled;
+  optionsRef.current = options;
 
   const stopPreview = useCallback(() => {
     previewGenerationRef.current += 1;
@@ -195,5 +212,26 @@ export function useFreesoundWorkspace(enabled = true, invokeCommand: FreesoundIn
     } finally { if (operationGenerationRef.current === generation) { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); } }
   }, [beginErrorOperation, invokeCommand, setOwnedError, stopPreview]);
 
-  return { credential, error, fetchPreview, isBusy, page, activeQuery, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, failPreview, openHomepage, openRegistration };
+  const downloadPreview = useCallback(async (sound: FreesoundSound) => {
+    if (requestBusyRef.current || !enabledRef.current) return;
+    const { onDownloaded, providerDownloadRoot } = optionsRef.current;
+    const errorRevision = beginErrorOperation("download");
+    if (!providerDownloadRoot) {
+      setOwnedError("download", "Choose a provider download folder in Settings before downloading.", errorRevision);
+      return;
+    }
+    const generation = ++operationGenerationRef.current;
+    requestBusyRef.current = true;
+    setIsBusy(true);
+    try {
+      const savedPath = await invokeCommand("download_freesound_preview", { previewUrl: sound.previewUrl, resultName: sound.name, destinationDirectory: providerDownloadRoot });
+      if (typeof savedPath !== "string" || savedPath.length === 0) throw new Error("Invalid Freesound preview download response.");
+      if (!mountedRef.current || !enabledRef.current || operationGenerationRef.current !== generation) return;
+      await onDownloaded(savedPath);
+    } catch (requestError) {
+      if (mountedRef.current && enabledRef.current && operationGenerationRef.current === generation) setOwnedError("download", messageFor(requestError), errorRevision);
+    } finally { if (operationGenerationRef.current === generation) { requestBusyRef.current = false; if (mountedRef.current) setIsBusy(false); } }
+  }, [beginErrorOperation, invokeCommand, setOwnedError]);
+
+  return { credential, canDownload: options.providerDownloadRoot !== null && !isBusy, downloadPreview, error, fetchPreview, isBusy, page, activeQuery, previewUrl, query, results, saveApiKey, search, setQuery, stopPreview, totalCount, deleteApiKey, failPreview, openHomepage, openRegistration };
 }
