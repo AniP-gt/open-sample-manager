@@ -11,7 +11,7 @@ function workspace(overrides: Partial<FreesoundWorkspaceState> = {}): FreesoundW
     credential: "configured", error: null, fetchPreview: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), isBusy: false, page: 1,
     activeQuery: "kick", previewUrl: null, query: "kick", results: [sound], saveApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     search: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 1,
-    deleteApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), failPreview: vi.fn(), openHomepage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openRegistration: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), ...overrides,
+    deleteApiKey: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), failPreview: vi.fn(), openHomepage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), openRegistration: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), canDownload: true, downloadPreview: vi.fn<() => Promise<void>>().mockResolvedValue(undefined), ...overrides,
   };
 }
 
@@ -19,6 +19,21 @@ describe("FreesoundWorkspace", () => {
   it("disables preview actions while busy", () => {
     render(<FreesoundWorkspace workspace={workspace({ isBusy: true })} onOpenSettings={vi.fn()} />);
     expect(screen.getByRole("button", { name: "PREVIEW" })).toBeDisabled();
+  });
+
+  it("disables download actions while busy", () => {
+    render(<FreesoundWorkspace workspace={workspace({ canDownload: false, isBusy: true })} onOpenSettings={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "DOWNLOAD" })).toBeDisabled();
+  });
+
+  it("downloads a result only when the configured download root is available and idle", () => {
+    const downloadPreview = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const { rerender } = render(<FreesoundWorkspace workspace={workspace({ canDownload: false, downloadPreview })} onOpenSettings={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "DOWNLOAD" })).toBeDisabled();
+
+    rerender(<FreesoundWorkspace workspace={workspace({ downloadPreview })} onOpenSettings={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "DOWNLOAD" }));
+    expect(downloadPreview).toHaveBeenCalledWith(sound);
   });
 
   it("opens API registration from the unconfigured setup state", () => {

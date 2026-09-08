@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-type FreesoundErrorOwner = "browser" | "credential" | "preview" | "search";
+type FreesoundErrorOwner = "browser" | "credential" | "download" | "preview" | "search";
 
 export function useFreesoundErrorState() {
   const [error, setError] = useState<string | null>(null);

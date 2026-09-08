@@ -62,7 +62,7 @@ export function useAppRuntime() {
     setSelected: (value) => { refs.sampleApiRef.current?.setSelected(value); },
   });
   const providerBrowser = useProviderBrowser({ downloadRoot: providerDownloadRoot, mode: providerBrowserMode, settingsOpen: uiState.settingsOpen, viewMode: uiState.viewMode, performScan: scanState.performScan, setError: scanState.setError });
-  const freesoundWorkspace = useFreesoundWorkspace(freesoundWorkspaceActive || uiState.settingsOpen);
+  const freesoundWorkspace = useFreesoundWorkspace(freesoundWorkspaceActive || uiState.settingsOpen, undefined, undefined, { providerDownloadRoot, onDownloaded: async (path) => scanState.handleImportPaths([path]) });
   const providerDownloadRootPicker = useProviderDownloadRoot({ setProviderDownloadRoot, setError: scanState.setError });
   const midiState = useMidiState({ setError: scanState.setError, pageLimit: uiState.pageLimit, midiListRef: refs.midiListRef, viewMode: uiState.viewMode, autoPlayOnSelect });
   const sampleState = useSampleState({ setError: scanState.setError, sampleListRef: refs.sampleListRef, midiListRef: refs.midiListRef, playerBarRef: refs.playerBarRef, pageLimit: uiState.pageLimit, setMidis: midiState.setMidis, setSelectedMidi: midiState.setSelectedMidi, fetchAllMidiPaths: midiState.fetchAllMidiPaths });

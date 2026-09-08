@@ -55,7 +55,7 @@ describe("SettingsModal", () => {
 
   it("offers Freesound key configuration without displaying a saved key", () => {
     renderSettingsModal({ freesoundWorkspace: {
-      credential: "configured", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, activeQuery: "", previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), failPreview: vi.fn(), openHomepage: vi.fn(), openRegistration: vi.fn(),
+      credential: "configured", canDownload: false, downloadPreview: vi.fn(), error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, activeQuery: "", previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), failPreview: vi.fn(), openHomepage: vi.fn(), openRegistration: vi.fn(),
     } });
 
     expect(screen.getByLabelText("Freesound API key")).toHaveAttribute("type", "password");
@@ -67,7 +67,7 @@ describe("SettingsModal", () => {
   it("opens API registration from unconfigured Freesound settings", () => {
     const openRegistration = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     renderSettingsModal({ freesoundWorkspace: {
-      credential: "unset", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, activeQuery: "", previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), failPreview: vi.fn(), openHomepage: vi.fn(), openRegistration,
+      credential: "unset", canDownload: false, downloadPreview: vi.fn(), error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, activeQuery: "", previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), failPreview: vi.fn(), openHomepage: vi.fn(), openRegistration,
     } });
 
     fireEvent.click(screen.getByRole("button", { name: "GET API KEY" }));
