@@ -2,6 +2,7 @@ import { render } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { vi } from "vitest";
 import { SettingsModal } from "../SettingsModal";
+import type { FreesoundWorkspace } from "../../../hooks/useFreesoundWorkspace";
 
 type SettingsModalProps = ComponentProps<typeof SettingsModal>;
 
@@ -24,6 +25,9 @@ const defaultProps: SettingsModalProps = {
   providerDownloadRoot: null,
   onSelectProviderDownloadRoot: vi.fn(),
   onClearProviderDownloadRoot: vi.fn(),
+  freesoundWorkspace: {
+    credential: "unset", error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, activeQuery: "", previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), failPreview: vi.fn(), openHomepage: vi.fn(), openRegistration: vi.fn(),
+  } satisfies FreesoundWorkspace,
 };
 
 export function renderSettingsModal(overrides: Partial<SettingsModalProps> = {}) {

@@ -28,3 +28,4 @@ export { AppModals } from "./AppModals/AppModals";
 export { AppMainPane } from "./AppMainPane/AppMainPane";
 export { AppErrorBanner } from "./AppErrorBanner/AppErrorBanner";
 export { ProviderBrowser } from "./ProviderBrowser/ProviderBrowser";
+export { FreesoundWorkspace } from "./FreesoundWorkspace";

@@ -4,6 +4,12 @@ import { useProviderBrowserLifecycle } from "../providerBrowserLifecycle";
 import type { ProviderBrowserMode } from "../../types/provider";
 import type { ViewMode } from "../../types/viewMode";
 
+function deferred<T>() {
+  let rejectPromise: (reason?: unknown) => void = () => undefined;
+  const promise = new Promise<T>((_resolve, reject) => { rejectPromise = reject; });
+  return { promise, reject: rejectPromise };
+}
+
 type HookProps = { readonly mode: ProviderBrowserMode; readonly settingsOpen: boolean; readonly viewMode: ViewMode };
 const invokeMock = vi.hoisted(() => vi.fn());
 
@@ -66,5 +72,21 @@ describe("useProviderBrowser departure lifecycle", () => {
 
     expect(setError).toHaveBeenNthCalledWith(1, null);
     expect(setError).toHaveBeenLastCalledWith("Provider browser could not be closed.");
+  });
+
+  it("invalidates an opening provider before clear cleanup can expose its late failure", async () => {
+    const opening = deferred<unknown>();
+    const setError = vi.fn<(message: string | null) => void>();
+    invokeMock.mockImplementation((command) => command === "open_provider_browser" ? opening.promise : Promise.resolve(undefined));
+    const lifecycle = renderLifecycle(null, setError);
+    lifecycle.rerender({ mode: "window", settingsOpen: false, viewMode: "web" });
+    void lifecycle.result.current.selectProvider("music_radar");
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("open_provider_browser", expect.anything()));
+    setError.mockClear();
+
+    const clearRequest = lifecycle.result.current.clearActiveProvider();
+    await act(async () => { opening.reject({ code: "provider_root_invalid" }); await clearRequest; });
+
+    expect(setError).not.toHaveBeenCalled();
   });
 });

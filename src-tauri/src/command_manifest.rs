@@ -45,6 +45,11 @@ macro_rules! app_commands {
             close_embedded_provider_browser,
             go_back_provider_browser,
             go_forward_provider_browser,
+            get_freesound_credential_status,
+            save_freesound_api_key,
+            delete_freesound_api_key,
+            search_freesound,
+            fetch_freesound_preview,
             read_audio_file,
             check_timidity,
             play_midi,
@@ -87,6 +92,21 @@ mod tests {
             "close_embedded_provider_browser",
             "go_back_provider_browser",
             "go_forward_provider_browser",
+        ] {
+            assert!(commands.contains(&command));
+        }
+    }
+
+    #[test]
+    fn freesound_commands_are_in_the_generated_manifest() {
+        let commands = app_commands!(command_names);
+
+        for command in [
+            "get_freesound_credential_status",
+            "save_freesound_api_key",
+            "delete_freesound_api_key",
+            "search_freesound",
+            "fetch_freesound_preview",
         ] {
             assert!(commands.contains(&command));
         }

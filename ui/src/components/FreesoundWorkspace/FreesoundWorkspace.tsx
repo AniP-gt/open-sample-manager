@@ -1,0 +1,32 @@
+import { useEffect, useRef, useState } from "react";
+import type { FreesoundWorkspace as FreesoundWorkspaceState } from "../../hooks/useFreesoundWorkspace";
+import { FreesoundCredentialForm } from "./FreesoundCredentialForm";
+
+type FreesoundWorkspaceProps = { readonly workspace: FreesoundWorkspaceState; readonly onOpenSettings: () => void };
+
+export function FreesoundWorkspace({ workspace, onOpenSettings }: FreesoundWorkspaceProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [previewingSoundId, setPreviewingSoundId] = useState<number | null>(null);
+  useEffect(() => {
+    const previewUrl = workspace.previewUrl;
+    const audio = audioRef.current;
+    if (!previewUrl || !audio) { setPreviewingSoundId(null); return; }
+    let current = true;
+    void audio.play().catch(() => { if (current) workspace.failPreview(previewUrl); });
+    return () => { current = false; };
+  }, [workspace.failPreview, workspace.previewUrl]);
+  const browserButton = <button type="button" onClick={() => { void workspace.openHomepage(); }} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", padding: "6px 8px" }}>OPEN IN BROWSER</button>;
+  if (workspace.credential !== "configured") return <section aria-label="Freesound setup" style={{ background: "#080a0f", display: "flex", flex: 1, flexDirection: "column", overflow: "auto", padding: "20px" }}><div style={{ maxWidth: "560px" }}><h1 style={{ color: "#f1f5f9", fontSize: "16px", letterSpacing: "0.12em" }}>FREESOUND</h1><p style={{ color: "#9ca3af", fontSize: "12px", lineHeight: 1.6 }}>Create Freesound API credentials, then paste your personal key to search and preview audio.</p><FreesoundCredentialForm credential={workspace.credential} isBusy={workspace.isBusy} onSave={workspace.saveApiKey} onDelete={() => { void workspace.deleteApiKey(); }} onOpenRegistration={workspace.openRegistration} />{workspace.error && <p role="alert" style={{ color: "#f97316", fontSize: "12px" }}>{workspace.error}</p>}</div></section>;
+  const hasNextPage = workspace.page * 20 < workspace.totalCount;
+  const paginationButtonStyle = (disabled: boolean) => ({
+    background: "transparent",
+    border: "1px solid #374151",
+    borderRadius: "2px",
+    color: disabled ? "#374151" : "#d1d5db",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "'Courier New', monospace",
+    fontSize: "11px",
+    padding: "6px 8px",
+  });
+  return <section aria-label="Freesound search" style={{ background: "#080a0f", display: "flex", flex: 1, flexDirection: "column", overflow: "auto", padding: "20px" }}><div style={{ maxWidth: "760px" }}><div style={{ alignItems: "center", display: "flex", gap: "12px", justifyContent: "space-between" }}><h1 style={{ color: "#f1f5f9", fontSize: "16px", letterSpacing: "0.12em" }}>FREESOUND</h1><div style={{ display: "flex", gap: "8px" }}>{browserButton}<button type="button" onClick={onOpenSettings} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", padding: "6px 8px" }}>SETTINGS</button></div></div><form onSubmit={(event) => { event.preventDefault(); void workspace.search(workspace.query, 1); }} style={{ display: "flex", gap: "8px" }}><label htmlFor="freesound-search" style={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden" }}>Search Freesound</label><input id="freesound-search" value={workspace.query} onChange={(event) => workspace.setQuery(event.target.value)} style={{ background: "#0a0c12", border: "1px solid #374151", borderRadius: "2px", color: "#e2e8f0", flex: 1, fontFamily: "'Courier New', monospace", padding: "8px" }} /><button type="submit" disabled={workspace.isBusy} style={{ background: "#f97316", border: "1px solid #f97316", borderRadius: "2px", color: "#000", cursor: "pointer", fontFamily: "'Courier New', monospace", fontWeight: 700, padding: "8px 12px" }}>SEARCH</button></form>{workspace.error && <p role="alert" style={{ color: "#f97316", fontSize: "12px" }}>{workspace.error}</p>}<audio ref={audioRef} src={workspace.previewUrl ?? undefined} onEnded={workspace.stopPreview} onError={(event) => workspace.failPreview(event.currentTarget.src)} /><div style={{ borderTop: "1px solid #1f2937", marginTop: "16px" }}>{workspace.results.map((sound) => { const isPreviewing = workspace.previewUrl !== null && previewingSoundId === sound.id; return <article key={sound.id} style={{ borderBottom: "1px solid #1f2937", padding: "12px 0" }}><div style={{ color: "#e2e8f0", fontSize: "13px" }}>{sound.name}</div><div style={{ color: "#9ca3af", fontSize: "11px", marginTop: "4px" }}>BY {sound.uploader} / <a href={sound.licenseUrl} target="_blank" rel="noreferrer" style={{ color: "#22d3ee" }}>{sound.license}</a> / <a href={sound.pageUrl} target="_blank" rel="noreferrer" style={{ color: "#22d3ee" }}>PAGE</a></div><button type="button" disabled={workspace.isBusy} onClick={() => { if (isPreviewing) workspace.stopPreview(); else if (!workspace.previewUrl) void workspace.fetchPreview(sound.previewUrl).then(() => setPreviewingSoundId(sound.id)); }} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", marginTop: "8px", padding: "6px 8px" }}>{isPreviewing ? "STOP" : "PREVIEW"}</button></article>; })}</div>{workspace.results.length === 0 && !workspace.isBusy && <p style={{ color: "#9ca3af", fontSize: "12px" }}>Submit a search to find sounds.</p>}<div style={{ display: "flex", gap: "8px", marginTop: "12px" }}><button type="button" disabled={workspace.isBusy || workspace.page === 1} onClick={() => { void workspace.search(workspace.activeQuery, workspace.page - 1); }} style={paginationButtonStyle(workspace.isBusy || workspace.page === 1)}>PREVIOUS</button><button type="button" disabled={workspace.isBusy || !hasNextPage} onClick={() => { void workspace.search(workspace.activeQuery, workspace.page + 1); }} style={paginationButtonStyle(workspace.isBusy || !hasNextPage)}>NEXT</button></div></div></section>;
+}

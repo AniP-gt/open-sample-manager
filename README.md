@@ -58,13 +58,17 @@ Feature guides:
 
 ### WEB Sources and Provider Downloads
 
-Open the `WEB` workspace to browse approved sample sources. It currently includes MusicRadar SampleRadar and FiftySounds Free Sound Library. Choose either a separate provider window or an embedded browser in `Settings > Provider Downloads`.
+Open the `WEB` workspace to browse MusicRadar SampleRadar and FiftySounds Free Sound Library. Choose either a separate provider window or an embedded browser in `Settings > Provider Downloads`. These sources use the WebView download flow.
 
 Set a download folder in the same settings section. The default uses the app data folder; a chosen folder must already exist, be absolute, and be writable. Approved archive contents are extracted directly into that folder, then scanned into the local library. The app doesn't create a `provider-imports` subfolder.
 
 Imports never overwrite files. If an extracted filename, including a case-insensitive equivalent, already exists in the destination or appears twice in one archive, the import fails and leaves the destination unchanged. An import can also fail for a network problem, insufficient disk space, a size limit, an unsafe archive, or because another provider import is already running.
 
 Provider browsing and downloads are intentionally restricted. The browser permits only approved HTTPS pages for each provider, and downloads must match an approved provider ZIP address. Archives accept only validated WAV, MP3, FLAC, Ogg, AIFF, MIDI, and `.mid` files. Encrypted archives, nested archives, unsafe paths, unsupported files, invalid file signatures, and oversized extraction requests are rejected. Check each provider's terms and license before using a download.
+
+Freesound is separate from the WebView download flow. It uses your personal Freesound API key to search and preview sounds. The current app doesn't invoke OAuth or download original files.
+
+Each user must sign in and open [Freesound API key registration](https://freesound.org/apiv2/apply/). Enter `http://localhost` as the application URL and `http://freesound.org/home/app_permissions/permission_granted/` as the OAuth2 callback URL. Choose a personal app name and description, then request credentials and paste the issued API key into `Settings > Freesound`. Freesound requires this fallback callback for non-web, non-server apps even though the current app uses API-key search and preview only. The app saves the key in the OS-resolved app config directory and only reports whether a key is configured, not its value. Save a new key to replace it, or remove the stored key from the same settings section.
 
 ### Organization
 - **Instrument type management** — define and edit custom instrument type labels

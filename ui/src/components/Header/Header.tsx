@@ -14,12 +14,13 @@ interface HeaderProps {
   onBackToSources: () => void;
   onGoBack: () => void;
   onGoForward: () => void;
-  showProviderControls: boolean;
+  showBackToSources: boolean;
+  showProviderHistoryControls: boolean;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, onBackToSources, onGoBack, onGoForward, showProviderControls, viewMode, onViewModeChange }: HeaderProps) {
+export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, onBackToSources, onGoBack, onGoForward, showBackToSources, showProviderHistoryControls, viewMode, onViewModeChange }: HeaderProps) {
   return (
     <div
       style={{
@@ -38,7 +39,7 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
 
       <div style={{ display: "flex", alignItems: "center", flex: "1 1 auto", flexWrap: "wrap", gap: "8px", justifyContent: "flex-end", minWidth: 0 }}>
         <HeaderViewTabs viewMode={viewMode} onViewModeChange={onViewModeChange} />
-        {showProviderControls && (
+        {showProviderHistoryControls && (
           <>
             <button type="button" title="Go back" aria-label="Go back" onClick={onGoBack} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
               BACK
@@ -46,11 +47,9 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
             <button type="button" title="Go forward" aria-label="Go forward" onClick={onGoForward} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
               FORWARD
             </button>
-            <button type="button" title="Back to sources" aria-label="Back to sources" onClick={onBackToSources} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
-              BACK TO SOURCES
-            </button>
           </>
         )}
+        {showBackToSources && <button type="button" title="Back to sources" aria-label="Back to sources" onClick={onBackToSources} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>BACK TO SOURCES</button>}
 
         {scanned && (
           <div

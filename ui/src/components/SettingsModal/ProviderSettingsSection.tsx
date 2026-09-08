@@ -1,4 +1,7 @@
+import type { KeyboardEvent } from "react";
 import type { ProviderBrowserMode } from "../../types/provider";
+import type { FreesoundWorkspace } from "../../hooks/useFreesoundWorkspace";
+import { FreesoundCredentialForm } from "../FreesoundWorkspace/FreesoundCredentialForm";
 import { SettingsSection } from "./SettingsSection";
 
 type ProviderSettingsSectionProps = {
@@ -7,6 +10,7 @@ type ProviderSettingsSectionProps = {
   readonly onClearProviderDownloadRoot: () => void;
   readonly providerBrowserMode: ProviderBrowserMode;
   readonly onProviderBrowserModeChange: (mode: ProviderBrowserMode) => void;
+  readonly freesoundWorkspace: FreesoundWorkspace;
 };
 
 const browserModes = ["window", "embedded"] as const;
@@ -17,12 +21,26 @@ export function ProviderSettingsSection({
   onClearProviderDownloadRoot,
   providerBrowserMode,
   onProviderBrowserModeChange,
+  freesoundWorkspace,
 }: ProviderSettingsSectionProps) {
+  const handleBrowserModeKeyDown = (event: KeyboardEvent<HTMLButtonElement>, mode: ProviderBrowserMode) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const index = browserModes.indexOf(mode);
+    const nextIndex = event.key === "ArrowLeft" ? (index + browserModes.length - 1) % browserModes.length
+      : event.key === "ArrowRight" ? (index + 1) % browserModes.length
+        : event.key === "Home" ? 0 : browserModes.length - 1;
+    const nextMode = browserModes[nextIndex];
+    if (!nextMode) return;
+    onProviderBrowserModeChange(nextMode);
+    event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`button[value="${nextMode}"]`)?.focus();
+  };
+
   return (
     <SettingsSection title="PROVIDER DOWNLOADS" hasBottomMargin>
       <div style={{ padding: "12px", background: "#080a0f", borderRadius: "2px" }}>
         <div style={{ fontSize: "14px", color: "#d1d5db" }}>Download folder</div>
-        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", overflowWrap: "anywhere" }}>
+        <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px", overflowWrap: "anywhere" }}>
           {providerDownloadRoot ?? "App default"}
         </div>
         <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
@@ -53,7 +71,7 @@ export function ProviderSettingsSection({
         </div>
         <div style={{ borderTop: "1px solid #1f2937", marginTop: "12px", paddingTop: "12px" }}>
           <div style={{ fontSize: "14px", color: "#d1d5db" }}>Provider browser display</div>
-          <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+          <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
             Open providers in a separate window or place them inside the WEB workspace.
           </div>
           <div role="radiogroup" aria-label="Provider browser display mode" style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
@@ -64,6 +82,8 @@ export function ProviderSettingsSection({
                 role="radio"
                 aria-checked={providerBrowserMode === mode}
                 onClick={() => onProviderBrowserModeChange(mode)}
+                onKeyDown={(event) => handleBrowserModeKeyDown(event, mode)}
+                value={mode}
                 style={{
                   background: providerBrowserMode === mode ? "#f97316" : "transparent", border: "1px solid #f97316",
                   borderRadius: "2px", color: providerBrowserMode === mode ? "#000" : "#d1d5db", cursor: "pointer",
@@ -75,6 +95,12 @@ export function ProviderSettingsSection({
               </button>
             ))}
           </div>
+        </div>
+        <div style={{ borderTop: "1px solid #1f2937", marginTop: "12px", paddingTop: "12px" }}>
+          <div style={{ color: "#d1d5db", fontSize: "14px", marginBottom: "4px" }}>Freesound API</div>
+          <div style={{ color: "#9ca3af", fontSize: "12px", marginBottom: "12px" }}>Configure, replace, or remove your personal API key. The saved key is never shown.</div>
+          <FreesoundCredentialForm credential={freesoundWorkspace.credential} isBusy={freesoundWorkspace.isBusy} onSave={freesoundWorkspace.saveApiKey} onDelete={() => { void freesoundWorkspace.deleteApiKey(); }} onOpenRegistration={freesoundWorkspace.openRegistration} />
+          {freesoundWorkspace.error && <div role="alert" style={{ color: "#f97316", fontSize: "11px", marginTop: "8px" }}>{freesoundWorkspace.error}</div>}
         </div>
       </div>
     </SettingsSection>

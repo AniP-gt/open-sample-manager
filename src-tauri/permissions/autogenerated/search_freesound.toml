@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-search-freesound"
+description = "Enables the search_freesound command without any pre-configured scope."
+commands.allow = ["search_freesound"]
+
+[[permission]]
+identifier = "deny-search-freesound"
+description = "Denies the search_freesound command without any pre-configured scope."
+commands.deny = ["search_freesound"]

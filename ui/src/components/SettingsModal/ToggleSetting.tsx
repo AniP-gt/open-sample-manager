@@ -27,7 +27,7 @@ export function ToggleSetting({
     >
       <div>
         <div style={{ fontSize: "14px", color: "#d1d5db" }}>{title}</div>
-        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>{description}</div>
+        <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>{description}</div>
       </div>
       <button
         onClick={() => onChange(!enabled)}

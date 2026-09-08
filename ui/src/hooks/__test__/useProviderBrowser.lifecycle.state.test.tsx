@@ -39,17 +39,18 @@ describe("useProviderBrowser lifecycle state", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("show_provider_browser", { provider: "music_radar" });
   });
 
-  it("surfaces an embedded open invoke rejection without a failure event", async () => {
+  it("surfaces a serialized provider-root rejection without a failure event or path leakage", async () => {
     const setError = vi.fn<(message: string | null) => void>();
     const { result } = renderProviderBrowser({
       attachViewport: true,
       initialProps: { mode: "embedded", viewMode: "web" },
       setError,
     });
-    invokeMock.mockRejectedValueOnce({
-      code: "provider_surface_unavailable",
-      message: "native surface unavailable",
-    });
+    invokeMock.mockRejectedValueOnce(JSON.stringify({
+      code: "provider_root_invalid",
+      message: "download root must be an existing absolute directory",
+      details: null,
+    }));
 
     await act(async () => { await result.current.selectProvider("music_radar"); });
 
@@ -57,7 +58,8 @@ describe("useProviderBrowser lifecycle state", () => {
     expect(eventMocks.listeners.has("provider-browser-failed")).toBe(false);
     expect(result.current.status).toBeNull();
     expect(setError).toHaveBeenCalledWith(
-      "Provider browser could not be opened (provider_surface_unavailable): native surface unavailable",
+      "Provider browser could not be opened (provider_root_invalid): download root must be an existing absolute directory",
     );
+    expect(setError).not.toHaveBeenCalledWith(expect.stringContaining("/Users/"));
   });
 });

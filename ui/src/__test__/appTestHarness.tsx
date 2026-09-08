@@ -18,6 +18,8 @@ class MockAudioContext {
 }
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const originalPause = Object.getOwnPropertyDescriptor(window.HTMLMediaElement.prototype, 'pause');
+const originalPlay = Object.getOwnPropertyDescriptor(window.HTMLMediaElement.prototype, 'play');
 
 export function getInvokeMock() {
   return mocks.invoke;
@@ -40,6 +42,7 @@ export function defaultInvokeMock(command: string) {
     case 'check_timidity': return Promise.resolve({ install_command: '', installed: true });
     case 'get_all_midi_paths': return Promise.resolve(['/tmp/test.mid']);
     case 'get_drag_icon_path': return Promise.resolve('/tmp/icon.png');
+    case 'get_freesound_credential_status': return Promise.resolve({ configured: false });
     case 'get_instrument_types':
     case 'get_midi_tags': return Promise.resolve([]);
     case 'list_all_sample_paths': return Promise.resolve(['/tmp/test.wav']);
@@ -85,6 +88,8 @@ export function useAppTestHarness() {
     cleanup();
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     vi.unstubAllGlobals();
+    if (originalPause) Object.defineProperty(window.HTMLMediaElement.prototype, 'pause', originalPause);
+    if (originalPlay) Object.defineProperty(window.HTMLMediaElement.prototype, 'play', originalPlay);
   });
 }
 

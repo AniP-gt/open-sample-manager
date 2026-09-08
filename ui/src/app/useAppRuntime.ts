@@ -1,7 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { PlayerBarHandle } from "../components";
 import { useCollections } from "../hooks/useCollections";
 import { useExternalApiCommands } from "../hooks/useExternalApiCommands";
+import { useFreesoundWorkspace } from "../hooks/useFreesoundWorkspace";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useLibraryMigration } from "../hooks/useLibraryMigration";
 import { useMidiState } from "../hooks/useMidiState";
@@ -15,6 +16,7 @@ import { useMidiFavoritesStore } from "../store/useMidiFavoritesStore";
 import { useRecentStore } from "../store/useRecentStore";
 import { useSettingsStore } from "../store/useSettingsStore";
 import type { FilterState, Sample } from "../types/sample";
+import { hasFormattedTauriCommandErrorCode } from "../utils/tauriError";
 import { useAppDerivedState } from "./useAppDerivedState";
 import { useAppEffects } from "./useAppEffects";
 import { useAppRefs } from "./useAppRefs";
@@ -24,7 +26,10 @@ const defaultFilters: FilterState = {
   favoritesOnly: false, hideDuplicates: false, filterKey: "", filterLicense: "", qualityIssuesOnly: false, directoryPath: "",
 };
 
+const providerRootErrorCodes = ["provider_root_invalid", "provider_root_unusable", "provider_root_storage_error"] as const;
+
 export function useAppRuntime() {
+  const [freesoundWorkspaceActive, setFreesoundWorkspaceActive] = useState(false);
   const refs = useAppRefs();
   const { setPlayerBar } = refs;
   const autoPlayOnSelect = useSettingsStore((state) => state.autoPlayOnSelect);
@@ -57,6 +62,7 @@ export function useAppRuntime() {
     setSelected: (value) => { refs.sampleApiRef.current?.setSelected(value); },
   });
   const providerBrowser = useProviderBrowser({ downloadRoot: providerDownloadRoot, mode: providerBrowserMode, settingsOpen: uiState.settingsOpen, viewMode: uiState.viewMode, performScan: scanState.performScan, setError: scanState.setError });
+  const freesoundWorkspace = useFreesoundWorkspace(freesoundWorkspaceActive || uiState.settingsOpen);
   const providerDownloadRootPicker = useProviderDownloadRoot({ setProviderDownloadRoot, setError: scanState.setError });
   const midiState = useMidiState({ setError: scanState.setError, pageLimit: uiState.pageLimit, midiListRef: refs.midiListRef, viewMode: uiState.viewMode, autoPlayOnSelect });
   const sampleState = useSampleState({ setError: scanState.setError, sampleListRef: refs.sampleListRef, midiListRef: refs.midiListRef, playerBarRef: refs.playerBarRef, pageLimit: uiState.pageLimit, setMidis: midiState.setMidis, setSelectedMidi: midiState.setSelectedMidi, fetchAllMidiPaths: midiState.fetchAllMidiPaths });
@@ -71,8 +77,10 @@ export function useAppRuntime() {
   refs.midiApiRef.current = { fetchAllMidiPaths: midiState.fetchAllMidiPaths, setMidis: midiState.setMidis, setLastFetchCountMidi: midiState.setLastFetchCountMidi, directoryPath: midiState.directoryPath, midiTagFilterId: midiState.midiTagFilterId };
   refs.scanImportHandlerRef.current = scanState.handleImportPaths;
   const handleSampleSelectWithRecent = async (sample: Sample, isShift?: boolean, rangeIds?: Set<number>) => { addRecent(sample.id); await sampleState.handleSampleSelect(sample, isShift, rangeIds); };
-  const clearActiveProvider = useCallback(async () => { try { await providerBrowser.clearActiveProvider(); } catch { scanState.setError("Provider browser could not be closed."); } }, [providerBrowser.clearActiveProvider, scanState.setError]);
-  const handleViewModeChange = useCallback((mode: typeof uiState.viewMode) => { void (async () => { if (mode === "web" && uiState.viewMode === "web" && providerBrowser.activeProvider !== null) { await clearActiveProvider(); return; } if (mode !== "web" && !await providerBrowser.hideEmbeddedBrowserBeforeLeavingWeb()) return; await uiState.handleViewModeChange(mode, { isMidiPlaying: midiState.isMidiPlaying, setIsMidiPlaying: midiState.setIsMidiPlaying, playerBarRef: refs.playerBarRef, setSelected: sampleState.setSelected, setMidiSearch: midiState.setMidiSearch }); })(); }, [clearActiveProvider, midiState.isMidiPlaying, midiState.setIsMidiPlaying, midiState.setMidiSearch, providerBrowser, refs.playerBarRef, sampleState.setSelected, uiState]);
-  const showProviderControls = uiState.viewMode === "web" && providerBrowserMode === "embedded" && providerBrowser.activeProvider !== null;
-  return { ...refs, autoPlayOnSelect, clearActiveProvider, collectionState, derivedState, directoryClickFiltering, externalApiCommands, handleSampleSelectWithRecent, handleViewModeChange, instrumentColorCoding, libraryMigration, midiState, providerBrowser, providerBrowserMode, providerDownloadRoot, providerDownloadRootPicker, sampleState, scanState, setAutoPlayOnSelect, setInstrumentColorCoding, setDirectoryClickFiltering, setPlayerBarRef, setProviderBrowserMode, setProviderDownloadRoot, setShowSampleMetadataQuality, showProviderControls, showSampleMetadataQuality, uiState };
+  const clearActiveProvider = useCallback(async () => { setFreesoundWorkspaceActive(false); try { await providerBrowser.clearActiveProvider(); } catch { scanState.setError("Provider browser could not be closed."); } }, [providerBrowser.clearActiveProvider, scanState.setError]);
+  const openFreesoundWorkspace = useCallback(async () => { try { await providerBrowser.clearActiveProvider(); if (hasFormattedTauriCommandErrorCode(scanState.error, providerRootErrorCodes)) scanState.setError(null); setFreesoundWorkspaceActive(true); } catch { scanState.setError("Provider browser could not be closed."); } }, [providerBrowser.clearActiveProvider, scanState.error, scanState.setError]);
+  const handleViewModeChange = useCallback((mode: typeof uiState.viewMode) => { void (async () => { if (mode === "web" && uiState.viewMode === "web" && providerBrowser.activeProvider !== null) { await clearActiveProvider(); return; } if (mode !== "web") { setFreesoundWorkspaceActive(false); if (!await providerBrowser.hideEmbeddedBrowserBeforeLeavingWeb()) return; } await uiState.handleViewModeChange(mode, { isMidiPlaying: midiState.isMidiPlaying, setIsMidiPlaying: midiState.setIsMidiPlaying, playerBarRef: refs.playerBarRef, setSelected: sampleState.setSelected, setMidiSearch: midiState.setMidiSearch }); })(); }, [clearActiveProvider, midiState.isMidiPlaying, midiState.setIsMidiPlaying, midiState.setMidiSearch, providerBrowser, refs.playerBarRef, sampleState.setSelected, uiState]);
+  const showProviderHistoryControls = uiState.viewMode === "web" && providerBrowserMode === "embedded" && providerBrowser.activeProvider !== null;
+  const showBackToSources = uiState.viewMode === "web" && (freesoundWorkspaceActive || showProviderHistoryControls);
+  return { ...refs, autoPlayOnSelect, clearActiveProvider, collectionState, derivedState, directoryClickFiltering, externalApiCommands, freesoundWorkspace, freesoundWorkspaceActive, handleSampleSelectWithRecent, handleViewModeChange, instrumentColorCoding, libraryMigration, midiState, openFreesoundWorkspace, providerBrowser, providerBrowserMode, providerDownloadRoot, providerDownloadRootPicker, sampleState, scanState, setAutoPlayOnSelect, setInstrumentColorCoding, setDirectoryClickFiltering, setPlayerBarRef, setProviderBrowserMode, setProviderDownloadRoot, setShowSampleMetadataQuality, showBackToSources, showProviderHistoryControls, showSampleMetadataQuality, uiState };
 }

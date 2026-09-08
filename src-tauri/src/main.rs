@@ -8,6 +8,7 @@ mod app_state;
 mod command_manifest;
 mod commands;
 mod external_commands;
+mod freesound;
 mod http_api;
 mod local_api_runtime;
 mod providers;
