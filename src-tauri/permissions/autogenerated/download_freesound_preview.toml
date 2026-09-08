@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-download-freesound-preview"
+description = "Enables the download_freesound_preview command without any pre-configured scope."
+commands.allow = ["download_freesound_preview"]
+
+[[permission]]
+identifier = "deny-download-freesound-preview"
+description = "Denies the download_freesound_preview command without any pre-configured scope."
+commands.deny = ["download_freesound_preview"]
