@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayerBar } from "../PlayerBar";
 import { sharedPlayerBarAudio } from "../playerBarAudio";
@@ -25,6 +25,52 @@ beforeEach(() => {
 });
 
 describe("PlayerBar audio lifecycle", () => {
+  it("does not show a transient load error when the active audio finishes loading", async () => {
+    Object.defineProperties(URL, {
+      createObjectURL: { configurable: true, value: vi.fn(() => "blob:current") },
+      revokeObjectURL: { configurable: true, value: vi.fn() },
+    });
+    render(<PlayerBar sample={dummySample} path="/test/test.wav" />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    act(() => {
+      sharedPlayerBarAudio.onerror?.(new Event("error"));
+    });
+    expect(screen.queryByText("ファイルを読み込めません")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+      sharedPlayerBarAudio.onloadedmetadata?.(new Event("loadedmetadata"));
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    expect(screen.queryByText("ファイルを読み込めません")).not.toBeInTheDocument();
+  });
+
+  it("shows a persistent load error after the confirmation delay", async () => {
+    Object.defineProperties(URL, {
+      createObjectURL: { configurable: true, value: vi.fn(() => "blob:current") },
+      revokeObjectURL: { configurable: true, value: vi.fn() },
+    });
+    render(<PlayerBar sample={dummySample} path="/test/test.wav" />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    act(() => {
+      sharedPlayerBarAudio.onerror?.(new Event("error"));
+    });
+    expect(screen.queryByText("ファイルを読み込めません")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    expect(screen.getByText("ファイルを読み込めません")).toBeInTheDocument();
+  });
+
   it("does not install a deferred prior-path response after path intent changes", async () => {
     let resolveFirstLoad: ((bytes: ArrayBuffer) => void) | undefined;
     mockInvoke.mockImplementationOnce(() => new Promise<ArrayBuffer>((resolve) => {

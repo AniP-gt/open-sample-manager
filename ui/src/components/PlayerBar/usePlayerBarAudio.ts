@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { sharedPlayerBarAudio } from "./playerBarAudio";
 
+const MEDIA_ERROR_CONFIRMATION_DELAY_MS = 100;
+
 interface UsePlayerBarAudioOptions {
   readonly path?: string;
   readonly autoPlay?: boolean;
@@ -22,6 +24,7 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
   const [stablePath, setStablePath] = useState<string | undefined>(path);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const pathTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadIdRef = useRef(0);
   const autoPlayRef = useRef(autoPlay);
   const trimRef = useRef({ start: trimStart, end: trimEnd });
@@ -49,6 +52,10 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
     }
     if (pathTimerRef.current) {
       clearTimeout(pathTimerRef.current);
+    }
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
     }
 
     pathTimerRef.current = setTimeout(() => {
@@ -108,7 +115,12 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
 
     audio.onloadedmetadata = () => {
       if (loadIdRef.current !== myLoadId) return;
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
       setDuration(audio.duration);
+      setLoadError(null);
       setLoading(false);
       if (autoPlayRef.current) {
         if (trimRef.current.start > 0) audio.currentTime = trimRef.current.start;
@@ -118,8 +130,16 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
 
     audio.onerror = () => {
       if (loadIdRef.current !== myLoadId) return;
-      setLoadError("ファイルを読み込めません");
       setLoading(false);
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+      errorTimerRef.current = setTimeout(() => {
+        if (loadIdRef.current !== myLoadId) return;
+        errorTimerRef.current = null;
+        setLoadError("ファイルを読み込めません");
+      }, MEDIA_ERROR_CONFIRMATION_DELAY_MS);
     };
 
     audio.onended = () => { if (loadIdRef.current === myLoadId) setPlaying(false); };
@@ -136,6 +156,10 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
 
     return () => {
       loadIdRef.current += 1;
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
       audio.onloadedmetadata = audio.onerror = audio.onended = audio.onpause = audio.onplay = audio.ontimeupdate = null;
       audio.pause();
       if (objectUrl) {
