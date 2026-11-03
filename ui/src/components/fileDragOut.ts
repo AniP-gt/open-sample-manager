@@ -6,6 +6,15 @@ import { hasSampleProcessingEdits, toProcessedDragParams } from "../utils/sample
 
 const FALLBACK_DRAG_ICON = "/tmp/osm_drag_icon.png";
 
+export function startSampleDrag({ sourcePath, exportPath, icon }: { readonly sourcePath: string; readonly exportPath: string; readonly icon: string }) {
+  return startDrag({ item: [exportPath], icon: icon || FALLBACK_DRAG_ICON }, (event) => {
+    if (event.result !== "Dropped") return;
+    void invoke("record_sample_export", { path: sourcePath }).catch((error: unknown) => {
+      console.warn("Export history could not be saved", error);
+    });
+  });
+}
+
 export function loadDragIconPath(dragIconPathRef: React.MutableRefObject<string>) {
   void invoke<string>("get_drag_icon_path").then((path) => {
     dragIconPathRef.current = path;
@@ -52,7 +61,7 @@ export function startFileDrag(
   const preparedPath = preparedPathsRef.current[key];
 
   if (!hasEdits) {
-    void startDrag({ item: [path], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
+    void startSampleDrag({ sourcePath: path, exportPath: path, icon: dragIconPath }).catch((err) => {
       console.warn(`${logPrefix} startDrag failed:`, err);
     });
     return;
@@ -65,7 +74,7 @@ export function startFileDrag(
     }).then((processedPath) => {
       if (!processedPath) return;
       preparedPathsRef.current[key] = processedPath;
-      return startDrag({ item: [processedPath], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
+      return startSampleDrag({ sourcePath: path, exportPath: processedPath, icon: dragIconPath }).catch((err) => {
         console.warn(`${logPrefix} startDrag failed:`, err);
       });
     }).catch((err) => {
@@ -76,7 +85,7 @@ export function startFileDrag(
 
   if (!preparedPath) return;
 
-  void startDrag({ item: [preparedPath], icon: dragIconPath || FALLBACK_DRAG_ICON }).catch((err) => {
+  void startSampleDrag({ sourcePath: path, exportPath: preparedPath, icon: dragIconPath }).catch((err) => {
     console.warn(`${logPrefix} startDrag failed:`, err);
   });
 }

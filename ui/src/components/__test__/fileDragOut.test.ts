@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { prepareDragFile, startFileDrag } from "../fileDragOut";
+import { prepareDragFile, startFileDrag, startSampleDrag } from "../fileDragOut";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -11,6 +11,16 @@ vi.mock("@crabnebula/tauri-plugin-drag", () => ({
 }));
 
 describe("fileDragOut", () => {
+  it.each(["Dropped", "Cancelled"] as const)("records only completed exports for %s", async (result) => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    await startSampleDrag({ sourcePath: "/samples/original.wav", exportPath: "/tmp/processed.wav", icon: "/tmp/icon.png" });
+    const callback = vi.mocked(startDrag).mock.calls[0]?.[1];
+    expect(callback).toBeTypeOf("function");
+    callback?.({ result, cursorPos: { x: 0, y: 0 } });
+    await Promise.resolve();
+    if (result === "Dropped") expect(invoke).toHaveBeenCalledWith("record_sample_export", { path: "/samples/original.wav" });
+    else expect(invoke).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -157,7 +167,7 @@ describe("fileDragOut", () => {
         gain_db: 3,
       },
     });
-    expect(startDrag).toHaveBeenCalledWith({ item: ["/tmp/processed.wav"], icon: "/tmp/icon.png" });
+    expect(startDrag).toHaveBeenCalledWith({ item: ["/tmp/processed.wav"], icon: "/tmp/icon.png" }, expect.any(Function));
     expect(startDrag).not.toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" });
   });
 
@@ -181,7 +191,7 @@ describe("fileDragOut", () => {
     vi.advanceTimersByTime(2000);
     await Promise.resolve();
 
-    expect(startDrag).toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" });
+    expect(startDrag).toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" }, expect.any(Function));
     expect(invoke).not.toHaveBeenCalledWith("delete_file", expect.any(Object));
     expect(preparedPathsRef.current).toStrictEqual({});
   });
@@ -235,7 +245,7 @@ describe("fileDragOut", () => {
     );
     await Promise.resolve();
 
-    expect(startDrag).toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" });
+    expect(startDrag).toHaveBeenCalledWith({ item: ["/samples/kick.wav"], icon: "/tmp/icon.png" }, expect.any(Function));
     expect(invoke).not.toHaveBeenCalledWith("prepare_drag_file", { path: "/samples/kick.wav" });
     expect(preparedPathsRef.current["raw-cleanup"]).toBe("/tmp/raw.wav");
   });

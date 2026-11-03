@@ -25,6 +25,19 @@ beforeEach(() => {
 });
 
 describe("PlayerBar audio lifecycle", () => {
+  it("records audible playback rather than selection or a request to play", async () => {
+    Object.defineProperties(URL, {
+      createObjectURL: { configurable: true, value: vi.fn(() => "blob:usage") },
+      revokeObjectURL: { configurable: true, value: vi.fn() },
+    });
+    const { unmount } = render(<PlayerBar sample={dummySample} path="/test/test.wav" />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    expect(mockInvoke).not.toHaveBeenCalledWith("record_sample_usage", expect.anything());
+    await act(async () => { sharedPlayerBarAudio.onplaying?.(new Event("playing")); });
+    expect(mockInvoke).toHaveBeenCalledWith("record_sample_usage", { sampleId: 1, kind: "preview" });
+    unmount();
+    expect(sharedPlayerBarAudio.onplaying).toBeNull();
+  });
   it("does not show a transient load error when the active audio finishes loading", async () => {
     Object.defineProperties(URL, {
       createObjectURL: { configurable: true, value: vi.fn(() => "blob:current") },

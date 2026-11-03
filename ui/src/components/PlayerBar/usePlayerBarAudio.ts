@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { sharedPlayerBarAudio } from "./playerBarAudio";
+import { recordUsage } from "../../hooks/discovery/discoveryApi";
 
 const MEDIA_ERROR_CONFIRMATION_DELAY_MS = 100;
 
 interface UsePlayerBarAudioOptions {
+  readonly sampleId?: number;
   readonly path?: string;
   readonly autoPlay?: boolean;
   readonly trimStart: number;
@@ -13,7 +15,7 @@ interface UsePlayerBarAudioOptions {
   readonly onPathChange: () => void;
 }
 
-export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, onPathChange }: UsePlayerBarAudioOptions) {
+export function usePlayerBarAudio({ path, sampleId, autoPlay, trimStart, trimEnd, gainDb, onPathChange }: UsePlayerBarAudioOptions) {
   const audioRef = useRef<HTMLAudioElement>(sharedPlayerBarAudio);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -28,6 +30,8 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
   const loadIdRef = useRef(0);
   const autoPlayRef = useRef(autoPlay);
   const trimRef = useRef({ start: trimStart, end: trimEnd });
+  const sampleIdRef = useRef(sampleId);
+  sampleIdRef.current = sampleId;
   const objectUrlRef = useRef<string | null>(null);
   const gainMultiplier = Math.pow(10, gainDb / 20);
   const effectiveVolume = Math.min(1, Math.max(0, volume * gainMultiplier));
@@ -72,6 +76,7 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
   useEffect(() => {
     const audio = audioRef.current;
     const myLoadId = ++loadIdRef.current;
+    const loadedSampleId = sampleIdRef.current;
 
     if (!stablePath) {
       audio.pause();
@@ -145,6 +150,12 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
     audio.onended = () => { if (loadIdRef.current === myLoadId) setPlaying(false); };
     audio.onpause = () => { if (loadIdRef.current === myLoadId) setPlaying(false); };
     audio.onplay = () => { if (loadIdRef.current === myLoadId) setPlaying(true); };
+    audio.onplaying = () => {
+      if (loadIdRef.current !== myLoadId || loadedSampleId === undefined) return;
+      void recordUsage(loadedSampleId, "preview").catch((e: unknown) => {
+        console.warn("Preview history could not be saved", e);
+      });
+    };
     audio.ontimeupdate = () => {
       if (loadIdRef.current !== myLoadId) return;
       if (trimRef.current.end > 0 && audio.currentTime >= trimRef.current.end) {
@@ -156,6 +167,7 @@ export function usePlayerBarAudio({ path, autoPlay, trimStart, trimEnd, gainDb, 
 
     return () => {
       loadIdRef.current += 1;
+      audio.onplaying = null;
       if (errorTimerRef.current) {
         clearTimeout(errorTimerRef.current);
         errorTimerRef.current = null;

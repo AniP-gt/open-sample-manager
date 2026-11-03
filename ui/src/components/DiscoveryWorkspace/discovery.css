@@ -1,0 +1,79 @@
+.discovery {
+  --discovery-bg: #080a0f;
+  --discovery-surface: #111827;
+  --discovery-line: #374151;
+  --discovery-ink: #e2e8f0;
+  --discovery-muted: #aebacc;
+  --discovery-accent: #67e8f9;
+  --discovery-error: #fca5a5;
+  color: var(--discovery-ink);
+  background: var(--discovery-bg);
+  font: 14px/1.5 system-ui, sans-serif;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  color-scheme: dark;
+  font-variant-numeric: tabular-nums;
+}
+.discovery-entry { padding: 4px 16px; background: #080a0f; }
+.discovery-entry button { color: #67e8f9; background: #111827; border: 1px solid #374151; border-radius: 4px; padding: 8px 12px; cursor: pointer; font: 14px system-ui, sans-serif; min-height: 32px; }
+.discovery-entry button:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+.discovery *, .discovery *::before, .discovery *::after { box-sizing: border-box; }
+.discovery ::selection { background: var(--discovery-line); color: var(--discovery-ink); }
+.discovery :focus-visible { outline: 2px solid var(--discovery-accent); outline-offset: 2px; }
+.discovery button, .discovery input, .discovery select {
+  font: inherit;
+  color: var(--discovery-ink);
+  border: 1px solid var(--discovery-line);
+  background: var(--discovery-surface);
+  border-radius: 4px;
+  min-height: 32px;
+  padding: 4px 8px;
+  max-width: 100%;
+  caret-color: var(--discovery-accent);
+}
+.discovery button { cursor: pointer; }
+.discovery button:hover { background: var(--discovery-line); }
+.discovery button:active { color: var(--discovery-accent); }
+.discovery button:disabled { opacity: .55; cursor: default; }
+.discovery button[aria-pressed="true"], .discovery button.discovery-primary { color: var(--discovery-accent); }
+.discovery button[aria-pressed="true"] { background: var(--discovery-surface); }
+.discovery input[type="number"] { width: 100px; }
+.discovery input[type="checkbox"] { min-height: auto; accent-color: var(--discovery-accent); }
+.discovery label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.discovery label.discovery-check { flex-direction: row; align-items: center; gap: 8px; }
+.discovery p { max-width: 75ch; margin: 8px 0 16px; text-wrap: pretty; line-break: strict; }
+.discovery h1, .discovery h2, .discovery h3 { margin: 0; font-weight: 650; }
+.discovery h1 { font-size: 24px; }
+.discovery h2 { font-size: 20px; }
+.discovery h3 { font-size: 18px; }
+.discovery-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 24px; }
+.discovery-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 24px 16px; border-bottom: 1px solid var(--discovery-line); }
+.discovery-body { overflow: auto; min-height: 0; padding: 24px; scrollbar-color: var(--discovery-line) var(--discovery-bg); scrollbar-width: thin; }
+.discovery-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 16px; }
+.discovery-results-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin: 24px 0 16px; }
+.discovery-muted, .discovery-name span { color: var(--discovery-muted); font-size: 12px; }
+.discovery [role="alert"] { color: var(--discovery-error); }
+.discovery-results { list-style: none; padding: 0; margin: 0; }
+.discovery-row { padding: 12px 0; border-bottom: 1px solid var(--discovery-line); }
+.discovery-row-main { display: flex; align-items: center; gap: 12px; }
+.discovery-rank { min-width: 24px; text-align: right; }
+.discovery-name { flex: 1; min-width: 0; cursor: grab; }
+.discovery-name strong, .discovery-name span { display: block; overflow-wrap: anywhere; }
+.discovery-name strong { font-weight: 600; }
+.discovery-count { white-space: nowrap; }
+.discovery-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+.discovery-note { flex: 1; min-width: min(240px, 100%); }
+.discovery-compare-slots { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
+.discovery-compare-slots > div { flex: 1 1 240px; min-width: 0; }
+.discovery-break { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .discovery-heading, .discovery-body { padding: 16px; }
+  .discovery-tabs { padding: 0 16px 16px; }
+  .discovery button, .discovery input, .discovery select { min-height: 44px; }
+  .discovery-row-main { flex-wrap: wrap; }
+  .discovery-name { flex-basis: calc(100% - 120px); }
+  .discovery-toolbar > label { flex: 1 1 140px; }
+}

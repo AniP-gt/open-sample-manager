@@ -43,6 +43,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   const trimStart = Math.max(0, processingSettings.trimStartSeconds);
   const trimEnd = processingSettings.trimEndSeconds > trimStart ? processingSettings.trimEndSeconds : 0;
   const playback = usePlayerBarAudio({
+    sampleId: sample.id,
     path,
     autoPlay,
     trimStart,
