@@ -1,3 +1,5 @@
+import { translate, instrumentName } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { prepareDragFile, startFileDrag } from "../fileDragOut";
@@ -49,6 +51,7 @@ export function SampleRow({
   onTrashSample,
   showSampleMetadataQuality = true,
 }: SampleRowProps) {
+  useTranslation();
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
   const dragKey = `${s.id}:${sampleProcessingSignature(processingSettings)}`;
 
@@ -111,7 +114,7 @@ export function SampleRow({
           color: isFavorite ? "#f6e05e" : "var(--osm-secondary)",
           fontSize: "22px",
         }}
-        title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+        title={isFavorite ? translate("removeFromFavorites") : translate("addToFavorites")}
       >
         {isFavorite ? "★" : "☆"}
       </div>
@@ -165,7 +168,7 @@ export function SampleRow({
             cursor: "pointer",
           }}
         >
-          {s.instrument_type}
+          {instrumentName(s.instrument_type)}
         </span>
       </div>
       <div
@@ -197,7 +200,7 @@ export function SampleRow({
             type="button"
             onClick={(e) => { e.stopPropagation(); onMetadataClick?.(s); }}
             onMouseDown={(e) => e.stopPropagation()}
-            title={[s.license, s.source, s.pack_name].filter(Boolean).join(" / ") || "Edit license metadata"}
+            title={[s.license, s.source, s.pack_name].filter(Boolean).join(" / ") || translate("editLicenseMetadata")}
             style={{
               minWidth: 0,
               background: "transparent",
@@ -209,14 +212,14 @@ export function SampleRow({
             }}
           >
             <div style={{ fontSize: "12px", color: s.license ? "#22d3ee" : "var(--osm-secondary)", fontWeight: 700, letterSpacing: "0.08em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {s.license ?? "NO LIC"}
+              {s.license ?? translate("noLic")}
             </div>
             <div style={{ fontSize: "12px", color: s.source || s.pack_name ? "var(--osm-secondary)" : "var(--osm-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {s.pack_name ?? s.source ?? "source"}
             </div>
           </button>
           <div
-            title={s.quality_flags.length > 0 ? s.quality_flags.join(", ") : "No quality issues"}
+            title={s.quality_flags.length > 0 ? s.quality_flags.join(", ") : translate("noQualityIssues")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -228,7 +231,7 @@ export function SampleRow({
             }}
           >
             <span>{s.quality_flags.length > 0 ? "!" : "OK"}</span>
-            {s.clipping_count !== undefined && s.clipping_count > 0 && <span>CLIP</span>}
+            {s.clipping_count !== undefined && s.clipping_count > 0 && <span>{translate("clip")}</span>}
           </div>
         </>
       )}

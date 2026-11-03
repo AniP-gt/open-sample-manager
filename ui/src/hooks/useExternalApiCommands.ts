@@ -1,3 +1,4 @@
+import { translate } from "../i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -31,7 +32,7 @@ export function useExternalApiCommands({ showExternalResults, setViewMode, setEr
     const rows = await invoke<TauriSampleRow[]>("get_samples_by_ids", { sampleIds: command.sample_ids });
     if (!isMountedRef.current) return "requeue";
     const samples = reorderRows(command.sample_ids, rows);
-    if (!samples) { setError("Could not load every requested sample."); return "ack"; }
+    if (!samples) { setError(translate("couldNotLoadEveryRequestedSample")); return "ack"; }
     setViewMode("sample"); showExternalResults({ samples, samplePaths: Object.fromEntries(rows.map((row) => [row.id, row.path])), selectedId: command.selected_id });
     const appWindow = getAppWindow(); await appWindow.show(); if (!isMountedRef.current) return "requeue";
     await appWindow.setFocus(); return isMountedRef.current ? "ack" : "requeue";
@@ -42,7 +43,7 @@ export function useExternalApiCommands({ showExternalResults, setViewMode, setEr
     const playerBar = playerBarRef.current; playerBar?.stop(); if (playerBar) stoppedPreviewSampleIdRef.current = sampleId;
     const rows = await invoke<TauriSampleRow[]>("get_samples_by_ids", { sampleIds: [sampleId] });
     if (!isMountedRef.current) return "requeue";
-    const row = rows[0]; if (rows.length !== 1 || !row?.path) { setError("Could not preview the requested sample because it is unavailable."); return "ack"; }
+    const row = rows[0]; if (rows.length !== 1 || !row?.path) { setError(translate("couldNotPreviewTheRequestedSampleBecauseItIs")); return "ack"; }
     pendingPreviewSampleIdRef.current = sampleId; previewAwaitingPlayerRef.current = true; setPreviewSampleId(sampleId); setViewMode("sample"); await selectSample(mapRowToSample(row));
     return isMountedRef.current ? "ack" : "requeue";
   }, [playerBarRef, selectSample, setError, setViewMode]);
@@ -50,7 +51,7 @@ export function useExternalApiCommands({ showExternalResults, setViewMode, setEr
   useEffect(() => {
     if (previewSampleId === null || pendingPreviewSampleIdRef.current !== previewSampleId || rejectedPreviewSampleIdRef.current === previewSampleId || previewAwaitingPlayerRef.current) return;
     const playerBar = playerBarRef.current; if (!playerBar) return;
-    if (!playerBar.playFromStart) { setError("Could not preview the requested sample because the player is unavailable."); rejectedPreviewSampleIdRef.current = previewSampleId; pendingPreviewSampleIdRef.current = null; previewAwaitingPlayerRef.current = false; return; }
+    if (!playerBar.playFromStart) { setError(translate("couldNotPreviewTheRequestedSampleBecauseThePlayer")); rejectedPreviewSampleIdRef.current = previewSampleId; pendingPreviewSampleIdRef.current = null; previewAwaitingPlayerRef.current = false; return; }
     if (stoppedPreviewSampleIdRef.current !== previewSampleId) { playerBar.stop(); stoppedPreviewSampleIdRef.current = previewSampleId; }
     playerBar.playFromStart(); pendingPreviewSampleIdRef.current = null; rejectedPreviewSampleIdRef.current = null; previewAwaitingPlayerRef.current = false;
   }, [playerBarRef, playerReadyVersion, previewSampleId, setError]);

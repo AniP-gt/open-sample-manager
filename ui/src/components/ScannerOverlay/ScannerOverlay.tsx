@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { ScanProgress } from "../../types/scan";
 
@@ -7,6 +9,7 @@ interface ScannerOverlayProps {
 }
 
 export function ScannerOverlay({ progress, onDone }: ScannerOverlayProps) {
+  useTranslation();
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
@@ -22,14 +25,14 @@ export function ScannerOverlay({ progress, onDone }: ScannerOverlayProps) {
     ? (progress.current / progress.total) * 100 
     : 0;
 
-  const currentFile = progress?.currentFile ?? "Initializing scanner...";
+  const currentFile = progress?.currentFile ?? translate("initializingScanner");
 
   // Stage indicator
   const stageLabel = progress?.stage === "discovering" 
-    ? "DISCOVERING FILES" 
+    ? translate("discoveringFiles")
     : progress?.stage === "analyzing" 
-      ? "ANALYZING SAMPLES" 
-      : "SCANNING LIBRARY";
+      ? translate("analyzingSamples")
+      : translate("scanningLibrary");
 
   return (
     <div
@@ -121,7 +124,7 @@ export function ScannerOverlay({ progress, onDone }: ScannerOverlayProps) {
           }}
         >
           <span>
-            {progress?.current ?? 0} / {progress?.total ?? 0} files
+            {progress?.current ?? 0} / {progress?.total ?? 0} {translate("files")}
           </span>
           <span>
             {Math.round(percentage)}%

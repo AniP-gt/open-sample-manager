@@ -1,9 +1,12 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 interface AppErrorBannerProps {
   error: string | null;
   onRetry: () => void;
 }
 
 export function AppErrorBanner({ error, onRetry }: AppErrorBannerProps) {
+  useTranslation();
   if (!error) return null;
 
   return (
@@ -29,12 +32,14 @@ export function AppErrorBanner({ error, onRetry }: AppErrorBannerProps) {
           border: "none",
           borderRadius: "2px",
           color: "#fff",
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "var(--osm-font)",
           padding: "4px 10px",
+          flexShrink: 0,
+          whiteSpace: "nowrap",
           cursor: "pointer",
         }}
       >
-        RETRY
+        {translate("retryUpper")}
       </button>
     </div>
   );

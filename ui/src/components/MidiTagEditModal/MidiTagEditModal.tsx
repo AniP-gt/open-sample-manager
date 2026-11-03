@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import type { Midi, MidiTagRow } from "../../types/midi";
 
@@ -26,6 +28,7 @@ export function MidiTagEditModal({
   onClose,
   onManageClick,
 }: MidiTagEditModalProps) {
+  useTranslation();
   const [customInput, setCustomInput] = useState("");
 
   // Sync selectedTagId when the modal opens for a different midi
@@ -124,7 +127,7 @@ export function MidiTagEditModal({
               margin: 0,
             }}
           >
-            EDIT MIDI TAG
+            {translate("editMidiTag")}
           </h2>
           <button
             onClick={onClose}
@@ -152,7 +155,7 @@ export function MidiTagEditModal({
             wordBreak: "break-all",
           }}
         >
-          {targetIds.length > 1 ? `Editing tag for ${targetIds.length} items` : midi.file_name}
+          {targetIds.length > 1 ? translate("editingTagsCount", { count: targetIds.length }) : midi.file_name}
         </div>
 
         {/* Tag grid */}
@@ -173,7 +176,7 @@ export function MidiTagEditModal({
                 margin: 0,
               }}
             >
-              TAG
+              {translate("tag")}
             </h3>
             {onManageClick && (
               <button
@@ -190,7 +193,7 @@ export function MidiTagEditModal({
                   borderRadius: "2px",
                 }}
               >
-                MANAGE
+                {translate("manageUpper")}
               </button>
             )}
           </div>
@@ -239,7 +242,7 @@ export function MidiTagEditModal({
               marginBottom: "12px",
             }}
           >
-            OR TYPE TAG NAME
+            {translate("orTypeTagName")}
           </h3>
           <input
             type="text"
@@ -253,7 +256,7 @@ export function MidiTagEditModal({
               if (match) setSelectedTagId(match.id);
             }}
             onKeyDown={handleCustomKeyDown}
-            placeholder="tag name..."
+            placeholder={translate("tagName")}
             style={{
               width: "100%",
               boxSizing: "border-box",
@@ -268,7 +271,7 @@ export function MidiTagEditModal({
             }}
           />
           <div style={{ fontSize: "11px", color: "#4b5563", marginTop: "6px" }}>
-            Type to highlight an existing tag. To add new tags, use MANAGE.
+            {translate("typeToHighlightAnExistingTagToAddNew")}
           </div>
         </div>
 
@@ -288,7 +291,7 @@ export function MidiTagEditModal({
               fontFamily: "'Courier New', monospace",
             }}
           >
-            CANCEL
+            {translate("cancel")}
           </button>
           <button
             onClick={handleSave}
@@ -305,7 +308,7 @@ export function MidiTagEditModal({
               fontWeight: 700,
             }}
           >
-            SAVE
+            {translate("saveUpper")}
           </button>
         </div>
       </div>

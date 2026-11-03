@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Midi, MidiTagRow, TimidityStatus } from "../../types/midi";
 // No React default import required (new JSX transform). Keep file lean.
 interface MidiDetailPanelProps {
@@ -15,6 +17,7 @@ interface MidiDetailPanelProps {
 }
 
 export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange, onManageTags, bottomInset = 0, isPlaying = false, onTogglePlay, timidityStatus, onClose }: MidiDetailPanelProps) {
+  useTranslation();
   const currentTagName = tagFilterId ? midiTags.find((t) => t.id === tagFilterId)?.name ?? "" : "";
 
   return (
@@ -51,7 +54,7 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
                 justifyContent: "center",
                 transition: "color 0.2s"
               }}
-              aria-label="Close detail panel"
+              aria-label={translate("closeDetailPanel")}
               onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
               onMouseLeave={(e) => e.currentTarget.style.color = "#6b7280"}
             >
@@ -78,8 +81,8 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
                   }
                 }}
                 aria-pressed={isPlaying}
-                aria-label={isPlaying ? "Stop MIDI playback" : "Play MIDI"}
-                title={isPlaying ? "Stop playback" : "Play"}
+                aria-label={isPlaying ? translate("stopMidiPlayback") : translate("playMidi")}
+                title={isPlaying ? translate("stopPlayback") : translate("play")}
                 style={{
                   minWidth: 140,
                   background: isPlaying ? "#ef4444" : "#3b82f6",
@@ -96,18 +99,18 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0px)'; }}
               >
-                {isPlaying ? "Stop" : "Play"}
+                {isPlaying ? translate("stop") : translate("play")}
               </button>
 
               {/* TiMidity prompt remains visible below the control when not installed */}
               {timidityStatus && !timidityStatus.installed && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: "#fca5a5", fontSize: "12px", fontFamily: "'Courier New', monospace" }}>TiMidity not installed</span>
+                  <span style={{ color: "#fca5a5", fontSize: "12px", fontFamily: "'Courier New', monospace" }}>{translate("timidityNotInstalled")}</span>
                   <button
                     onClick={() => navigator.clipboard.writeText(timidityStatus.install_command || "")}
                     style={{ background: "#374151", border: "1px solid #4b5563", color: "#9ca3af", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontFamily: "'Courier New', monospace" }}
                   >
-                    Copy Install Command
+                    {translate("copyInstallCommand")}
                   </button>
                 </div>
               )}
@@ -116,16 +119,16 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
         </div>
 
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.12em", marginBottom: "8px" }}>FILTERS</div>
+          <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.12em", marginBottom: "8px" }}>{translate("filters")}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "8px" }}>
             <div>
-              <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>TAG</div>
+              <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>{translate("tag")}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 <button
                   onClick={() => onTagFilterChange(null)}
                   style={{ padding: "6px 10px", borderRadius: 4, border: "1px solid #1f2937", background: tagFilterId === null ? "#111827" : "transparent", color: tagFilterId === null ? "#fff" : "#6b7280", cursor: "pointer" }}
                 >
-                  ALL
+                  {translate("allUpper")}
                 </button>
                 {midiTags.map((t) => (
                   <button
@@ -136,20 +139,20 @@ export function MidiDetailPanel({ midi, midiTags, tagFilterId, onTagFilterChange
                     {t.name.toUpperCase()}
                   </button>
                 ))}
-                <button onClick={() => onManageTags?.()} style={{ padding: "6px 10px", borderRadius: 4, border: "1px dashed #374151", background: "transparent", color: "#9ca3af", cursor: "pointer" }}>Manage</button>
+                <button onClick={() => onManageTags?.()} style={{ padding: "6px 10px", borderRadius: 4, border: "1px dashed #374151", background: "transparent", color: "#9ca3af", cursor: "pointer" }}>{translate("manage")}</button>
               </div>
             </div>
           </div>
         </div>
 
         <div style={{ marginTop: 10 }}>
-          <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>TAG FILTER</div>
+          <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>{translate("tagFilter")}</div>
           <div style={{ marginTop: 6, fontSize: 13, color: "#4b5563" }}>{currentTagName || "(none)"}</div>
         </div>
       </div>
 
       <div style={{ borderTop: "1px solid #0f1117", paddingTop: 12, position: "sticky", bottom: 0, background: "#0a0c12", zIndex: 20 }}>
-        <div style={{ fontSize: 13, color: "#374151", letterSpacing: "0.08em", marginBottom: 6 }}>PATH</div>
+        <div style={{ fontSize: 13, color: "#374151", letterSpacing: "0.08em", marginBottom: 6 }}>{translate("path")}</div>
         <div title={midi.path || "—"} style={{ fontSize: 13, color: "#4b5563", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{midi.path || "—"}</div>
       </div>
     </div>

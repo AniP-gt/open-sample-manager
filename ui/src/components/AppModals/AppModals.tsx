@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import {
   ConfirmModal,
   ClassificationEditModal,
@@ -61,6 +63,7 @@ interface AppModalsProps {
 }
 
 export function AppModals({ sampleState, midiState }: AppModalsProps) {
+  useTranslation();
   const confirmOpen = sampleState.confirmOpen || midiState.confirmOpen;
 
   return (
@@ -69,17 +72,17 @@ export function AppModals({ sampleState, midiState }: AppModalsProps) {
         isOpen={confirmOpen}
         title={
           sampleState.pendingTrashSampleId === -1
-            ? "Clear All Data"
+            ? translate("clearAllData")
             : midiState.pendingTrashMidiId
-              ? "Move MIDI to Trash"
-              : "Move to Trash"
+              ? translate("moveMidiToTrash")
+              : translate("moveToTrash")
         }
         message={
           sampleState.pendingTrashSampleId === -1
-            ? "Are you sure you want to clear all samples and MIDI files from the library index? This will remove all samples and MIDI files from the application's index (your files on disk will NOT be deleted). This action cannot be undone in the app."
+            ? translate("areYouSureYouWantToClearAllSamples")
             : midiState.pendingTrashMidiId
-              ? `Are you sure you want to move '${midiState.midis.find((m) => m.id === midiState.pendingTrashMidiId)?.file_name ?? "this MIDI file"}' to the Trash?`
-              : `Are you sure you want to move '${sampleState.samples.find((s) => s.id === sampleState.pendingTrashSampleId)?.file_name ?? "this file"}' to the Trash?`
+              ? translate("trashMidiConfirmation", { name: midiState.midis.find((m) => m.id === midiState.pendingTrashMidiId)?.file_name ?? translate("thisMidiFile") })
+              : translate("trashSampleConfirmation", { name: sampleState.samples.find((s) => s.id === sampleState.pendingTrashSampleId)?.file_name ?? translate("thisFile") })
         }
         danger={sampleState.pendingTrashSampleId === -1}
         onConfirm={async () => {

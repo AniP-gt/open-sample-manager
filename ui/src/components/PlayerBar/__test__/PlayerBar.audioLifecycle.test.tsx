@@ -1,8 +1,9 @@
 import { act, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayerBar } from "../PlayerBar";
 import { sharedPlayerBarAudio } from "../playerBarAudio";
 import { dummySample, editedSettings } from "./playerBarTestFixtures";
+import { useSettingsStore } from "../../../store/useSettingsStore";
 
 const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
 
@@ -21,8 +22,11 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 beforeEach(() => {
+  useSettingsStore.getState().setLanguage("en");
   mockInvoke.mockResolvedValue(new Uint8Array([1, 2, 3]));
 });
+
+afterEach(() => { act(() => { useSettingsStore.getState().setLanguage("en"); }); });
 
 describe("PlayerBar audio lifecycle", () => {
   it("records audible playback rather than selection or a request to play", async () => {
@@ -51,7 +55,7 @@ describe("PlayerBar audio lifecycle", () => {
     act(() => {
       sharedPlayerBarAudio.onerror?.(new Event("error"));
     });
-    expect(screen.queryByText("ファイルを読み込めません")).not.toBeInTheDocument();
+    expect(screen.queryByText("Could not read the file")).not.toBeInTheDocument();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(50);
@@ -59,10 +63,12 @@ describe("PlayerBar audio lifecycle", () => {
       await vi.advanceTimersByTimeAsync(100);
     });
 
-    expect(screen.queryByText("ファイルを読み込めません")).not.toBeInTheDocument();
+    expect(screen.queryByText("Could not read the file")).not.toBeInTheDocument();
   });
 
-  it("shows a persistent load error after the confirmation delay", async () => {
+  it.each(["en", "ja"] as const)("shows a persistent load error after the confirmation delay in %s", async (language) => {
+    useSettingsStore.getState().setLanguage(language);
+    const expectedError = language === "ja" ? "ファイルを読み込めません" : "Could not read the file";
     Object.defineProperties(URL, {
       createObjectURL: { configurable: true, value: vi.fn(() => "blob:current") },
       revokeObjectURL: { configurable: true, value: vi.fn() },
@@ -75,13 +81,30 @@ describe("PlayerBar audio lifecycle", () => {
     act(() => {
       sharedPlayerBarAudio.onerror?.(new Event("error"));
     });
-    expect(screen.queryByText("ファイルを読み込めません")).not.toBeInTheDocument();
+    expect(screen.queryByText(expectedError)).not.toBeInTheDocument();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
     });
 
-    expect(screen.getByText("ファイルを読み込めません")).toBeInTheDocument();
+    expect(screen.getByText(expectedError)).toBeInTheDocument();
+  });
+
+  it("preserves the audio source and position when the display language changes", async () => {
+    Object.defineProperties(URL, {
+      createObjectURL: { configurable: true, value: vi.fn(() => "blob:language") },
+      revokeObjectURL: { configurable: true, value: vi.fn() },
+    });
+    render(<PlayerBar sample={dummySample} path="/test/test.wav" />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    sharedPlayerBarAudio.currentTime = 2.5;
+
+    act(() => { useSettingsStore.getState().setLanguage("ja"); });
+
+    expect(sharedPlayerBarAudio.src).toBe("blob:language");
+    expect(sharedPlayerBarAudio.currentTime).toBe(2.5);
+    expect(mockInvoke.mock.calls.filter(([command]) => command === "read_audio_file")).toHaveLength(1);
+    expect(screen.getByText("ワンショット")).toBeInTheDocument();
   });
 
   it("does not install a deferred prior-path response after path intent changes", async () => {

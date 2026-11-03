@@ -1,3 +1,4 @@
+import { useMessageState } from "../i18n/useMessageState";
 import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { Midi } from "../types/midi";
@@ -32,7 +33,7 @@ export function useScanState({ getMidiDirectoryPath = () => "", getMidiTagFilter
   const [pendingTrashSampleId, setPendingTrashSampleId] = useState<number | null>(null);
   const [pendingTrashMidiId, setPendingTrashMidiId] = useState<number | null>(null);
   const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessageState();
   const dependencies = { ...params, getMidiDirectoryPath, getMidiTagFilterId };
   const setters = { setScanning, setScanned, setScanProgress, setError };
   const operations = useScanOperations({ ...dependencies, ...setters, setRescanPendingPath, setRescanPromptOpen });

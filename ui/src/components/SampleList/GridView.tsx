@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Sample } from "../../types/sample";
 import { InstrumentBadge } from "../TypeBadge/TypeBadge";
 
@@ -10,6 +12,7 @@ interface GridViewProps {
 }
 
 export function GridView({ samples, selectedId, onSelect, onMetadataClick, showSampleMetadataQuality = true }: GridViewProps) {
+  useTranslation();
   return (
     <div
       style={{
@@ -88,7 +91,7 @@ export function GridView({ samples, selectedId, onSelect, onMetadataClick, showS
                   textAlign: "left",
                 }}
               >
-                {(s.license ?? "NO LIC").toUpperCase()} {s.quality_flags.length > 0 ? ` / QC ${s.quality_flags.length}` : ""}
+                {(s.license ?? translate("noLic")).toUpperCase()} {s.quality_flags.length > 0 ? ` / QC ${s.quality_flags.length}` : ""}
               </button>
             )}
             {s.musical_key && (
@@ -100,7 +103,7 @@ export function GridView({ samples, selectedId, onSelect, onMetadataClick, showS
                   letterSpacing: "0.08em",
                 }}
               >
-                KEY {s.musical_key}
+                {translate("keyUpper")} {s.musical_key}
               </div>
             )}
           </div>

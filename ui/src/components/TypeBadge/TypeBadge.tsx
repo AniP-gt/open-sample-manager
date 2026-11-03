@@ -1,3 +1,5 @@
+import { translateLabel } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { SampleType, TypeBadgeStyle } from "../../types/sample";
 import type { InstrumentType } from "../../types/sample";
 
@@ -16,6 +18,7 @@ function styleFor(type: SampleType): TypeBadgeStyle {
 }
 
 export function TypeBadge({ type, onClick }: TypeBadgeProps) {
+  useTranslation();
   const style = styleFor(type);
 
   return (
@@ -36,7 +39,7 @@ export function TypeBadge({ type, onClick }: TypeBadgeProps) {
         cursor: onClick ? "pointer" : "default",
       }}
     >
-      {type}
+      {translateLabel(type)}
     </span>
   );
 }
@@ -62,6 +65,7 @@ interface InstrumentBadgeProps {
 }
 
 export function InstrumentBadge({ type }: InstrumentBadgeProps) {
+  useTranslation();
   const style = INSTRUMENT_STYLES[type] ?? INSTRUMENT_STYLES.other;
   return (
     <span
@@ -79,7 +83,7 @@ export function InstrumentBadge({ type }: InstrumentBadgeProps) {
         border: `1px solid ${style.border}`,
       }}
     >
-      {type}
+      {translateLabel(type)}
     </span>
   );
 }

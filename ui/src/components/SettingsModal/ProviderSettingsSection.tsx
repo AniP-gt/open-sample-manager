@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { KeyboardEvent } from "react";
 import type { ProviderBrowserMode } from "../../types/provider";
 import type { FreesoundWorkspace } from "../../hooks/useFreesoundWorkspace";
@@ -23,6 +25,7 @@ export function ProviderSettingsSection({
   onProviderBrowserModeChange,
   freesoundWorkspace,
 }: ProviderSettingsSectionProps) {
+  useTranslation();
   const handleBrowserModeKeyDown = (event: KeyboardEvent<HTMLButtonElement>, mode: ProviderBrowserMode) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
@@ -37,11 +40,11 @@ export function ProviderSettingsSection({
   };
 
   return (
-    <SettingsSection title="PROVIDER DOWNLOADS" hasBottomMargin>
+    <SettingsSection title={translate("providerDownloads")} hasBottomMargin>
       <div style={{ padding: "12px", background: "#080a0f", borderRadius: "2px" }}>
-        <div style={{ fontSize: "14px", color: "#d1d5db" }}>Download folder</div>
+        <div style={{ fontSize: "14px", color: "#d1d5db" }}>{translate("downloadFolder")}</div>
         <div style={{ fontSize: "12px", color: "var(--osm-secondary)", marginTop: "4px", overflowWrap: "anywhere" }}>
-          {providerDownloadRoot ?? "App default"}
+          {providerDownloadRoot ?? translate("appDefault")}
         </div>
         <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
           <button
@@ -53,7 +56,7 @@ export function ProviderSettingsSection({
               fontFamily: "var(--osm-font)", fontWeight: 700,
             }}
           >
-            SELECT FOLDER
+            {translate("selectFolder")}
           </button>
           <button
             type="button"
@@ -66,15 +69,15 @@ export function ProviderSettingsSection({
               fontFamily: "var(--osm-font)",
             }}
           >
-            USE DEFAULT
+            {translate("useDefault")}
           </button>
         </div>
         <div style={{ borderTop: "1px solid #1f2937", marginTop: "12px", paddingTop: "12px" }}>
-          <div style={{ fontSize: "14px", color: "#d1d5db" }}>Provider browser display</div>
+          <div style={{ fontSize: "14px", color: "#d1d5db" }}>{translate("providerBrowserDisplay")}</div>
           <div style={{ fontSize: "12px", color: "var(--osm-secondary)", marginTop: "4px" }}>
-            Open providers in a separate window or place them inside the WEB workspace.
+            {translate("openProvidersInASeparateWindowOrPlaceThem")}
           </div>
-          <div role="radiogroup" aria-label="Provider browser display mode" style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+          <div role="radiogroup" aria-label={translate("providerBrowserDisplayMode")} style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
             {browserModes.map((mode) => (
               <button
                 key={mode}
@@ -91,14 +94,14 @@ export function ProviderSettingsSection({
                   letterSpacing: "0.08em", padding: "8px 12px",
                 }}
               >
-                {mode === "window" ? "SEPARATE WINDOW" : "EMBEDDED"}
+                {mode === "window" ? translate("separateWindow") : translate("embedded")}
               </button>
             ))}
           </div>
         </div>
         <div style={{ borderTop: "1px solid #1f2937", marginTop: "12px", paddingTop: "12px" }}>
           <div style={{ color: "#d1d5db", fontSize: "14px", marginBottom: "4px" }}>Freesound API</div>
-          <div style={{ color: "var(--osm-secondary)", fontSize: "12px", marginBottom: "12px" }}>Configure, replace, or remove your personal API key. The saved key is never shown.</div>
+          <div style={{ color: "var(--osm-secondary)", fontSize: "12px", marginBottom: "12px" }}>{translate("configureReplaceOrRemoveYourPersonalApiKeyThe")}</div>
           <FreesoundCredentialForm credential={freesoundWorkspace.credential} isBusy={freesoundWorkspace.isBusy} onSave={freesoundWorkspace.saveApiKey} onDelete={() => { void freesoundWorkspace.deleteApiKey(); }} onOpenRegistration={freesoundWorkspace.openRegistration} />
           {freesoundWorkspace.error && <div role="alert" style={{ color: "#f97316", fontSize: "11px", marginTop: "8px" }}>{freesoundWorkspace.error}</div>}
         </div>

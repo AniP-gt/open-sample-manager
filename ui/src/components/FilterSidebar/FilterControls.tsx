@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { FilterState } from "../../types/sample";
 
 interface FilterControlsProps {
@@ -15,6 +17,7 @@ export function FilterControls({
   favoritesCount,
   onFilterChange,
 }: FilterControlsProps) {
+  useTranslation();
   return (
     <>
       <div style={{ padding: "8px 12px 4px" }}>
@@ -39,7 +42,7 @@ export function FilterControls({
           }}
         >
           <span>{favoritesOnly ? "★" : "☆"}</span>
-          <span>FAVORITES {favoritesCount > 0 ? `(${favoritesCount})` : ""}</span>
+          <span>{translate("favorites")} {favoritesCount > 0 ? `(${favoritesCount})` : ""}</span>
         </button>
       </div>
       <div style={{ padding: "4px 12px 4px" }}>
@@ -64,7 +67,7 @@ export function FilterControls({
           }}
         >
           <span>{hideDuplicates ? "●" : "○"}</span>
-          <span>HIDE DUPLICATES {duplicateCount > 0 ? `(${duplicateCount})` : ""}</span>
+          <span>{translate("hideDuplicates")} {duplicateCount > 0 ? `(${duplicateCount})` : ""}</span>
         </button>
       </div>
     </>

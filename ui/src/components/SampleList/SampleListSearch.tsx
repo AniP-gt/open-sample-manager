@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 
 type SampleListSearchProps = {
@@ -9,6 +11,7 @@ export function SampleListSearch({
   appliedQuery,
   onSubmit,
 }: SampleListSearchProps) {
+  useTranslation();
   const [query, setQuery] = useState(appliedQuery);
 
   useEffect(() => {
@@ -16,7 +19,7 @@ export function SampleListSearch({
   }, [appliedQuery]);
 
   return (
-    <div className="sample-search-form" role="search" aria-label="Search sample library">
+    <div className="sample-search-form" role="search" aria-label={translate("searchSampleLibrary")}>
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -25,16 +28,16 @@ export function SampleListSearch({
             onSubmit?.(query);
           }
         }}
-        placeholder="Search by filename, tag, key..."
-        aria-label="Search sample library"
+        placeholder={translate("searchByFilenameTagKey")}
+        aria-label={translate("searchSampleLibrary")}
       />
       <button
         type="button"
-        aria-label="Search samples"
+        aria-label={translate("searchSamples")}
         onClick={() => onSubmit?.(query)}
         className="sample-search-submit"
       >
-        Search
+        {translate("search")}
       </button>
     </div>
   );

@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Collection } from "../../types/collection";
 
 type CollectionSelectorProps = {
@@ -15,24 +17,25 @@ export function CollectionSelector({
   onSelectCollection,
   onClearCollection,
 }: CollectionSelectorProps) {
+  useTranslation();
   return (
     <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #0f1117" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 12px 8px" }}>
-        <div style={{ fontSize: "11px", color: "var(--osm-secondary)", letterSpacing: "0.04em" }}>COLLECTIONS</div>
+        <div style={{ fontSize: "11px", color: "var(--osm-secondary)", letterSpacing: "0.04em" }}>{translate("collections")}</div>
         {isCollectionView && (
           <button
             type="button"
-            title="Clear collection view"
-            aria-label="Clear collection view"
+            title={translate("clearCollectionView")}
+            aria-label={translate("clearCollectionView")}
             onClick={onClearCollection}
             style={{ background: "transparent", border: "none", color: "#f97316", fontSize: "11px", cursor: "pointer", fontFamily: "var(--osm-font)", padding: 0 }}
           >
-            [clear]
+            {translate("clear")}
           </button>
         )}
       </div>
       {collections.length === 0 ? (
-        <div style={{ padding: "4px 12px", fontSize: "12px", color: "var(--osm-secondary)", fontFamily: "var(--osm-font)" }}>No collections</div>
+        <div style={{ padding: "4px 12px", fontSize: "12px", color: "var(--osm-secondary)", fontFamily: "var(--osm-font)" }}>{translate("noCollections")}</div>
       ) : collections.map((collection) => {
         const isActive = activeCollectionId === collection.id;
         return (
@@ -48,10 +51,10 @@ export function CollectionSelector({
         );
       })}
       {isCollectionView && activeCollectionId !== null && collections.some((collection) => collection.id === activeCollectionId && collection.sample_count === 0) && (
-        <div style={{ padding: "8px 12px 0", fontSize: "12px", color: "var(--osm-secondary)", fontFamily: "var(--osm-font)" }}>No samples in this collection</div>
+        <div style={{ padding: "8px 12px 0", fontSize: "12px", color: "var(--osm-secondary)", fontFamily: "var(--osm-font)" }}>{translate("noSamplesInThisCollection")}</div>
       )}
       {isCollectionView && activeCollectionId === null && (
-        <div style={{ padding: "8px 12px 0", fontSize: "12px", color: "var(--osm-secondary)", fontFamily: "var(--osm-font)" }}>No samples in this collection</div>
+        <div style={{ padding: "8px 12px 0", fontSize: "12px", color: "var(--osm-secondary)", fontFamily: "var(--osm-font)" }}>{translate("noSamplesInThisCollection")}</div>
       )}
     </div>
   );

@@ -1,3 +1,6 @@
+import { useMessageState } from "../../i18n/useMessageState";
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import type { Sample } from "../../types/sample";
@@ -31,11 +34,12 @@ export function WaveSurferPlayer({
   onWaveSurferReady,
   height = 100,
 }: WaveSurferPlayerProps) {
+  useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessageState();
 
   // The init effect's deps don't include `onWaveSurferReady`; without a ref
   // the handler captured at mount would be stale once the parent rerenders
@@ -207,7 +211,7 @@ export function WaveSurferPlayer({
             fontSize: "12px",
           }}
         >
-          Loading...
+          {translate("loading")}
         </div>
       )}
       {error && (

@@ -1,3 +1,4 @@
+import { translate } from "../i18n";
 import { useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -12,13 +13,13 @@ export function useProviderDownloadRoot({ setProviderDownloadRoot, setError }: U
       const selectedPath = await open({
         directory: true,
         multiple: false,
-        title: "Select Provider Download Folder",
+        title: translate("selectProviderDownloadFolder"),
       });
       const directory = typeof selectedPath === "string" ? selectedPath : selectedPath?.[0];
 
       if (directory) setProviderDownloadRoot(directory);
     } catch {
-      setError("Could not open the folder picker.");
+      setError(translate("couldNotOpenTheFolderPicker"));
     }
   }, [setError, setProviderDownloadRoot]);
 

@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { SettingsSection } from "./SettingsSection";
 import { ToggleSetting } from "./ToggleSetting";
 
@@ -10,11 +12,12 @@ export function PlaybackSettingsSection({
   autoPlayOnSelect,
   onAutoPlayChange,
 }: PlaybackSettingsSectionProps) {
+  useTranslation();
   return (
-    <SettingsSection title="PLAYBACK" hasBottomMargin>
+    <SettingsSection title={translate("playback")} hasBottomMargin>
       <ToggleSetting
-        title="Auto-play on select"
-        description="Automatically play audio when a file is selected"
+        title={translate("autoPlayOnSelect")}
+        description={translate("automaticallyPlayAudioWhenAFileIsSelected")}
         enabled={autoPlayOnSelect}
         onChange={onAutoPlayChange}
       />

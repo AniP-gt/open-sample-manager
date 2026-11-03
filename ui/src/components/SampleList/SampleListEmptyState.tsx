@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 type Props = {
   readonly isLoading?: boolean;
   readonly error?: string | null;
@@ -9,19 +11,20 @@ type Props = {
 };
 
 export function SampleListEmptyState({ isLoading, error, hasFilters, isCollectionView, onClearFilters, onScanLibrary, onRetry }: Props) {
-  if (isLoading) return <div className="library-empty" role="status"><h2>Loading samples…</h2><p>Your library is being retrieved.</p></div>;
+  useTranslation();
+  if (isLoading) return <div className="library-empty" role="status"><h2>{translate("loadingSamples")}</h2><p>{translate("yourLibraryIsBeingRetrieved")}</p></div>;
   if (error) return <div className="library-empty" role="alert">
-    <h2>Could not load samples</h2><p>Try loading your library again. If this continues, restart Open Sample Manager.</p>
-    <details><summary>Error details</summary><p>{error}</p></details>
-    {onRetry && <button type="button" onClick={onRetry}>Retry loading samples</button>}
+    <h2>{translate("couldNotLoadSamples")}</h2><p>{translate("tryLoadingYourLibraryAgainIfThisContinuesRestart")}</p>
+    <details><summary>{translate("errorDetails")}</summary><p>{error}</p></details>
+    {onRetry && <button type="button" onClick={onRetry}>{translate("retryLoadingSamples")}</button>}
   </div>;
-  if (isCollectionView) return <div className="library-empty" role="status"><h2>This collection is empty</h2><p>Select another collection or return to your library from the sidebar.</p></div>;
+  if (isCollectionView) return <div className="library-empty" role="status"><h2>{translate("thisCollectionIsEmpty")}</h2><p>{translate("selectAnotherCollectionOrReturnToYourLibraryFrom")}</p></div>;
   if (hasFilters) return <div className="library-empty" role="status">
-    <h2>No matching samples</h2><p>Try a different search or clear the active filters.</p>
-    <button type="button" onClick={onClearFilters}>Reset search and filters</button>
+    <h2>{translate("noMatchingSamples")}</h2><p>{translate("tryADifferentSearchOrClearTheActiveFilters")}</p>
+    <button type="button" onClick={onClearFilters}>{translate("resetSearchAndFilters")}</button>
   </div>;
   return <div className="library-empty" role="status">
-    <h2>Your sample library is empty</h2><p>Scan a folder or drop audio files here to start browsing and previewing samples.</p>
-    {onScanLibrary && <button type="button" onClick={onScanLibrary}>Scan a folder</button>}
+    <h2>{translate("yourSampleLibraryIsEmpty")}</h2><p>{translate("scanAFolderOrDropAudioFilesHereTo")}</p>
+    {onScanLibrary && <button type="button" onClick={onScanLibrary}>{translate("scanAFolder")}</button>}
   </div>;
 }

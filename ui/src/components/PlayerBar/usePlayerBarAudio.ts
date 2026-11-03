@@ -1,3 +1,4 @@
+import { useMessageState } from "../../i18n/useMessageState";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { sharedPlayerBarAudio } from "./playerBarAudio";
@@ -21,7 +22,7 @@ export function usePlayerBarAudio({ path, sampleId, autoPlay, trimStart, trimEnd
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useMessageState();
   const [volume, setVolume] = useState(() => audioRef.current.volume);
   const [stablePath, setStablePath] = useState<string | undefined>(path);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);

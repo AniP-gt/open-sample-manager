@@ -1,3 +1,4 @@
+import { translate } from "../../i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -61,7 +62,7 @@ export function useScanOperations({
 
   const handleScanClick = async () => {
     try {
-      const selectedPath = await open({ directory: true, multiple: false, title: "Select Sample Library Folder" });
+      const selectedPath = await open({ directory: true, multiple: false, title: translate("selectSampleLibraryFolder") });
       if (!selectedPath) return;
       const scanPath = typeof selectedPath === "string" ? selectedPath : selectedPath[0];
       if (getAllSamplePaths().length > 0) {

@@ -1,3 +1,5 @@
+import { translate, instrumentName, translateLabel } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Sample, FilterState, InstrumentType } from "../../types/sample";
 import { getErrorMessage, mapEmbeddingRowToSample, type EmbeddingSampleRow } from "../../utils/sampleMapper";
 import { AnalysisBar } from "../AnalysisBar/AnalysisBar";
@@ -34,6 +36,7 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({ sample, path, samples = [], filters, onFilterChange, allInstrumentTypeNames, onSelect: propsOnSelect, onError: propsOnError, bottomInset = 0, onClose }: DetailPanelProps) {
+  useTranslation();
   // Embedding UI removed per user request.
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipId = "find-similar-tooltip";
@@ -171,7 +174,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
                 justifyContent: "center",
                 transition: "color 0.2s"
               }}
-              aria-label="Close detail panel"
+              aria-label={translate("closeDetailPanel")}
               onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
               onMouseLeave={(e) => e.currentTarget.style.color = "var(--osm-secondary)"}
             >
@@ -207,7 +210,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
                 boxShadow: "0 6px 18px rgba(34,211,238,0.08)",
               }}
             >
-              Find similar samples
+              {translate("findSimilarSamples")}
             </button>
             <button
               type="button"
@@ -228,7 +231,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
                 fontWeight: 600,
               }}
             >
-              Random similar sample
+              {translate("randomSimilarSample")}
             </button>
           <div
             id={tooltipId}
@@ -255,8 +258,8 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
               zIndex: 2000,
             }}
           >
-            Opens a floating list of{"\n"}
-            cosine similarity scores for this sample (brute-force; ANN planned).
+            {translate("opensAFloatingListOf")}{"\n"}
+            {translate("cosineSimilarityScoresForThisSampleBruteForceAnn")}
           </div>
         </div>
       </div>
@@ -264,22 +267,22 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
       {/* Moved filter controls from left sidebar into the right detail panel */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.12em" }}>FILTERS</div>
+          <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.12em" }}>{translate("filters")}</div>
           {onFilterChange && (
             <button
               onClick={() => onFilterChange({ filterType: 'all', filterBpmMin: '', filterBpmMax: '', filterInstrumentType: '' })}
               style={{ background: "transparent", border: "none", color: "#9ca3af", fontSize: "12px", fontFamily: "var(--osm-font)", cursor: "pointer" }}
               onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
               onMouseLeave={(e) => e.currentTarget.style.color = "#9ca3af"}
-              aria-label="Reset sample filters"
+              aria-label={translate("resetSampleFilters")}
             >
-              [reset]
+              {translate("reset")}
             </button>
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "8px" }}>
           <div>
-            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>SAMPLE TYPE</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>{translate("sampleType")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {typeFilters.map((t) => (
                 <button
@@ -300,7 +303,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
                     fontFamily: "var(--osm-font)",
                   }}
                 >
-                  <span>{t.toUpperCase()}</span>
+                  <span>{translateLabel(t).toUpperCase()}</span>
                   <span style={{ fontSize: "12px", color: "var(--osm-secondary)" }}>{getTypeCount(t)}</span>
                 </button>
               ))}
@@ -308,11 +311,11 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           </div>
 
           <div>
-            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>BPM RANGE</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>{translate("bpmRange")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               <input
                 type="number"
-                placeholder="MIN"
+                placeholder={translate("minUpper")}
                 value={filters?.filterBpmMin ?? ""}
                 onChange={(e) => onFilterChange && onFilterChange({ filterBpmMin: e.target.value })}
                 style={{
@@ -328,7 +331,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
               />
               <input
                 type="number"
-                placeholder="MAX"
+                placeholder={translate("maxUpper")}
                 value={filters?.filterBpmMax ?? ""}
                 onChange={(e) => onFilterChange && onFilterChange({ filterBpmMax: e.target.value })}
                 style={{
@@ -346,10 +349,10 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           </div>
 
           <div>
-            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>INST</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>{translate("inst")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
               {allInstrumentTypes.map((inst) => (
-                <button key={inst} onClick={() => onFilterChange && onFilterChange({ filterInstrumentType: filters?.filterInstrumentType === inst ? "" : inst })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: filters?.filterInstrumentType === inst ? "#f97316" : "transparent", color: filters?.filterInstrumentType === inst ? "#fff" : "var(--osm-secondary)", cursor: onFilterChange ? "pointer" : "default" }}>{inst}</button>
+                <button key={inst} onClick={() => onFilterChange && onFilterChange({ filterInstrumentType: filters?.filterInstrumentType === inst ? "" : inst })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: filters?.filterInstrumentType === inst ? "#f97316" : "transparent", color: filters?.filterInstrumentType === inst ? "#fff" : "var(--osm-secondary)", cursor: onFilterChange ? "pointer" : "default" }}>{instrumentName(inst)}</button>
               ))}
             </div>
           </div>
@@ -361,36 +364,36 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {/* sample_rate replaces low-ratio display in the UI */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>SAMPLE RATE</div>
+      <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>{translate("sampleRate")}</div>
             <div style={{ fontSize: "13px", color: "var(--osm-secondary)" }}>{sample.sample_rate ? `${sample.sample_rate} Hz` : '—'}</div>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>FILE SIZE</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>{translate("fileSize")}</div>
             <div style={{ fontSize: "13px", color: "var(--osm-secondary)" }}>{typeof sample.file_size === 'number' ? `${(sample.file_size/1024).toFixed(1)} KB` : '—'}</div>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>ARTIST</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>{translate("artist")}</div>
             <div style={{ fontSize: "13px", color: "var(--osm-secondary)" }}>{sample.artist ?? '—'}</div>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>KEY</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>{translate("keyUpper")}</div>
             <div style={{ fontSize: "13px", color: sample.musical_key ? "#a78bfa" : "var(--osm-secondary)" }}>{sample.musical_key ?? '—'}</div>
           </div>
           <AnalysisBar
-            label="PERIODICITY"
+            label={translate("periodicity")}
             value={sample.periodicity}
             max={1}
             color="#22d3ee"
           />
           <AnalysisBar
-            label="ATTACK SLOPE"
+            label={translate("attackSlope")}
             value={sample.attack_slope}
             max={5}
             color="#a78bfa"
           />
           {sample.decay_time && (
             <AnalysisBar
-              label="DECAY (ms)"
+              label={translate("decayMs")}
               value={sample.decay_time}
               max={600}
               color="#fb923c"
@@ -431,7 +434,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
             marginBottom: "4px",
           }}
         >
-          PATH
+          {translate("path")}
         </div>
         <div
           title={path || "—"}

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { translate } from "../../i18n";
 import type { ViewMode } from "../../types/viewMode";
 
 type HeaderViewTabsProps = {
@@ -8,6 +10,7 @@ type HeaderViewTabsProps = {
 const viewModes = ["sample", "midi", "web"] as const satisfies readonly ViewMode[];
 
 export function HeaderViewTabs({ onViewModeChange, viewMode }: HeaderViewTabsProps) {
+  useTranslation();
   return (
     <>
       <div style={{ display: "flex", gap: "2px", background: "#1f2937", padding: "2px", borderRadius: "4px" }}>
@@ -29,7 +32,7 @@ export function HeaderViewTabs({ onViewModeChange, viewMode }: HeaderViewTabsPro
               transition: "all 0.15s ease",
             }}
           >
-            {mode.toUpperCase()}
+            {mode === "sample" ? translate("sampleUpper") : mode.toUpperCase()}
           </button>
         ))}
       </div>

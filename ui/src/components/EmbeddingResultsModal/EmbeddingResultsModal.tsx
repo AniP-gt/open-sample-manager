@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Sample } from "../../types/sample";
 import { mapEmbeddingRowToSample, type EmbeddingSampleRow } from "../../utils/sampleMapper";
 
@@ -16,6 +18,7 @@ interface Props {
 }
 
 export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Props) {
+  useTranslation();
   if (!isOpen) return null;
   // Sort by similarity descending (highest first)
   const sortedResults = [...results].sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
@@ -46,13 +49,13 @@ export function EmbeddingResultsModal({ isOpen, results, onClose, onSelect }: Pr
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, color: "#e2e8f0" }}>Similar samples</h3>
+          <h3 style={{ margin: 0, color: "#e2e8f0" }}>{translate("similarSamples")}</h3>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer" }}>✕</button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {sortedResults.length === 0 && (
-            <div style={{ color: "#9ca3af" }}>No similar samples found.</div>
+            <div style={{ color: "#9ca3af" }}>{translate("noSimilarSamplesFound")}</div>
           )}
 
           {sortedResults.map((r) => (

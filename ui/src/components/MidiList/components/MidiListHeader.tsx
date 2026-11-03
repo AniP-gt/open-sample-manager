@@ -1,3 +1,5 @@
+import { translate } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 import type React from "react";
 
 interface MidiListHeaderProps {
@@ -29,17 +31,18 @@ export function MidiListHeader({
   headerKeyDown,
   onResizerKeyDown,
 }: MidiListHeaderProps) {
+  useTranslation();
   const columns = [
     { key: "favorite", label: "☆", align: "center" as const, color: "#4b5563", noSort: true },
     { key: "id", label: "#", align: "left" as const, color: "#374151" },
-    { key: "file_name", label: "FILENAME", align: "left" as const, color: "#9ca3af", letterSpacing: "0.06em" },
-    { key: "tag_name", label: "TAG", align: "left" as const, color: "#9ca3af" },
-    { key: "tempo", label: "TEMPO", align: "right" as const, color: "#9ca3af" },
-    { key: "time_sig", label: "TIME SIG", align: "center" as const, color: "#9ca3af" },
-    { key: "track_count", label: "TRACKS", align: "right" as const, color: "#9ca3af" },
-    { key: "note_count", label: "NOTES", align: "right" as const, color: "#9ca3af" },
-    { key: "key_estimate", label: "KEY", align: "center" as const, color: "#9ca3af" },
-    { key: "duration", label: "DURATION", align: "right" as const, color: "#9ca3af" },
+    { key: "file_name", label: translate("filename"), align: "left" as const, color: "#9ca3af", letterSpacing: "0.06em" },
+    { key: "tag_name", label: translate("tag"), align: "left" as const, color: "#9ca3af" },
+    { key: "tempo", label: translate("tempoUpper"), align: "right" as const, color: "#9ca3af" },
+    { key: "time_sig", label: translate("timeSig"), align: "center" as const, color: "#9ca3af" },
+    { key: "track_count", label: translate("tracks"), align: "right" as const, color: "#9ca3af" },
+    { key: "note_count", label: translate("notesUpper"), align: "right" as const, color: "#9ca3af" },
+    { key: "key_estimate", label: translate("keyUpper"), align: "center" as const, color: "#9ca3af" },
+    { key: "duration", label: translate("duration"), align: "right" as const, color: "#9ca3af" },
     { key: "actions", label: "", align: "center" as const, color: "#9ca3af", noSort: true }
   ];
 
@@ -95,7 +98,7 @@ export function MidiListHeader({
           </div>
           <div style={{ position: "absolute", right: -6, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
             <div
-              title="Resize column"
+              title={translate("resizeColumn")}
               role="separator"
               tabIndex={0}
               onKeyDown={(e) => onResizerKeyDown(e, idx)}

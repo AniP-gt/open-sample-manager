@@ -1,4 +1,7 @@
+import { translate } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 export function MidiListOverlay({ isDragOver }: { isDragOver: boolean }) {
+  useTranslation();
   if (!isDragOver) return null;
 
   return (
@@ -24,8 +27,8 @@ export function MidiListOverlay({ isDragOver }: { isDragOver: boolean }) {
           <path d="M8 7l4-4 4 4" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           <rect x="3" y="11" width="18" height="10" rx="2" stroke="#f97316" strokeWidth="1.2" />
         </svg>
-        <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>IMPORT</div>
-        <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>Drop files or folders to import into the library</div>
+        <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>{translate("import")}</div>
+        <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>{translate("dropFilesOrFoldersToImportIntoTheLibrary")}</div>
       </div>
     </div>
   );

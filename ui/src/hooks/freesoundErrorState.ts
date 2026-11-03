@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useMessageState } from "../i18n/useMessageState";
+import { useCallback, useRef } from "react";
 
 type FreesoundErrorOwner = "browser" | "credential" | "download" | "preview" | "search";
 
 export function useFreesoundErrorState() {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessageState();
   const ownerRef = useRef<FreesoundErrorOwner | null>(null);
   const revisionRef = useRef(0);
   const beginErrorOperation = useCallback((owner: FreesoundErrorOwner) => {

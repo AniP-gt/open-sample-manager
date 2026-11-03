@@ -1,3 +1,4 @@
+import { useMessageState } from "../i18n/useMessageState";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
@@ -36,7 +37,7 @@ function getFailureCode(value: unknown): string {
 }
 
 export function useProviderBrowser({ downloadRoot, mode, settingsOpen, viewMode, performScan, setError }: UseProviderBrowserParams) {
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useMessageState();
   const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null);
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const performScanRef = useRef(performScan);

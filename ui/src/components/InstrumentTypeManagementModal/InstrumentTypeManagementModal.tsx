@@ -1,3 +1,6 @@
+import { useMessageState } from "../../i18n/useMessageState";
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type { InstrumentTypeRow } from "../../types/sample";
 
@@ -30,8 +33,9 @@ export function InstrumentTypeManagementModal({
   onUpdate,
   onClose,
 }: InstrumentTypeManagementModalProps) {
+  useTranslation();
   const [newName, setNewName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessageState();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -44,11 +48,11 @@ export function InstrumentTypeManagementModal({
   const handleAdd = () => {
     const trimmed = newName.trim().toLowerCase();
     if (!trimmed) {
-      setError("Please enter a name");
+      setError(translate("pleaseEnterAName"));
       return;
     }
     if (instrumentTypes.some((t) => t.name === trimmed)) {
-      setError("This instrument type already exists");
+      setError(translate("thisInstrumentTypeAlreadyExists"));
       return;
     }
     setError(null);
@@ -71,11 +75,11 @@ export function InstrumentTypeManagementModal({
     if (editingId === null) return;
     const trimmed = editName.trim().toLowerCase();
     if (!trimmed) {
-      setError("Name cannot be empty");
+      setError(translate("nameCannotBeEmpty"));
       return;
     }
     if (instrumentTypes.some((t) => t.name === trimmed && t.id !== editingId)) {
-      setError("This instrument type already exists");
+      setError(translate("thisInstrumentTypeAlreadyExists"));
       return;
     }
     setError(null);
@@ -139,7 +143,7 @@ export function InstrumentTypeManagementModal({
               margin: 0,
             }}
           >
-            MANAGE INSTRUMENT TYPES
+            {translate("manageInstrumentTypes")}
           </h2>
           <button
             onClick={onClose}
@@ -166,7 +170,7 @@ export function InstrumentTypeManagementModal({
                 setError(null);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="new instrument type..."
+              placeholder={translate("newInstrumentType")}
               style={{
                 flex: 1,
                 padding: "10px 12px",
@@ -194,7 +198,7 @@ export function InstrumentTypeManagementModal({
                 letterSpacing: "0.05em",
               }}
             >
-              ADD
+              {translate("add")}
             </button>
           </div>
           {error && (
@@ -260,7 +264,7 @@ export function InstrumentTypeManagementModal({
                       fontWeight: 700,
                     }}
                   >
-                    SAVE
+                    {translate("saveUpper")}
                   </button>
                   <button
                     onClick={cancelEdit}
@@ -274,7 +278,7 @@ export function InstrumentTypeManagementModal({
                       fontSize: "10px",
                     }}
                   >
-                    CANCEL
+                    {translate("cancel")}
                   </button>
                 </div>
               ) : (
@@ -303,7 +307,7 @@ export function InstrumentTypeManagementModal({
                           borderRadius: "2px",
                         }}
                       >
-                        DEFAULT
+                        {translate("default")}
                       </span>
                     )}
                   </div>
@@ -321,7 +325,7 @@ export function InstrumentTypeManagementModal({
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = "#22d3ee")}
                       onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}
-                      title="Edit"
+                      title={translate("edit")}
                     >
                       ✎
                     </button>
@@ -339,7 +343,7 @@ export function InstrumentTypeManagementModal({
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
                         onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}
-                        title="Delete"
+                        title={translate("delete")}
                       >
                         ✕
                       </button>
@@ -374,7 +378,7 @@ export function InstrumentTypeManagementModal({
               fontFamily: "'Courier New', monospace",
             }}
           >
-            CLOSE
+            {translate("close")}
           </button>
         </div>
       </div>

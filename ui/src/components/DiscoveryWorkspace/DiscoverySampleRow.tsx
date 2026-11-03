@@ -1,3 +1,6 @@
+import { formatDate } from "../../i18n/formatters";
+import { translate, instrumentName, translateLabel } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { DiscoverySample, ProjectDraft, ProjectStatus } from "../../types/discovery";
 
 type DiscoverySampleRowProps = {
@@ -20,33 +23,34 @@ type DiscoverySampleRowProps = {
 };
 
 export function DiscoverySampleRow({ entry, draft, onDraftChange, rank, playing, loading, projectView, busy, canAdd, onPlay, onDrag, onCompare, onSimilar, onAdd, onSave, onRemove }: DiscoverySampleRowProps) {
+  useTranslation();
   const { status, note } = draft;
   const sample = entry.sample;
   return <li className="discovery-row">
     <div className="discovery-row-main">
       {rank !== null && <span className="discovery-rank">{rank}</span>}
-      <button className="discovery-primary" onClick={onPlay} aria-label={`${playing ? "Stop" : "Preview"} ${sample.file_name}`} disabled={loading}>
-        {loading ? "Loading" : playing ? "Stop" : "Preview"}
+      <button className="discovery-primary" onClick={onPlay} aria-label={translate("samplePlaybackAction", { action: playing ? translate("stop") : translate("preview"), name: sample.file_name })} disabled={loading}>
+        {loading ? translate("loadingLabel") : playing ? translate("stop") : translate("preview")}
       </button>
-      <div className="discovery-name" draggable onDragStart={onDrag} title={`${sample.file_name}\n${entry.path}\nDrag to another app`}>
+      <div className="discovery-name" draggable onDragStart={onDrag} title={translate("dragSampleTooltip", { name: sample.file_name, path: entry.path })}>
         <strong>{sample.file_name}</strong>
-        <span>{sample.instrument_type} / {sample.playback_type} / {sample.bpm ?? "—"} BPM / {sample.duration.toFixed(2)}s / {sample.musical_key ?? "Unknown key"}</span>
+        <span>{instrumentName(sample.instrument_type)} / {translateLabel(sample.playback_type === "oneshot" ? "one-shot" : sample.playback_type)} / {sample.bpm ?? "—"} BPM / {sample.duration.toFixed(2)}s / {sample.musical_key ?? translate("unknownKey")}</span>
       </div>
       {rank !== null && <span className="discovery-count">{entry.count ?? 0}</span>}
     </div>
     <div className="discovery-row-actions">
-      <button onClick={() => onCompare("a")} aria-label={`Add ${sample.file_name} to comparison A`}>Compare A</button>
-      <button onClick={() => onCompare("b")} aria-label={`Add ${sample.file_name} to comparison B`}>Compare B</button>
-      <button onClick={onSimilar} aria-label={`Samples similar to ${sample.file_name}`}>Similar samples</button>
-      {!projectView && <button onClick={onAdd} disabled={!canAdd || busy}>Add to project</button>}
-      {entry.lastUsed !== null && <span className="discovery-muted">Last activity {new Date(entry.lastUsed * 1000).toLocaleDateString("en-US")}</span>}
+      <button onClick={() => onCompare("a")} aria-label={translate("addComparisonA", { name: sample.file_name })}>{translate("compareA")}</button>
+      <button onClick={() => onCompare("b")} aria-label={translate("addComparisonB", { name: sample.file_name })}>{translate("compareB")}</button>
+      <button onClick={onSimilar} aria-label={translate("samplesSimilarTo", { name: sample.file_name })}>{translate("similarSamples")}</button>
+      {!projectView && <button onClick={onAdd} disabled={!canAdd || busy}>{translate("addToProject")}</button>}
+      {entry.lastUsed !== null && <span className="discovery-muted">{translate("lastActivity")} {formatDate(new Date(entry.lastUsed * 1000))}</span>}
     </div>
     {projectView && <form className="discovery-toolbar" onSubmit={(e) => { e.preventDefault(); void onSave(status, note); }}>
-      <label>Adoption status<select aria-label="Adoption status" value={status} onChange={(e) => onDraftChange({ ...draft, status: e.target.value === "adopted" ? "adopted" : "candidate" })}>
-        <option value="candidate">Candidate</option><option value="adopted">Adopted</option>
+      <label>{translate("adoptionStatus")}<select aria-label={translate("adoptionStatus")} value={status} onChange={(e) => onDraftChange({ ...draft, status: e.target.value === "adopted" ? "adopted" : "candidate" })}>
+        <option value="candidate">{translate("candidate")}</option><option value="adopted">{translate("adopted")}</option>
       </select></label>
-      <label className="discovery-note">Notes<input maxLength={4000} value={note} onChange={(e) => onDraftChange({ ...draft, note: e.target.value })} /></label>
-      <button type="submit" disabled={busy}>Save</button><button type="button" onClick={onRemove} disabled={busy}>Remove from project</button>
+      <label className="discovery-note">{translate("notes")}<input maxLength={4000} value={note} onChange={(e) => onDraftChange({ ...draft, note: e.target.value })} /></label>
+      <button type="submit" disabled={busy}>{translate("save")}</button><button type="button" onClick={onRemove} disabled={busy}>{translate("removeFromProject")}</button>
     </form>}
   </li>;
 }

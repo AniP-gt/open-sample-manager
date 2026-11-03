@@ -1,3 +1,4 @@
+import { translate } from "../../i18n";
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Sample } from "../../types/sample";
@@ -87,7 +88,7 @@ export function useSampleMetadataState({
     }
 
     if (successCount === 0) {
-      setError("No sample metadata was updated successfully. The files may have been moved or deleted.");
+      setError(translate("noSampleMetadataWasUpdatedSuccessfullyTheFilesMay"));
       return;
     }
 

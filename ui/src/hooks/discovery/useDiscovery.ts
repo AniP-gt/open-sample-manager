@@ -1,3 +1,4 @@
+import { useMessageState } from "../../i18n/useMessageState";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Collection } from "../../types/collection";
@@ -22,8 +23,8 @@ export function useDiscovery({ view, instrument, favoriteIds }: {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
+  const [error, setError] = useMessageState();
+  const [message, setMessage] = useMessageState("");
   const [revision, setRevision] = useState(0);
   const request = useRef(0);
   const query = useMemo(() => ({ view, instrument: instrument || null, favorite_ids: favoriteIds }), [view, instrument, favoriteIds]);

@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import type WaveSurfer from "wavesurfer.js";
 
@@ -66,6 +68,7 @@ export function PitchShiftControl({
   wavesurfer,
   isPlaying,
 }: PitchShiftControlProps) {
+  useTranslation();
   const [semitones, setSemitones] = useState(0);
   const [ready, setReady] = useState(false);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
@@ -253,7 +256,7 @@ export function PitchShiftControl({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
       <span style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em" }}>
-        PITCH
+        {translate("pitch")}
       </span>
       <input
         type="range"
@@ -262,7 +265,7 @@ export function PitchShiftControl({
         step={1}
         value={semitones}
         disabled={sliderDisabled}
-        aria-label="Pitch shift in semitones"
+        aria-label={translate("pitchShiftInSemitones")}
         aria-valuetext={semitoneLabel}
         onChange={(e) => setSemitones(parseInt(e.target.value, 10))}
         style={{

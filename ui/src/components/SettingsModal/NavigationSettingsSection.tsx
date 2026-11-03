@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { SettingsSection } from "./SettingsSection";
 import { ToggleSetting } from "./ToggleSetting";
 
@@ -10,11 +12,12 @@ export function NavigationSettingsSection({
   directoryClickFiltering,
   onDirectoryClickFilteringChange,
 }: NavigationSettingsSectionProps) {
+  useTranslation();
   return (
-    <SettingsSection title="NAVIGATION" hasBottomMargin>
+    <SettingsSection title={translate("navigation")} hasBottomMargin>
       <ToggleSetting
-        title="Directory click filtering"
-        description="Filter list when clicking directories in the sidebar"
+        title={translate("directoryClickFiltering")}
+        description={translate("filterListWhenClickingDirectoriesInTheSidebar")}
         enabled={directoryClickFiltering}
         onChange={onDirectoryClickFilteringChange}
       />

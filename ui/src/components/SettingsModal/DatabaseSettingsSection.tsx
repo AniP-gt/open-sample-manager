@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { SettingsSection } from "./SettingsSection";
 
 type DatabaseSettingsSectionProps = {
@@ -15,14 +17,15 @@ export function DatabaseSettingsSection({
   databaseMigrationBusy,
   databaseMigrationStatus,
 }: DatabaseSettingsSectionProps) {
+  useTranslation();
   return (
-    <SettingsSection title="DATABASE" hasBottomMargin>
+    <SettingsSection title={translate("database")} hasBottomMargin>
       <div style={{ padding: "12px", background: "#080a0f", borderRadius: "2px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
           <div>
-            <div style={{ fontSize: "14px", color: "#d1d5db" }}>Sample Library</div>
+            <div style={{ fontSize: "14px", color: "#d1d5db" }}>{translate("sampleLibrary")}</div>
             <div style={{ fontSize: "12px", color: "var(--osm-secondary)", marginTop: "4px" }}>
-              {sampleCount} samples indexed
+              {sampleCount} {translate("samplesIndexed")}
             </div>
           </div>
           <button
@@ -33,13 +36,13 @@ export function DatabaseSettingsSection({
               fontFamily: "var(--osm-font)",
             }}
           >
-            CLEAR ALL
+            {translate("clearAll")}
           </button>
         </div>
         <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #1f2937" }}>
-          <div style={{ fontSize: "14px", color: "#d1d5db" }}>Library migration</div>
+          <div style={{ fontSize: "14px", color: "#d1d5db" }}>{translate("libraryMigration")}</div>
           <div style={{ fontSize: "12px", color: "var(--osm-secondary)", marginTop: "4px" }}>
-            Export metadata only. Import by selecting samples.db; audio and MIDI files must exist at the same paths on the target PC.
+            {translate("exportMetadataOnlyImportBySelectingSamplesDbAudio")}
           </div>
           {databaseMigrationStatus && (
             <div style={{ fontSize: "12px", color: "#f97316", marginTop: "8px" }}>{databaseMigrationStatus}</div>
@@ -54,7 +57,7 @@ export function DatabaseSettingsSection({
                 cursor: databaseMigrationBusy ? "not-allowed" : "pointer", fontFamily: "var(--osm-font)",
               }}
             >
-              EXPORT DB
+              {translate("exportDb")}
             </button>
             <button
               onClick={onDatabaseImport}
@@ -66,7 +69,7 @@ export function DatabaseSettingsSection({
                 fontFamily: "var(--osm-font)",
               }}
             >
-              IMPORT DB
+              {translate("importDb")}
             </button>
           </div>
         </div>

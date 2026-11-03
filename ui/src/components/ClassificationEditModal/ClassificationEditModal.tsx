@@ -1,3 +1,5 @@
+import { translate, instrumentName } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { InstrumentType, SampleType, Sample } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 
@@ -42,6 +44,7 @@ export function ClassificationEditModal({
   onClose,
   onManageClick,
 }: ClassificationEditModalProps) {
+  useTranslation();
   const options = instrumentTypes.length > 0 ? instrumentTypes : DEFAULT_INSTRUMENT_TYPES;
 
   if (!isOpen || !sample) return null;
@@ -94,7 +97,7 @@ export function ClassificationEditModal({
               margin: 0,
             }}
           >
-            {isBulk ? `EDIT MULTIPLE (${targetIds.length})` : "EDIT CLASSIFICATION"}
+            {isBulk ? translate("editMultipleCount", { count: targetIds.length }) : translate("editClassification")}
           </h2>
           <button
             onClick={onClose}
@@ -122,7 +125,7 @@ export function ClassificationEditModal({
             wordBreak: "break-all",
           }}
         >
-          {isBulk ? `${targetIds.length} samples selected` : sample.file_name}
+          {isBulk ? translate("selectedSamples", { count: targetIds.length }) : sample.file_name}
         </div>
 
         <div style={{ marginBottom: "24px" }}>
@@ -134,7 +137,7 @@ export function ClassificationEditModal({
               marginBottom: "12px",
             }}
           >
-            CLASS TYPE
+            {translate("classType")}
           </h3>
           <div style={{ display: "flex", gap: "8px" }}>
             {SAMPLE_TYPE_OPTIONS.map((option) => (
@@ -176,7 +179,7 @@ export function ClassificationEditModal({
                 margin: 0,
               }}
             >
-              INSTRUMENT TYPE
+              {translate("instrumentType")}
             </h3>
             {onManageClick && (
               <button
@@ -193,7 +196,7 @@ export function ClassificationEditModal({
                   borderRadius: "2px",
                 }}
               >
-                MANAGE
+                {translate("manageUpper")}
               </button>
             )}
           </div>
@@ -224,7 +227,7 @@ export function ClassificationEditModal({
                   transition: "all 0.15s ease",
                 }}
               >
-                {option.toUpperCase()}
+                {instrumentName(option).toUpperCase()}
               </button>
             ))}
           </div>
@@ -245,7 +248,7 @@ export function ClassificationEditModal({
               fontFamily: "'Courier New', monospace",
             }}
           >
-            CANCEL
+            {translate("cancel")}
           </button>
           <button
             onClick={onSave}
@@ -262,7 +265,7 @@ export function ClassificationEditModal({
               fontWeight: 700,
             }}
           >
-            SAVE
+            {translate("saveUpper")}
           </button>
         </div>
       </div>

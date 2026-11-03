@@ -1,3 +1,5 @@
+import { translate } from "../i18n";
+import { useTranslation } from "react-i18next";
 import {
   AppErrorBanner, AppMainPane, AppModals, FreesoundWorkspace, Header, PlayerBar, RescanPrompt, ScannerOverlay, SettingsModal,
 } from "../components";
@@ -9,13 +11,14 @@ import type { useAppRuntime } from "./useAppRuntime";
 type AppViewProps = { readonly runtime: ReturnType<typeof useAppRuntime> };
 
 export function AppView({ runtime }: AppViewProps) {
+  useTranslation();
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const showDiscovery = discoveryOpen && runtime.uiState.viewMode === "sample";
   const { autoPlayOnSelect, collectionState, derivedState, directoryClickFiltering, externalApiCommands, freesoundWorkspace, freesoundWorkspaceActive, handleSampleSelectWithRecent, handleViewModeChange, instrumentColorCoding, libraryMigration, midiState, openFreesoundWorkspace, providerBrowser, providerBrowserMode, providerDownloadRoot, providerDownloadRootPicker, sampleListRef, sampleState, scanState, setAutoPlayOnSelect, setInstrumentColorCoding, setDirectoryClickFiltering, setPlayerBarRef, setProviderBrowserMode, setProviderDownloadRoot, setShowSampleMetadataQuality, showBackToSources, showProviderHistoryControls, showSampleMetadataQuality, uiState, playerBarRef, midiListRef } = runtime;
   return <div className="osm-app" style={{ background: "#080a0f", height: "100vh", fontFamily: "var(--osm-font)", color: "#e2e8f0", display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
     <Header sampleCount={sampleState.samples.length} scanned={scanState.scanned} isDragOver={uiState.isDragOver} onBackToSources={() => { void runtime.clearActiveProvider(); }} onGoBack={() => { void providerBrowser.goBack(); }} onGoForward={() => { void providerBrowser.goForward(); }} viewMode={uiState.viewMode} onViewModeChange={handleViewModeChange} onScanClick={() => { void scanState.handleScanClick(); }} onReScanClick={() => { void scanState.handleReScanClick(); }} onSettingsClick={() => uiState.setSettingsOpen(true)} onReload={() => { void sampleState.handleSearch(sampleState.filters.search); }} showBackToSources={showBackToSources} showProviderHistoryControls={showProviderHistoryControls} />
     <RescanPrompt isOpen={scanState.rescanPromptOpen} path={scanState.rescanPendingPath} isIncremental={true} onRescan={async () => { if (!scanState.rescanPendingPath) return; scanState.setRescanPromptOpen(false); await scanState.performScan(scanState.rescanPendingPath); scanState.setRescanPendingPath(null); }} onSkip={() => { scanState.setRescanPendingPath(null); scanState.setRescanPromptOpen(false); }} />
-    {!showDiscovery && uiState.viewMode === "sample" && <div className="discovery-entry"><button onClick={() => { playerBarRef.current?.stop(); setDiscoveryOpen(true); }}>Explore samples</button></div>}
+    {!showDiscovery && uiState.viewMode === "sample" && <div className="discovery-entry"><button onClick={() => { playerBarRef.current?.stop(); setDiscoveryOpen(true); }}>{translate("exploreSamples")}</button></div>}
     <AppErrorBanner error={scanState.error} onRetry={() => { void sampleState.handleRetry(); }} />
     {scanState.scanning && <ScannerOverlay progress={scanState.scanProgress} onDone={() => {}} />}
     {!showDiscovery && <>

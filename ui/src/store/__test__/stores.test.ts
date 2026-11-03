@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFavoritesStore } from "../useFavoritesStore";
 import { useMidiFavoritesStore } from "../useMidiFavoritesStore";
 import { useRecentStore } from "../useRecentStore";
@@ -11,6 +11,7 @@ describe("persisted UI stores", () => {
     useMidiFavoritesStore.setState({ favorites: [] });
     useRecentStore.setState({ recentIds: [] });
     useSettingsStore.setState({
+      language: "en",
       autoPlayOnSelect: false,
       instrumentColorCoding: false,
       directoryClickFiltering: true,
@@ -18,6 +19,30 @@ describe("persisted UI stores", () => {
       providerDownloadRoot: null,
       providerBrowserMode: "window",
     });
+  });
+
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it.each(["en", "ja"] as const)("restores the saved language %s", async (language) => {
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["en-US"]);
+    localStorage.setItem("osm_settings", JSON.stringify({ state: { language, autoPlayOnSelect: true }, version: 0 }));
+
+    await useSettingsStore.persist.rehydrate();
+
+    expect(useSettingsStore.getState().language).toBe(language);
+    expect(useSettingsStore.getState().autoPlayOnSelect).toBe(true);
+  });
+
+  it.each([undefined, "fr", null])("defaults a missing or unsupported language (%s) to English on a Japanese device without losing old preferences", async (language) => {
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["ja-JP", "en-US"]);
+    localStorage.setItem("osm_settings", JSON.stringify({ state: { language, autoPlayOnSelect: true, providerDownloadRoot: "/Samples" }, version: 0 }));
+
+    await useSettingsStore.persist.rehydrate();
+
+    expect(useSettingsStore.getState().language).toBe("en");
+    expect(useSettingsStore.getState().autoPlayOnSelect).toBe(true);
+    expect(useSettingsStore.getState().providerDownloadRoot).toBe("/Samples");
+    expect(useSettingsStore.getState().showSampleMetadataQuality).toBe(true);
   });
 
   it("toggles favorites and clears them", () => {

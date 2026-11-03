@@ -1,4 +1,5 @@
 import type { Sample } from "../types/sample";
+import { commandErrorSource } from "../i18n/errorSource";
 import type { TauriSampleRow } from "../types/tauri";
 
 export type EmbeddingSampleRow = Omit<
@@ -176,6 +177,8 @@ export const mapRowToSample = (row: TauriSampleRow): Sample => {
 };
 
 export const getErrorMessage = (error: unknown): string => {
+  const source = commandErrorSource(error);
+  if (source !== null) return source;
   if (error instanceof Error) {
     return error.message;
   }

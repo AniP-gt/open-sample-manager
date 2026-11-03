@@ -1,3 +1,6 @@
+import { useMessageState } from "../../i18n/useMessageState";
+import { translate, translateLabel } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { startSampleDrag } from "../fileDragOut";
@@ -22,6 +25,7 @@ const tabs: readonly { readonly id: Tab; readonly label: string }[] = [
 ];
 
 export function DiscoveryWorkspace({ selected, onClose }: { readonly selected: { readonly sample: Sample; readonly path: string } | null; readonly onClose: () => void }) {
+  useTranslation();
   const [tab, setTab] = useState<Tab>("ranking");
   const [metric, setMetric] = useState<RankingMetric>("preview");
   const [days, setDays] = useState<number | null>(30);
@@ -37,7 +41,7 @@ export function DiscoveryWorkspace({ selected, onClose }: { readonly selected: {
   const [a, setA] = useState<DiscoverySample | null>(null);
   const [b, setB] = useState<DiscoverySample | null>(null);
   const [normalized, setNormalized] = useState(true);
-  const [dragError, setDragError] = useState<string | null>(null);
+  const [dragError, setDragError] = useMessageState();
   const dragBusy = useRef(false);
   const favoriteIds = useFavoritesStore((state) => state.favorites);
   const view = useMemo((): DiscoveryView => {
@@ -66,52 +70,52 @@ export function DiscoveryWorkspace({ selected, onClose }: { readonly selected: {
     finally { dragBusy.current = false; }
   };
 
-  return <main className="discovery" aria-label="Explore samples">
-    <header className="discovery-heading"><h1>Explore samples</h1><button onClick={onClose}>Back to library</button></header>
-    <nav className="discovery-tabs" aria-label="Sample discovery navigation">{tabs.map((item) => <button key={item.id} aria-pressed={tab === item.id} onClick={() => { audio.stop(); setInstrument(""); setTab(item.id); }}>{item.label}</button>)}</nav>
+  return <main className="discovery" aria-label={translate("exploreSamples")}>
+    <header className="discovery-heading"><h1>{translate("exploreSamples")}</h1><button onClick={onClose}>{translate("backToLibrary")}</button></header>
+    <nav className="discovery-tabs" aria-label={translate("sampleDiscoveryNavigation")}>{tabs.map((item) => <button key={item.id} aria-pressed={tab === item.id} onClick={() => { audio.stop(); setInstrument(""); setTab(item.id); }}>{translateLabel(item.label)}</button>)}</nav>
     <div className="discovery-body">
-      {tab === "ranking" && <section aria-label="Ranking filters">
-        <div className="discovery-toolbar"><label>Metric<select aria-label="Metric" value={metric} onChange={(e) => { const v = e.target.value; if (v === "preview" || v === "export" || v === "adopted") setMetric(v); }}>
-          <option value="preview">Previews</option><option value="export">Exports</option><option value="adopted">Adopted projects</option>
-        </select></label><label>Period<select aria-label="Period" value={days ?? "all"} onChange={(e) => setDays(e.target.value === "all" ? null : Number(e.target.value))}>
-          <option value="30">Last 30 days</option><option value="all">All time</option></select></label>
-          <InstrumentSelect value={instrument} onChange={setInstrument} /><button onClick={state.refresh} disabled={state.loading}>Refresh</button>
+      {tab === "ranking" && <section aria-label={translate("rankingFilters")}>
+        <div className="discovery-toolbar"><label>{translate("metric")}<select aria-label={translate("metric")} value={metric} onChange={(e) => { const v = e.target.value; if (v === "preview" || v === "export" || v === "adopted") setMetric(v); }}>
+          <option value="preview">{translate("previews")}</option><option value="export">{translate("exports")}</option><option value="adopted">{translate("adoptedProjects")}</option>
+        </select></label><label>{translate("period")}<select aria-label={translate("period")} value={days ?? "all"} onChange={(e) => setDays(e.target.value === "all" ? null : Number(e.target.value))}>
+          <option value="30">{translate("last30Days")}</option><option value="all">{translate("allTime")}</option></select></label>
+          <InstrumentSelect value={instrument} onChange={setInstrument} /><button onClick={state.refresh} disabled={state.loading}>{translate("refresh")}</button>
         </div>
-        <p className="discovery-muted">Usage is tracked from this version onward. Repeated actions on the same sample within 5 seconds count once. Exports count completed drops; adoption counts projects where the sample is currently adopted.</p>
+        <p className="discovery-muted">{translate("usageIsTrackedFromThisVersionOnwardRepeatedActions")}</p>
       </section>}
-      {tab === "projects" && <section aria-label="Project management">
+      {tab === "projects" && <section aria-label={translate("projectManagement")}>
         <form className="discovery-toolbar" onSubmit={(e) => { e.preventDefault(); void state.mutate(async () => { const id = await invoke<unknown>("create_project_shelf", { name: projectName }); if (typeof id !== "number") throw new Error("Invalid project ID"); setProjectId(id); setProjectName(""); }, "Project created."); }}>
-          <label>New project<input value={projectName} maxLength={120} required onChange={(e) => setProjectName(e.target.value)} /></label><button disabled={state.busy}>Create</button>
-        </form><p className="discovery-muted">Existing collections can also serve as project shelves.</p>
+          <label>{translate("newProject")}<input value={projectName} maxLength={120} required onChange={(e) => setProjectName(e.target.value)} /></label><button disabled={state.busy}>{translate("create")}</button>
+        </form><p className="discovery-muted">{translate("existingCollectionsCanAlsoServeAsProjectShelves")}</p>
       </section>}
       {tab !== "compare" && <div className="discovery-toolbar">
-        <label>{tab === "projects" ? "Project" : "Add to project"}<select aria-label={tab === "projects" ? "Project" : "Add to project"} value={projectId ?? ""} onChange={(e) => setProjectId(e.target.value === "" ? null : Number(e.target.value))}>
-          <option value="">{tab === "projects" ? "Select a project" : state.projects[0]?.name ?? "Create a project first"}</option>
+        <label>{tab === "projects" ? translate("project") : translate("addToProject")}<select aria-label={tab === "projects" ? translate("project") : translate("addToProject")} value={projectId ?? ""} onChange={(e) => setProjectId(e.target.value === "" ? null : Number(e.target.value))}>
+          <option value="">{tab === "projects" ? translate("selectAProject") : state.projects[0]?.name ?? translate("createAProjectFirst")}</option>
           {state.projects.map((project) => <option key={project.id} value={project.id}>{project.name} ({project.sample_count})</option>)}
         </select></label>
-        {selectedEntry && <button disabled={targetProject === null || state.busy} onClick={() => { if (targetProject !== null) void state.addMember(selectedEntry, targetProject); }}>Add library selection</button>}
+        {selectedEntry && <button disabled={targetProject === null || state.busy} onClick={() => { if (targetProject !== null) void state.addMember(selectedEntry, targetProject); }}>{translate("addLibrarySelection")}</button>}
       </div>}
-      {tab === "smart" && <section aria-label="Smart collection settings">
-        <div className="discovery-toolbar"><label>Saved rules<select aria-label="Saved rules" value={savedId ?? ""} onChange={(e) => { const saved = state.saved.find((item) => item.id === Number(e.target.value)); setSavedId(saved?.id ?? null); if (saved) { setRules(saved.rules); setRuleName(saved.name); } }}>
-          <option value="">New rules</option>{state.saved.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <button disabled={savedId === null || state.busy} onClick={() => { if (savedId !== null) void state.mutate(() => invoke("delete_smart_collection", { id: savedId }), "Saved rules deleted.").then((ok) => { if (ok) { setSavedId(null); setRuleName(""); } }); }}>Delete rules</button>
+      {tab === "smart" && <section aria-label={translate("smartCollectionSettings")}>
+        <div className="discovery-toolbar"><label>{translate("savedRules")}<select aria-label={translate("savedRules")} value={savedId ?? ""} onChange={(e) => { const saved = state.saved.find((item) => item.id === Number(e.target.value)); setSavedId(saved?.id ?? null); if (saved) { setRules(saved.rules); setRuleName(saved.name); } }}>
+          <option value="">{translate("newRules")}</option>{state.saved.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <button disabled={savedId === null || state.busy} onClick={() => { if (savedId !== null) void state.mutate(() => invoke("delete_smart_collection", { id: savedId }), "Saved rules deleted.").then((ok) => { if (ok) { setSavedId(null); setRuleName(""); } }); }}>{translate("deleteRules")}</button>
         </div>
         <RuleFields rules={rules} onChange={setRules} />
         <form className="discovery-toolbar" onSubmit={(e) => { e.preventDefault(); void state.saveRule(ruleName, rules); }}>
-          <label>Rule name<input required maxLength={120} value={ruleName} onChange={(e) => setRuleName(e.target.value)} /></label><button disabled={state.busy}>Save rules</button>
-        </form><p className="discovery-muted">Searches the entire library and reflects changes to samples and favorites.</p><p className="discovery-muted">Saving with the same name updates the existing rules.</p>
+          <label>{translate("ruleName")}<input required maxLength={120} value={ruleName} onChange={(e) => setRuleName(e.target.value)} /></label><button disabled={state.busy}>{translate("saveRules")}</button>
+        </form><p className="discovery-muted">{translate("searchesTheEntireLibraryAndReflectsChangesToSamples")}</p><p className="discovery-muted">{translate("savingWithTheSameNameUpdatesTheExistingRules")}</p>
       </section>}
-      {tab === "rediscover" && <section aria-label="Rediscovery filters"><label>Find samples<select aria-label="Find samples" value={forgotten ? "forgotten" : "unplayed"} onChange={(e) => setForgotten(e.target.value === "forgotten")}>
-        <option value="unplayed">Unplayed since tracking began</option><option value="forgotten">Favorites inactive for 90+ days</option></select></label>
-        <p className="discovery-muted">Favorites without recorded activity are included. Usage outside this app is not tracked.</p></section>}
-      {tab === "similar" && <section aria-label="Similarity settings"><h2>Similar samples</h2><p className="discovery-break">Reference: {similar?.sample.file_name ?? "Select a sample in the library or choose Similar samples in the list."}</p>
-        {selected && <button onClick={() => setSimilar(selected)}>Use library selection as reference</button>}
-        <p className="discovery-muted">Ranks samples of the same instrument and playback type by BPM, duration, low-frequency ratio, and key. Similarity does not guarantee a matching timbre.</p></section>}
+      {tab === "rediscover" && <section aria-label={translate("rediscoveryFilters")}><label>{translate("findSamples")}<select aria-label={translate("findSamples")} value={forgotten ? "forgotten" : "unplayed"} onChange={(e) => setForgotten(e.target.value === "forgotten")}>
+        <option value="unplayed">{translate("unplayedSinceTrackingBegan")}</option><option value="forgotten">{translate("favoritesInactiveFor90Days")}</option></select></label>
+        <p className="discovery-muted">{translate("favoritesWithoutRecordedActivityAreIncludedUsageOutsideThis")}</p></section>}
+      {tab === "similar" && <section aria-label={translate("similaritySettings")}><h2>{translate("similarSamples")}</h2><p className="discovery-break">{translate("reference")} {similar?.sample.file_name ?? translate("selectASampleInTheLibraryOrChooseSimilar")}</p>
+        {selected && <button onClick={() => setSimilar(selected)}>{translate("useLibrarySelectionAsReference")}</button>}
+        <p className="discovery-muted">{translate("ranksSamplesOfTheSameInstrumentAndPlaybackType")}</p></section>}
       {tab === "compare" ? <ComparisonPanel a={a} b={b} audio={audio} normalized={normalized} onNormalizedChange={setNormalized} onClear={(slot) => { if (slot === "a") setA(null); else setB(null); }} /> : <>
-        <div className="discovery-results-heading"><h2>{tabs.find((item) => item.id === tab)?.label}</h2><span>{state.rows.length}{state.hasMore ? "+" : ""} {state.rows.length === 1 ? "sample" : "samples"}</span>
-          {(a || b) && <button onClick={() => { audio.stop(); setTab("compare"); }}>Open A/B comparison</button>}</div>
-        {state.loading && <p role="status">Loading samples…</p>}
-        {!state.loading && !state.error && state.rows.length === 0 && <p>No matching samples. Adjust the filters or preview samples in the library.</p>}
+        <div className="discovery-results-heading"><h2>{translateLabel(tabs.find((item) => item.id === tab)?.label ?? "")}</h2><span>{translate("sampleCount", { count: state.rows.length })}{state.hasMore ? "+" : ""}</span>
+          {(a || b) && <button onClick={() => { audio.stop(); setTab("compare"); }}>{translate("openABComparison")}</button>}</div>
+        {state.loading && <p role="status">{translate("loadingSamples")}</p>}
+        {!state.loading && !state.error && state.rows.length === 0 && <p>{translate("noMatchingSamplesAdjustTheFiltersOrPreviewSamples")}</p>}
         <ol className="discovery-results">{state.rows.map((entry, index) => <DiscoverySampleRow key={entry.sample.id} entry={entry} draft={drafts.getDraft(entry)} onDraftChange={(draft) => drafts.updateDraft(entry, draft)} rank={tab === "ranking" ? index + 1 : null} playing={audio.playingId === entry.sample.id} loading={audio.loadingId === entry.sample.id} busy={state.busy} projectView={tab === "projects"} canAdd={targetProject !== null}
           onPlay={() => { if (audio.playingId === entry.sample.id) audio.stop(); else void audio.play(entry, false); }}
           onDrag={(event) => { void drag(event, entry); }}
@@ -121,10 +125,10 @@ export function DiscoveryWorkspace({ selected, onClose }: { readonly selected: {
           onSave={(status, note) => projectId !== null ? state.saveMember(entry, projectId, status, note) : Promise.resolve(false)}
           onRemove={() => { if (projectId !== null) void state.mutate(() => invoke("remove_project_member", { collectionId: projectId, sampleId: entry.sample.id }), "Sample removed from project.").then((ok) => { if (ok) drafts.clearDraft(entry); }); }}
         />)}</ol>
-        {state.hasMore && <button disabled={state.loading} onClick={() => { void state.loadMore(); }}>Load 100 more</button>}
+        {state.hasMore && <button disabled={state.loading} onClick={() => { void state.loadMore(); }}>{translate("load100More")}</button>}
       </>}
       {state.message && <p role="status">{state.message}</p>}
-      {(state.error || audio.error || dragError) && <div role="alert"><p>{state.error ?? audio.error ?? dragError}</p><button onClick={state.refresh}>Retry</button></div>}
+      {(state.error || audio.error || dragError) && <div role="alert"><p>{state.error ?? audio.error ?? dragError}</p><button onClick={state.refresh}>{translate("retry")}</button></div>}
     </div>
   </main>;
 }

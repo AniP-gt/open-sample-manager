@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Sample } from "../../types/sample";
 
 type MetadataField = "source" | "packName" | "license" | "licenseUrl" | "licenseMemo";
@@ -45,6 +47,7 @@ export function SampleMetadataEditModal({
   onSave,
   onClose,
 }: SampleMetadataEditModalProps) {
+  useTranslation();
   if (!isOpen || !sample) return null;
 
   const isBulk = targetIds.length > 1;
@@ -87,7 +90,7 @@ export function SampleMetadataEditModal({
           }}
         >
           <h2 style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.1em", color: "#f1f5f9", margin: 0 }}>
-            {isBulk ? `EDIT METADATA (${targetIds.length})` : "EDIT METADATA"}
+            {isBulk ? translate("editMetadataCount", { count: targetIds.length }) : translate("editMetadata")}
           </h2>
           <button
             onClick={onClose}
@@ -98,30 +101,30 @@ export function SampleMetadataEditModal({
         </div>
 
         <div style={{ fontSize: "13px", color: "#9ca3af", marginBottom: "18px", padding: "12px", background: "#080a0f", borderRadius: "2px", wordBreak: "break-all" }}>
-          {isBulk ? `${targetIds.length} samples selected` : sample.file_name}
+          {isBulk ? translate("selectedSamples", { count: targetIds.length }) : sample.file_name}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
           <label>
-            <span style={labelStyle}>SOURCE</span>
+            <span style={labelStyle}>{translate("source")}</span>
             <input value={form.source} onChange={(e) => onFieldChange("source", e.target.value)} style={inputStyle} />
           </label>
           <label>
-            <span style={labelStyle}>PACK</span>
+            <span style={labelStyle}>{translate("pack")}</span>
             <input value={form.packName} onChange={(e) => onFieldChange("packName", e.target.value)} style={inputStyle} />
           </label>
           <label>
-            <span style={labelStyle}>LICENSE</span>
+            <span style={labelStyle}>{translate("licenseUpper")}</span>
             <input value={form.license} onChange={(e) => onFieldChange("license", e.target.value)} style={inputStyle} />
           </label>
           <label>
-            <span style={labelStyle}>LICENSE URL</span>
+            <span style={labelStyle}>{translate("licenseUrl")}</span>
             <input value={form.licenseUrl} onChange={(e) => onFieldChange("licenseUrl", e.target.value)} style={inputStyle} />
           </label>
         </div>
 
         <label>
-          <span style={labelStyle}>MEMO</span>
+          <span style={labelStyle}>{translate("memo")}</span>
           <textarea
             value={form.licenseMemo}
             onChange={(e) => onFieldChange("licenseMemo", e.target.value)}
@@ -135,13 +138,13 @@ export function SampleMetadataEditModal({
             onClick={onClose}
             style={{ fontSize: "12px", letterSpacing: "0.1em", background: "transparent", color: "#6b7280", border: "1px solid #1f2937", padding: "10px 20px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace" }}
           >
-            CANCEL
+            {translate("cancel")}
           </button>
           <button
             onClick={onSave}
             style={{ fontSize: "12px", letterSpacing: "0.1em", background: "#22d3ee", color: "#080a0f", border: "none", padding: "10px 20px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontWeight: 700 }}
           >
-            SAVE
+            {translate("saveUpper")}
           </button>
         </div>
       </div>

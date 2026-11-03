@@ -1,3 +1,5 @@
+import { translate } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 import type { MidiTagRow } from "../../../types/midi";
 import { KEY_FILTER_OPTIONS } from "../../../utils/keyOptions";
 
@@ -47,6 +49,7 @@ export function MidiListSearch({
   filteredCount,
   totalCount,
 }: MidiListSearchProps) {
+  useTranslation();
   return (
     <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2">
@@ -61,56 +64,56 @@ export function MidiListSearch({
             onMidiSearchSubmit();
           }
         }}
-        placeholder="Search by filename..."
+        placeholder={translate("searchByFilename")}
         style={{ flex: "1 1 220px", minWidth: "160px", fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
       />
       <button
         type="button"
-        aria-label="Search MIDI files"
+        aria-label={translate("searchMidiFiles")}
         onClick={onMidiSearchSubmit}
         style={{ ...controlStyle, cursor: "pointer", color: "#f97316" }}
       >
-        Search
+        {translate("search")}
       </button>
       <input
         type="number"
         value={tempoMin}
         onChange={(e) => onTempoMinChange(e.target.value)}
-        placeholder="BPM MIN"
-        aria-label="MIDI BPM minimum"
+        placeholder={translate("bpmMin")}
+        aria-label={translate("midiBpmMinimum")}
         style={{ ...controlStyle, width: "78px" }}
       />
       <input
         type="number"
         value={tempoMax}
         onChange={(e) => onTempoMaxChange(e.target.value)}
-        placeholder="BPM MAX"
-        aria-label="MIDI BPM maximum"
+        placeholder={translate("bpmMax")}
+        aria-label={translate("midiBpmMaximum")}
         style={{ ...controlStyle, width: "78px" }}
       />
       <select
         value={filterKey}
         onChange={(e) => onFilterKeyChange?.(e.target.value)}
-        aria-label="MIDI key filter"
+        aria-label={translate("midiKeyFilter")}
         style={{ ...controlStyle, width: "74px" }}
       >
         {KEY_FILTER_OPTIONS.map((key) => (
-          <option key={key || "all"} value={key}>{key || "KEY"}</option>
+          <option key={key || "all"} value={key}>{key || translate("keyUpper")}</option>
         ))}
       </select>
       <select
         value={tagFilterId ?? ""}
         onChange={(e) => onTagFilterChange?.(e.target.value ? Number(e.target.value) : null)}
-        aria-label="MIDI tag filter"
+        aria-label={translate("midiTagFilter")}
         style={{ ...controlStyle, width: "104px" }}
       >
-        <option value="">TAG</option>
+        <option value="">{translate("tag")}</option>
         {midiTags.map((tag) => (
           <option key={tag.id} value={tag.id}>{tag.name}</option>
         ))}
       </select>
       <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
-        {filteredCount}/{totalCount} RESULTS
+        {filteredCount}/{totalCount} {translate("resultsUpper")}
       </span>
     </div>
   );

@@ -1,3 +1,4 @@
+import { translate } from "../../i18n";
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { InstrumentTypeRow, Sample, SampleType } from "../../types/sample";
@@ -77,7 +78,7 @@ export function useSampleClassificationState({
     }
 
     if (successCount === 0) {
-      setError("No samples were updated successfully. They may have been moved or deleted.");
+      setError(translate("noSamplesWereUpdatedSuccessfullyTheyMayHaveBeen"));
       return;
     }
 

@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -8,6 +8,7 @@ import { stat } from "@tauri-apps/plugin-fs";
 import type { FilterState, Sample } from "../../types/sample";
 import type { Midi } from "../../types/midi";
 import { useScanState } from "../useScanState";
+import { useSettingsStore } from "../../store/useSettingsStore";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
@@ -57,7 +58,9 @@ const renderScanHook = (overrides: Partial<Parameters<typeof useScanState>[0]> =
 };
 
 describe("useScanState", () => {
+  afterEach(() => { act(() => { useSettingsStore.getState().setLanguage("en"); }); });
   beforeEach(() => {
+    useSettingsStore.getState().setLanguage("en");
     invokeMock.mockReset();
     listenMock.mockReset();
     openMock.mockReset();
@@ -67,6 +70,23 @@ describe("useScanState", () => {
       if (command === "list_midis_paginated") return [{ id: 1, path: "/m/a.mid" }] as Midi[];
       return 1;
     });
+  });
+
+  it("keeps an in-flight scan running once when the language changes", async () => {
+    let finishScan: ((count: number) => void) | undefined;
+    const pendingScan = new Promise<number>((resolve) => { finishScan = resolve; });
+    invokeMock.mockImplementation(async (command) => command === "scan_directory" ? pendingScan : []);
+    const { result } = renderScanHook({ viewMode: "sample" });
+    let scanTask: Promise<void> | undefined;
+    act(() => { scanTask = result.current.performScan("/samples"); });
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("scan_directory", { path: "/samples" }));
+
+    act(() => { useSettingsStore.getState().setLanguage("ja"); });
+
+    expect(result.current.scanning).toBe(true);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_directory")).toHaveLength(1);
+    await act(async () => { finishScan?.(1); await scanTask; });
+    expect(result.current.scanning).toBe(false);
   });
 
   it("performs sample and MIDI scans then refreshes lists", async () => {

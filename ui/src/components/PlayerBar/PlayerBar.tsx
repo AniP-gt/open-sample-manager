@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import type WaveSurfer from "wavesurfer.js";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
@@ -36,6 +37,7 @@ export const PlayerBar = forwardRef<PlayerBarHandle, PlayerBarProps>(function Pl
   onProcessingSettingsReset,
   onProcessingSettingsClear,
 }, ref) {
+  useTranslation();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSpectrogram, setShowSpectrogram] = useState(false);
   const [wavesurferInstance, setWavesurferInstance] = useState<WaveSurfer | null>(null);

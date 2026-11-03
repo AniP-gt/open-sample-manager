@@ -1,3 +1,5 @@
+import { translate } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 interface MidiListEmptyProps {
   midiSearch: string;
   appliedMidiSearch: string;
@@ -11,6 +13,7 @@ export function MidiListEmpty({
   onMidiSearchChange,
   onMidiSearchSubmit,
 }: MidiListEmptyProps) {
+  useTranslation();
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#0a0c12" }}>
       <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
@@ -26,16 +29,16 @@ export function MidiListEmpty({
               onMidiSearchSubmit();
             }
           }}
-          placeholder="Search by filename..."
+          placeholder={translate("searchByFilename")}
           style={{ flex: 1, fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
         />
         <button
           type="button"
-          aria-label="Search MIDI files"
+          aria-label={translate("searchMidiFiles")}
           onClick={onMidiSearchSubmit}
           style={{ background: "#0f1117", border: "1px solid #1f2937", color: "#f97316", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}
         >
-          Search
+          {translate("search")}
         </button>
       </div>
       <div
@@ -50,8 +53,8 @@ export function MidiListEmpty({
         }}
       >
         {appliedMidiSearch.trim()
-          ? `No results for '${appliedMidiSearch}'`
-          : "No MIDI files indexed. Switch to Sample List or scan a directory containing MIDI files."}
+          ? translate("noMidiSearchResults", { query: appliedMidiSearch })
+          : translate("noMidiFilesIndexedSwitchToSampleListOr")}
       </div>
     </div>
   );

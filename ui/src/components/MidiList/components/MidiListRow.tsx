@@ -1,3 +1,5 @@
+import { translate } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type React from "react";
 import type { Midi } from "../../../types/midi";
@@ -37,6 +39,7 @@ export function MidiListRow({
   preparedPathsRef,
   dragIconPathRef,
 }: MidiListRowProps) {
+  useTranslation();
   const [toast, setToast] = useState<{ message: string; visible: boolean; midiId: number | null }>({ message: "", visible: false, midiId: null });
 
   return (
@@ -81,7 +84,7 @@ export function MidiListRow({
           color: isFavorite ? "#f6e05e" : "#4b5563",
           fontSize: "22px",
         }}
-        title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+        title={isFavorite ? translate("removeFromFavorites") : translate("addToFavorites")}
       >
         {isFavorite ? "★" : "☆"}
       </div>
@@ -114,7 +117,7 @@ export function MidiListRow({
           style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-          title="Show in Finder"
+          title={translate("showInFinder")}
         >📂</button>
         <button
           onMouseDown={(e) => e.stopPropagation()}
@@ -122,20 +125,20 @@ export function MidiListRow({
             e.stopPropagation();
             const path = midi.path;
             if (path) {
-              try { await invoke("copy_to_clipboard", { text: path }); setToast({ message: "Path copied!", visible: true, midiId: midi.id }); }
-              catch (err) { console.error("Clipboard write failed:", err); setToast({ message: "Copy failed", visible: true, midiId: midi.id }); }
+              try { await invoke("copy_to_clipboard", { text: path }); setToast({ message: translate("pathCopied"), visible: true, midiId: midi.id }); }
+              catch (err) { console.error("Clipboard write failed:", err); setToast({ message: translate("copyFailed"), visible: true, midiId: midi.id }); }
               setTimeout(() => setToast((p) => ({ ...p, visible: false, midiId: null })), 1500);
             }
           }}
           style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.transform = "scale(1.15)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "#6b7280"; e.currentTarget.style.transform = "scale(1)"; }}
-          title="Copy Full Path"
+          title={translate("copyFullPath")}
         >📋</button>
         {toast.visible && toast.midiId === midi.id && (
           <div style={{ position: "absolute", right: "60px", background: "#1f2937", color: "#22c55e", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontFamily: "'Courier New', monospace", zIndex: 100, border: "1px solid #22c55e", whiteSpace: "nowrap", animation: "fadeIn 0.15s ease" }}>{toast.message}</div>
         )}
-        <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onTrashMidi?.(midi.id); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }} title="Send to Trash">🗑</button>
+        <button onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onTrashMidi?.(midi.id); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px", fontSize: "14px", transition: "color 0.15s, transform 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.transform = "scale(1.15)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.transform = "scale(1)"; }} title={translate("sendToTrash")}>🗑</button>
       </div>
     </div>
   );

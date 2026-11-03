@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { ViewMode } from "../../types/viewMode";
 import { HeaderBrand } from "./HeaderBrand";
 import { HeaderViewTabs } from "./HeaderViewTabs";
@@ -21,6 +23,7 @@ interface HeaderProps {
 }
 
 export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onReload, onReScanClick, isDragOver, onBackToSources, onGoBack, onGoForward, showBackToSources, showProviderHistoryControls, viewMode, onViewModeChange }: HeaderProps) {
+  useTranslation();
   return (
     <div
       style={{
@@ -41,15 +44,15 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
         <HeaderViewTabs viewMode={viewMode} onViewModeChange={onViewModeChange} />
         {showProviderHistoryControls && (
           <>
-            <button type="button" title="Go back" aria-label="Go back" onClick={onGoBack} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
-              BACK
+            <button type="button" title={translate("goBack")} aria-label={translate("goBack")} onClick={onGoBack} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
+              {translate("backUpper")}
             </button>
-            <button type="button" title="Go forward" aria-label="Go forward" onClick={onGoForward} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
-              FORWARD
+            <button type="button" title={translate("goForward")} aria-label={translate("goForward")} onClick={onGoForward} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
+              {translate("forward")}
             </button>
           </>
         )}
-        {showBackToSources && <button type="button" title="Back to sources" aria-label="Back to sources" onClick={onBackToSources} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>BACK TO SOURCES</button>}
+        {showBackToSources && <button type="button" title={translate("backToSources")} aria-label={translate("backToSources")} onClick={onBackToSources} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>{translate("backToSourcesUpper")}</button>}
 
         {scanned && (
           <div
@@ -63,12 +66,12 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
               borderRadius: "2px",
             }}
           >
-            ✓ {sampleCount} SAMPLES INDEXED
+            ✓ {sampleCount} {translate("samplesIndexedUpper")}
           </div>
         )}
         <button
           onClick={onSettingsClick}
-          title="Settings"
+          title={translate("settings")}
           style={{
             background: "transparent",
             border: "1px solid var(--osm-border)",
@@ -85,7 +88,7 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
         {onReload && (
           <button
             onClick={onReload}
-            title="Reload file tree"
+            title={translate("reloadFileTree")}
             style={{
               background: "transparent",
               border: "1px solid var(--osm-border)",
@@ -117,7 +120,7 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
                 letterSpacing: "0.08em",
                 boxShadow: "0 6px 18px rgba(249,115,22,0.16)",
               }}
-              aria-label="Drop to import"
+              aria-label={translate("dropToImport")}
               // small lift animation
               onAnimationEnd={() => {}}
             >
@@ -125,7 +128,7 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
               <path d="M12 3v10" stroke="#000" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M8 7l4-4 4 4" stroke="#000" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            DROP TO IMPORT
+            {translate("dropToImportUpper")}
           </div>
           ) : (
           <div style={{ display: "flex", gap: "8px" }}>
@@ -144,12 +147,12 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
                 fontWeight: 700,
               }}
             >
-              SCAN LIBRARY
+              {translate("scanLibrary")}
             </button>
             {(onReScanClick && sampleCount > 0) && (
               <button
                 onClick={onReScanClick}
-                title="Re-analyze all samples (update key detection)"
+                title={translate("reAnalyzeAllSamplesUpdateKeyDetection")}
                 style={{
                   fontSize: "12px",
                   letterSpacing: "0.08em",
@@ -162,7 +165,7 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
                   fontFamily: "var(--osm-font)",
                 }}
               >
-                RE-SCAN
+                {translate("reScan")}
               </button>
             )}
           </div>

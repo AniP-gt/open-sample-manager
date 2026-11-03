@@ -1,3 +1,5 @@
+import { translate, translateLabel } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { SampleProcessingSettings } from "../../types/sample";
 import { hasSampleProcessingEdits } from "../../utils/sampleProcessing";
 
@@ -20,6 +22,7 @@ const fieldLabels: Array<{ field: ProcessingField; label: string; min: number; m
 ];
 
 export function ProcessingControls({ durationSeconds, settings, onChange, onReset, onClear }: ProcessingControlsProps) {
+  useTranslation();
   const edited = hasSampleProcessingEdits(settings);
   const updateField = (field: ProcessingField, value: number) => {
     onChange({ ...settings, [field]: value });
@@ -39,13 +42,13 @@ export function ProcessingControls({ durationSeconds, settings, onChange, onRese
       }}
     >
       <span style={{ fontSize: "11px", color: edited ? "#f97316" : "#374151", letterSpacing: "0.14em" }}>
-        PROCESS
+        {translate("process")}
       </span>
       {fieldLabels.map(({ field, label, min, max, step, unit }) => (
         <label key={field} style={{ display: "flex", alignItems: "center", gap: "5px", color: "#6b7280", fontSize: "11px", letterSpacing: "0.08em", whiteSpace: "nowrap" }}>
-          {label}
+          {translateLabel(label)}
           <input
-            aria-label={label}
+            aria-label={translateLabel(label)}
             type="number"
             min={min}
             max={max(durationSeconds)}
@@ -67,13 +70,13 @@ export function ProcessingControls({ durationSeconds, settings, onChange, onRese
         </label>
       ))}
       <span style={{ fontSize: "11px", color: "#6b7280", whiteSpace: "nowrap" }}>
-        FADES: DRAG EXPORT ONLY
+        {translate("fadesDragExportOnly")}
       </span>
       <button type="button" onClick={onReset} style={buttonStyle}>
-        RESET
+        {translate("resetUpper")}
       </button>
       <button type="button" onClick={onClear} disabled={!edited} style={{ ...buttonStyle, color: edited ? "#f97316" : "#374151", cursor: edited ? "pointer" : "not-allowed" }}>
-        CLEAR EDIT
+        {translate("clearEdit")}
       </button>
     </div>
   );

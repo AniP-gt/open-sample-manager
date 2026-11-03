@@ -1,3 +1,4 @@
+import { useMessageState } from "../../i18n/useMessageState";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { DiscoverySample } from "../../types/discovery";
@@ -26,7 +27,7 @@ export function useDiscoveryAudio() {
   const currentOffset = useRef(0);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [loadingId, setLoadingId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessageState();
   const [gainDb, setGainDb] = useState<number | null>(null);
 
   const stop = useCallback(() => {

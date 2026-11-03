@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import React from "react";
 
 export interface ConfirmModalProps {
@@ -13,6 +15,7 @@ export interface ConfirmModalProps {
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onConfirm, onCancel, danger, confirmLabel, cancelLabel }) => {
+  useTranslation();
   const [loading, setLoading] = React.useState(false);
 
   if (!isOpen) return null;
@@ -53,7 +56,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, messa
             disabled={loading}
             style={{ background: "transparent", border: "1px solid #374151", color: "#cbd5e1", padding: "6px 12px", cursor: loading ? "default" : "pointer", borderRadius: "3px", opacity: loading ? 0.6 : 1 }}
           >
-            {cancelLabel ?? "No"}
+            {cancelLabel ?? translate("no")}
           </button>
 
           <button
@@ -61,7 +64,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, messa
             disabled={loading}
             style={confirmButtonStyle}
           >
-            {loading ? "Working..." : (confirmLabel ?? "Yes")}
+            {loading ? translate("working") : (confirmLabel ?? translate("yes"))}
           </button>
         </div>
       </div>

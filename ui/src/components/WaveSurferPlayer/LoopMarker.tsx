@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import type WaveSurfer from "wavesurfer.js";
 import RegionsPlugin, { type Region } from "wavesurfer.js/dist/plugins/regions";
@@ -12,6 +14,7 @@ interface RegionInfo {
 }
 
 export function LoopMarker({ wavesurfer }: LoopMarkerProps) {
+  useTranslation();
   const regionsPluginRef = useRef<RegionsPlugin | null>(null);
   const currentRegionRef = useRef<Region | null>(null);
   const loopEnabledRef = useRef(false);
@@ -139,7 +142,7 @@ export function LoopMarker({ wavesurfer }: LoopMarkerProps) {
           letterSpacing: "0.14em",
         }}
       >
-        LOOP
+        {translate("loopUpper")}
       </span>
       <button
         onClick={handleToggleLoop}
@@ -156,7 +159,7 @@ export function LoopMarker({ wavesurfer }: LoopMarkerProps) {
           fontFamily: "inherit",
         }}
       >
-        {loopEnabled ? "LOOP ON" : "LOOP OFF"}
+        {loopEnabled ? translate("loopOn") : translate("loopOff")}
       </button>
       {regionInfo ? (
         <span
@@ -170,7 +173,7 @@ export function LoopMarker({ wavesurfer }: LoopMarkerProps) {
         </span>
       ) : (
         <span style={{ fontSize: "11px", color: "#4b5563" }}>
-          drag on waveform to select
+          {translate("dragOnWaveformToSelect")}
         </span>
       )}
       {regionInfo && (
@@ -188,7 +191,7 @@ export function LoopMarker({ wavesurfer }: LoopMarkerProps) {
             fontFamily: "inherit",
           }}
         >
-          CLEAR
+          {translate("clearUpper")}
         </button>
       )}
     </div>

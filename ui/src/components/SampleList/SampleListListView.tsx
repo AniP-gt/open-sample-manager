@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { MutableRefObject, ReactNode } from "react";
 import type { Sample, SortState, SampleProcessingSettings } from "../../types/sample";
 import { SampleListHeader } from "./SampleListHeader";
@@ -80,6 +82,7 @@ export function SampleListListView({
   getSampleProcessingSettings,
   showSampleMetadataQuality = true,
 }: SampleListListViewProps) {
+  useTranslation();
   return (
     <>
       <SampleListHeader
@@ -110,8 +113,8 @@ export function SampleListListView({
                 <path d="M8 7l4-4 4 4" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <rect x="3" y="11" width="18" height="10" rx="2" stroke="#f97316" strokeWidth="1.2" />
               </svg>
-              <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>IMPORT</div>
-              <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>Drop files or folders to import into the library</div>
+              <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 700, letterSpacing: "0.08em" }}>{translate("import")}</div>
+              <div style={{ color: "#9ca3af", marginTop: 4, fontSize: 13 }}>{translate("dropFilesOrFoldersToImportIntoTheLibrary")}</div>
             </div>
           </div>
         )}
@@ -148,29 +151,29 @@ export function SampleListListView({
         <div ref={sentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
         <div style={{ padding: "6px 12px", textAlign: "center", color: "#9ca3af" }}>
           {isLoadingPrevious ? (
-            <div style={{ fontSize: 13 }}>Loading...</div>
+            <div style={{ fontSize: 13 }}>{translate("loading")}</div>
           ) : canLoadPrevious && onLoadPrevious ? (
             <button
               type="button"
               onClick={() => void onLoadPrevious()}
               style={{ background: "#111827", border: "1px solid #1f2937", color: "#f97316", padding: "6px 10px", borderRadius: 4, cursor: "pointer", fontFamily: "'Courier New', monospace" }}
             >
-              Load previous
+              {translate("loadPrevious")}
             </button>
           ) : null}
         </div>
         <div style={{ padding: "8px 16px", textAlign: "center", color: "#9ca3af" }}>
           {isLoadingMore ? (
-            <div style={{ fontSize: 13 }}>Loading...</div>
+            <div style={{ fontSize: 13 }}>{translate("loading")}</div>
           ) : canLoadMore === false && samples.length > 0 ? (
-            <div style={{ fontSize: 13 }}>No more results</div>
+            <div style={{ fontSize: 13 }}>{translate("noMoreResults")}</div>
           ) : canLoadMore !== false && onLoadMore ? (
             <button
               type="button"
               onClick={() => void onLoadMore()}
               style={{ background: "#111827", border: "1px solid #1f2937", color: "#f97316", padding: "6px 10px", borderRadius: 4, cursor: "pointer", fontFamily: "'Courier New', monospace" }}
             >
-              Load more
+              {translate("loadMore")}
             </button>
           ) : null}
         </div>

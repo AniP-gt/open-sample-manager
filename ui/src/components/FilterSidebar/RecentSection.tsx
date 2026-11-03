@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Sample } from "../../types/sample";
 
 interface RecentSectionProps {
@@ -7,11 +9,12 @@ interface RecentSectionProps {
 }
 
 export function RecentSection({ recentIds, sampleById, onSampleSelect }: RecentSectionProps) {
+  useTranslation();
   if (recentIds.length === 0) return null;
 
   return (
     <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #0f1117" }}>
-      <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>RECENT</div>
+      <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", padding: "0 12px 8px" }}>{translate("recent")}</div>
       {recentIds.map((id) => {
         const sample = sampleById.get(id);
         if (!sample) {

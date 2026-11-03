@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { SortHeader } from "./SortHeader";
 import type { SortState } from "../../types/sample";
@@ -27,6 +29,7 @@ export function SampleListHeader({
   headerRefs,
   showSampleMetadataQuality = true,
 }: SampleListHeaderProps) {
+  useTranslation();
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
 
   const handleMouseDown = (index: number, e: React.MouseEvent) => {
@@ -96,7 +99,7 @@ export function SampleListHeader({
         onMouseMove={(e) => handleMouseMove(2, e)}
         onMouseLeave={() => handleMouseLeave(2)}
       >
-        <SortHeader field="file_name" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>FILENAME</SortHeader>
+        <SortHeader field="file_name" currentSort={sort} onSort={onSortChange} columnIndex={2} draggedColumnRef={draggedColumnRef}>{translate("filename")}</SortHeader>
         {renderResizer(2)}
       </div>
 
@@ -107,7 +110,7 @@ export function SampleListHeader({
         onMouseMove={(e) => handleMouseMove(3, e)}
         onMouseLeave={() => handleMouseLeave(3)}
       >
-        <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>TYPE</SortHeader>
+        <SortHeader field="sample_type" currentSort={sort} onSort={onSortChange} columnIndex={3} draggedColumnRef={draggedColumnRef}>{translate("typeUpper")}</SortHeader>
         {renderResizer(3)}
       </div>
 
@@ -118,7 +121,7 @@ export function SampleListHeader({
         onMouseMove={(e) => handleMouseMove(4, e)}
         onMouseLeave={() => handleMouseLeave(4)}
       >
-        <SortHeader field="instrument_type" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>INST</SortHeader>
+        <SortHeader field="instrument_type" currentSort={sort} onSort={onSortChange} columnIndex={4} draggedColumnRef={draggedColumnRef}>{translate("inst")}</SortHeader>
         {renderResizer(4)}
       </div>
 
@@ -140,7 +143,7 @@ export function SampleListHeader({
         onMouseMove={(e) => handleMouseMove(6, e)}
         onMouseLeave={() => handleMouseLeave(6)}
       >
-        <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={6} draggedColumnRef={draggedColumnRef}>DUR</SortHeader>
+        <SortHeader field="duration" currentSort={sort} onSort={onSortChange} columnIndex={6} draggedColumnRef={draggedColumnRef}>{translate("dur")}</SortHeader>
         {renderResizer(6)}
       </div>
 
@@ -151,7 +154,7 @@ export function SampleListHeader({
         onMouseMove={(e) => handleMouseMove(7, e)}
         onMouseLeave={() => handleMouseLeave(7)}
       >
-        <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>KEY</SortHeader>
+        <SortHeader field="musical_key" currentSort={sort} onSort={onSortChange} columnIndex={7} draggedColumnRef={draggedColumnRef}>{translate("keyUpper")}</SortHeader>
         {renderResizer(7)}
       </div>
 
@@ -164,7 +167,7 @@ export function SampleListHeader({
             onMouseMove={(e) => handleMouseMove(8, e)}
             onMouseLeave={() => handleMouseLeave(8)}
           >
-            <SortHeader field="license" currentSort={sort} onSort={onSortChange} columnIndex={8} draggedColumnRef={draggedColumnRef}>LIC</SortHeader>
+            <SortHeader field="license" currentSort={sort} onSort={onSortChange} columnIndex={8} draggedColumnRef={draggedColumnRef}>{translate("lic")}</SortHeader>
             {renderResizer(8)}
           </div>
 
@@ -175,7 +178,7 @@ export function SampleListHeader({
             onMouseMove={(e) => handleMouseMove(9, e)}
             onMouseLeave={() => handleMouseLeave(9)}
           >
-            <SortHeader field="quality_flags" currentSort={sort} onSort={onSortChange} columnIndex={9} draggedColumnRef={draggedColumnRef}>QC</SortHeader>
+            <SortHeader field="quality_flags" currentSort={sort} onSort={onSortChange} columnIndex={9} draggedColumnRef={draggedColumnRef}>{translate("qc")}</SortHeader>
             {renderResizer(9)}
           </div>
         </>

@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
@@ -50,6 +52,7 @@ export const MidiList = forwardRef(function MidiList(
   }: MidiListProps,
   ref: React.Ref<MidiListHandle>,
 ) {
+  useTranslation();
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -260,7 +263,7 @@ export const MidiList = forwardRef(function MidiList(
         <div ref={topSentinelRef} aria-hidden style={{ height: 1, width: "100%", visibility: "hidden" }} />
         {sortedMidis.length === 0 && midiSearch.trim() ? (
           <div style={{ padding: "24px 16px", color: "#6b7280", fontSize: "13px", fontFamily: "'Courier New', monospace" }}>
-            No results for &apos;{midiSearch}&apos;
+            {translate("noMidiSearchResults", { query: midiSearch })}
           </div>
         ) : (
           <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
@@ -295,7 +298,7 @@ export const MidiList = forwardRef(function MidiList(
 
       <div style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af" }}>
         {isLoadingPrevious ? (
-          <div style={{ fontSize: 13 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>{translate("loading")}</div>
         ) : canLoadPrevious && onLoadPrevious ? (
           <button
             type="button"
@@ -310,16 +313,16 @@ export const MidiList = forwardRef(function MidiList(
               fontFamily: "'Courier New', monospace",
             }}
           >
-            Load previous
+            {translate("loadPrevious")}
           </button>
         ) : null}
       </div>
 
       <div style={{ padding: "8px 12px", textAlign: "center", color: "#9ca3af" }}>
         {isLoadingMore ? (
-          <div style={{ fontSize: 13 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>{translate("loading")}</div>
         ) : canLoadMore === false || sortedMidis.length === 0 ? (
-          <div style={{ fontSize: 13 }}>No more results</div>
+          <div style={{ fontSize: 13 }}>{translate("noMoreResults")}</div>
         ) : onLoadMore ? (
           <button
             type="button"
@@ -334,7 +337,7 @@ export const MidiList = forwardRef(function MidiList(
               fontFamily: "'Courier New', monospace",
             }}
           >
-            Load more
+            {translate("loadMore")}
           </button>
         ) : null}
       </div>

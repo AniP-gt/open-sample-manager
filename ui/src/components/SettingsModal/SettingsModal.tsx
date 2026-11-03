@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { ProviderBrowserMode } from "../../types/provider";
 import type { FreesoundWorkspace } from "../../hooks/useFreesoundWorkspace";
@@ -8,7 +10,8 @@ import { NavigationSettingsSection } from "./NavigationSettingsSection";
 import { PlaybackSettingsSection } from "./PlaybackSettingsSection";
 import { ProviderSettingsSection } from "./ProviderSettingsSection";
 
-const categories = ["Playback", "Display", "Downloads", "Database", "About"] as const;
+const categories = ["playback", "display", "downloads", "database", "about"] as const;
+const categoryLabels = { playback: "playbackLabel", display: "displayLabel", downloads: "downloads", database: "databaseLabelText", about: "aboutLabel" } as const;
 type SettingsCategory = typeof categories[number];
 
 interface SettingsModalProps {
@@ -59,14 +62,15 @@ export function SettingsModal({
   databaseMigrationBusy,
   databaseMigrationStatus,
 }: Omit<SettingsModalProps, "onClearAllSamples">) {
-  const [category, setCategory] = useState<SettingsCategory>("Playback");
+  useTranslation();
+  const [category, setCategory] = useState<SettingsCategory>("playback");
   const contentRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    setCategory("Playback");
+    setCategory("playback");
     previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.querySelector<HTMLButtonElement>("[data-settings-close]")?.focus();
     return () => previouslyFocusedRef.current?.focus();
@@ -146,24 +150,24 @@ export function SettingsModal({
           }}
         >
           <h2 id="settings-modal-title" style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.1em", color: "#f1f5f9", margin: 0 }}>
-            SETTINGS
+            {translate("settingsUpper")}
           </h2>
           <button
             onClick={onClose}
             data-settings-close
-            aria-label="Close settings"
+            aria-label={translate("closeSettings")}
             style={{ background: "transparent", border: "none", color: "var(--osm-secondary)", cursor: "pointer", fontSize: "20px", padding: "4px 8px" }}
           >
             ✕
           </button>
         </div>
         <div className="settings-layout">
-          <nav className="settings-categories" aria-label="Settings categories">
-            {categories.map((name) => <button key={name} type="button" aria-current={category === name ? "page" : undefined} onClick={() => setCategory(name)}>{name}</button>)}
+          <nav className="settings-categories" aria-label={translate("settingsCategories")}>
+            {categories.map((name) => <button key={name} type="button" aria-current={category === name ? "page" : undefined} onClick={() => setCategory(name)}>{translate(categoryLabels[name])}</button>)}
           </nav>
-          <section className="settings-content" ref={contentRef} aria-label={`${category} settings`}>
-            {category === "Playback" && <PlaybackSettingsSection autoPlayOnSelect={autoPlayOnSelect} onAutoPlayChange={onAutoPlayChange} />}
-            {category === "Display" && <><DisplaySettingsSection
+          <section className="settings-content" ref={contentRef} aria-label={translate("settingsRegion", { category: translate(categoryLabels[category]) })}>
+            {category === "playback" && <PlaybackSettingsSection autoPlayOnSelect={autoPlayOnSelect} onAutoPlayChange={onAutoPlayChange} />}
+            {category === "display" && <><DisplaySettingsSection
               instrumentColorCoding={instrumentColorCoding}
               onInstrumentColorCodingChange={onInstrumentColorCodingChange}
               showSampleMetadataQuality={showSampleMetadataQuality}
@@ -173,7 +177,7 @@ export function SettingsModal({
               directoryClickFiltering={directoryClickFiltering}
               onDirectoryClickFilteringChange={onDirectoryClickFilteringChange}
             /></>}
-            {category === "Downloads" && <ProviderSettingsSection
+            {category === "downloads" && <ProviderSettingsSection
               providerDownloadRoot={providerDownloadRoot}
               onSelectProviderDownloadRoot={onSelectProviderDownloadRoot}
               onClearProviderDownloadRoot={onClearProviderDownloadRoot}
@@ -181,14 +185,14 @@ export function SettingsModal({
               onProviderBrowserModeChange={onProviderBrowserModeChange}
               freesoundWorkspace={freesoundWorkspace}
             />}
-            {category === "Database" && <DatabaseSettingsSection
+            {category === "database" && <DatabaseSettingsSection
               sampleCount={sampleCount}
               onDatabaseExport={onDatabaseExport}
               onDatabaseImport={onDatabaseImport}
               databaseMigrationBusy={databaseMigrationBusy}
               databaseMigrationStatus={databaseMigrationStatus}
             />}
-            {category === "About" && <AboutSettingsSection />}
+            {category === "about" && <AboutSettingsSection />}
           </section>
         </div>
       </div>

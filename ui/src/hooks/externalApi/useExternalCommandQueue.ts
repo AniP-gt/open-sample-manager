@@ -1,3 +1,4 @@
+import { translate } from "../../i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef } from "react";
@@ -20,12 +21,12 @@ export function useExternalCommandQueue({ isMountedRef, setError, handleShowSamp
   const processedLeaseIdsRef = useRef(new Set<number>());
   setErrorRef.current = setError;
   const nack = useCallback(async (id: number) => {
-    try { await invoke("nack_ui_command", { id }); } catch { if (isMountedRef.current) setError("Could not return the external app command to the queue."); }
+    try { await invoke("nack_ui_command", { id }); } catch { if (isMountedRef.current) setError(translate("couldNotReturnTheExternalAppCommandToThe")); }
   }, [isMountedRef, setError]);
   const acknowledge = useCallback(async (id: number, attemptedLeaseIds: Set<number>) => {
     if (attemptedLeaseIds.has(id)) return;
     attemptedLeaseIds.add(id);
-    try { await invoke("acknowledge_ui_command", { id }); } catch { if (isMountedRef.current) setError("Could not acknowledge the external app command."); }
+    try { await invoke("acknowledge_ui_command", { id }); } catch { if (isMountedRef.current) setError(translate("couldNotAcknowledgeTheExternalAppCommand")); }
   }, [isMountedRef, setError]);
   const processLease = useCallback(async (lease: UiCommandLease, attemptedLeaseIds: Set<number>) => {
     if (!isMountedRef.current) { await nack(lease.id); return; }
@@ -37,7 +38,7 @@ export function useExternalCommandQueue({ isMountedRef, setError, handleShowSamp
         case "PreviewSample": disposition = await handlePreviewSample(lease.sample_id); break;
         case "CollectionsChanged": if (refreshCollections) await refreshCollections(); disposition = "ack"; break;
       }
-    } catch { await nack(lease.id); if (isMountedRef.current) setError("Could not process the external app command."); return; }
+    } catch { await nack(lease.id); if (isMountedRef.current) setError(translate("couldNotProcessTheExternalAppCommand")); return; }
     if (disposition === "requeue") { await nack(lease.id); return; }
     processedLeaseIdsRef.current.add(lease.id); await acknowledge(lease.id, attemptedLeaseIds);
   }, [acknowledge, handlePreviewSample, handleShowSamples, isMountedRef, nack, refreshCollections, setError]);
@@ -47,10 +48,10 @@ export function useExternalCommandQueue({ isMountedRef, setError, handleShowSamp
       if (!isMountedRef.current) { for (const command of commands) if (isUiCommandLeaseId(command)) await nack(command.id); return; }
       for (const command of commands) {
         if (isUiCommandLease(command)) { await processLease(command, attemptedLeaseIds); continue; }
-        if (isUiCommandLeaseId(command)) { processedLeaseIdsRef.current.add(command.id); if (isMountedRef.current) setError("Could not process an incompatible external app command."); await acknowledge(command.id, attemptedLeaseIds); }
-        else if (isMountedRef.current) setError("Could not process an incompatible external app command.");
+        if (isUiCommandLeaseId(command)) { processedLeaseIdsRef.current.add(command.id); if (isMountedRef.current) setError(translate("couldNotProcessAnIncompatibleExternalAppCommand")); await acknowledge(command.id, attemptedLeaseIds); }
+        else if (isMountedRef.current) setError(translate("couldNotProcessAnIncompatibleExternalAppCommand"));
       }
-    }).catch(() => { if (isMountedRef.current) setError("Could not process the external app command."); });
+    }).catch(() => { if (isMountedRef.current) setError(translate("couldNotProcessTheExternalAppCommand")); });
     return drainingRef.current;
   }, [acknowledge, isMountedRef, nack, processLease, setError]);
   drainRef.current = drain;

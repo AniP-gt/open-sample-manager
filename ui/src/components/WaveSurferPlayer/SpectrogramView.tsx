@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
 import type WaveSurfer from "wavesurfer.js";
 import SpectrogramPlugin from "wavesurfer.js/dist/plugins/spectrogram";
@@ -9,6 +11,7 @@ interface SpectrogramViewProps {
 }
 
 export function SpectrogramView({ wavesurfer, enabled, onToggle }: SpectrogramViewProps) {
+  useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const pluginRef = useRef<ReturnType<typeof SpectrogramPlugin.create> | null>(null);
 
@@ -57,7 +60,7 @@ export function SpectrogramView({ wavesurfer, enabled, onToggle }: SpectrogramVi
             fontFamily: "inherit",
           }}
         >
-          SPECTROGRAM {enabled ? "ON" : "OFF"}
+          {translate("spectrogram")} {enabled ? translate("on") : translate("off")}
         </button>
       </div>
       {enabled && (

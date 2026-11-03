@@ -1,8 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ProviderBrowserMode } from "../types/provider";
+import { resolveLanguage, type Language } from "../i18n/locale";
 
 interface SettingsState {
+  readonly language: Language;
+  readonly setLanguage: (value: Language) => void;
   autoPlayOnSelect: boolean;
   setAutoPlayOnSelect: (value: boolean) => void;
   instrumentColorCoding: boolean;
@@ -20,6 +23,8 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
+      language: resolveLanguage(undefined),
+      setLanguage: (language) => set({ language }),
       autoPlayOnSelect: false,
       setAutoPlayOnSelect: (value) => set({ autoPlayOnSelect: value }),
       instrumentColorCoding: false,
@@ -35,6 +40,14 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "osm_settings",
+      merge: (persisted, current) => {
+        const stored = typeof persisted === "object" && persisted !== null ? persisted : {};
+        return {
+          ...current,
+          ...stored,
+          language: resolveLanguage("language" in stored ? stored.language : undefined),
+        };
+      },
     },
   ),
 );

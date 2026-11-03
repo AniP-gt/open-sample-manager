@@ -1,3 +1,4 @@
+import { useMessageState } from "../../i18n/useMessageState";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { FilterState, Sample, SortState } from "../../types/sample";
@@ -48,7 +49,7 @@ export function useSampleSearchPagination({
   const [canLoadPrevious, setCanLoadPrevious] = useState(false);
 
   const [isSearching, setIsSearching] = useState(true);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useMessageState();
   const searchRequestRef = useRef(0);
 
   const runSearch = useCallback(

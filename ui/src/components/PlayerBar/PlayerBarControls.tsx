@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import type { Sample, SampleProcessingSettings } from "../../types/sample";
 import { TypeBadge } from "../TypeBadge/TypeBadge";
 import { hasSampleProcessingEdits } from "../../utils/sampleProcessing";
@@ -38,6 +40,7 @@ export function PlayerBarControls({
   onAdvancedToggle,
   onVolumeChange,
 }: PlayerBarControlsProps) {
+  useTranslation();
   return (
     <div
       style={{
@@ -95,7 +98,7 @@ export function PlayerBarControls({
         <span style={{ color: "#4b5563" }}>/</span>
         <span>{formatTime(duration || sample.duration)}</span>
       </div>
-      {hasSampleProcessingEdits(processingSettings) && <span style={{ fontSize: "11px", color: "#f97316", letterSpacing: "0.12em" }}>EDITED</span>}
+      {hasSampleProcessingEdits(processingSettings) && <span style={{ fontSize: "11px", color: "#f97316", letterSpacing: "0.12em" }}>{translate("edited")}</span>}
 
       {!autoPlay && (
         <button
@@ -105,7 +108,7 @@ export function PlayerBarControls({
             borderRadius: "4px", padding: "4px 8px", cursor: "pointer", letterSpacing: "0.1em", flexShrink: 0,
           }}
         >
-          {showAdvanced ? "▴ CONTROLS" : "▾ CONTROLS"}
+          {showAdvanced ? translate("controls") : translate("controlsUpper")}
         </button>
       )}
 

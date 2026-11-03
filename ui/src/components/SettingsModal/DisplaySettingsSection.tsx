@@ -1,5 +1,8 @@
 import { SettingsSection } from "./SettingsSection";
 import { ToggleSetting } from "./ToggleSetting";
+import { useSettingsStore } from "../../store/useSettingsStore";
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 
 type DisplaySettingsSectionProps = {
   readonly instrumentColorCoding: boolean;
@@ -14,17 +17,30 @@ export function DisplaySettingsSection({
   showSampleMetadataQuality,
   onShowSampleMetadataQualityChange,
 }: DisplaySettingsSectionProps) {
+  useTranslation();
+  const language = useSettingsStore((state) => state.language);
+  const setLanguage = useSettingsStore((state) => state.setLanguage);
   return (
-    <SettingsSection title="DISPLAY" hasBottomMargin>
+    <SettingsSection title={translate("display")} hasBottomMargin>
+      <label className="settings-language">
+        <span>{translate("language")}</span>
+        <select value={language} onChange={(event) => {
+          const value = event.target.value;
+          if (value === "en" || value === "ja") setLanguage(value);
+        }}>
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+        </select>
+      </label>
       <ToggleSetting
-        title="Instrument color coding"
-        description="Color-code rows and badges by instrument type"
+        title={translate("instrumentColorCoding")}
+        description={translate("colorCodeRowsAndBadgesByInstrumentType")}
         enabled={instrumentColorCoding}
         onChange={onInstrumentColorCodingChange}
       />
       <ToggleSetting
-        title="Sample metadata and quality UI"
-        description="Show license metadata and quality check controls in the sample list"
+        title={translate("sampleMetadataAndQualityUi")}
+        description={translate("showLicenseMetadataAndQualityCheckControlsInThe")}
         enabled={showSampleMetadataQuality}
         onChange={onShowSampleMetadataQualityChange}
         hasTopMargin

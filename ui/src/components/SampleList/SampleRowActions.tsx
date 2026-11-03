@@ -1,3 +1,5 @@
+import { translate } from "../../i18n";
+import { useTranslation } from "react-i18next";
 interface SampleRowActionsProps {
   samplePath?: string;
   onOpenFolder: () => void;
@@ -13,6 +15,7 @@ export function SampleRowActions({
   onTrashSample,
   toast,
 }: SampleRowActionsProps) {
+  useTranslation();
   return (
     <div onMouseDown={(e) => e.stopPropagation()} style={{ display: "flex", gap: "6px", justifyContent: "center", position: "relative" }}>
       <button
@@ -38,7 +41,7 @@ export function SampleRowActions({
           e.currentTarget.style.color = "#6b7280";
           e.currentTarget.style.transform = "scale(1)";
         }}
-        title="Show in Finder"
+        title={translate("showInFinder")}
       >
         📂
       </button>
@@ -65,7 +68,7 @@ export function SampleRowActions({
           e.currentTarget.style.color = "#6b7280";
           e.currentTarget.style.transform = "scale(1)";
         }}
-        title="Copy Full Path"
+        title={translate("copyFullPath")}
       >
         📋
       </button>
@@ -112,7 +115,7 @@ export function SampleRowActions({
           e.currentTarget.style.color = "#ef4444";
           e.currentTarget.style.transform = "scale(1)";
         }}
-        title="Send to Trash"
+        title={translate("sendToTrash")}
       >
         🗑
       </button>

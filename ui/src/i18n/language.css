@@ -1,0 +1,30 @@
+.settings-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  color: var(--osm-text);
+  font-size: 14px;
+}
+
+.settings-language select {
+  min-width: 132px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--osm-border);
+  border-radius: 2px;
+  color: inherit;
+  background: var(--osm-surface);
+}
+
+:lang(ja) {
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+
+:lang(ja) .sample-filters label {
+  flex-wrap: wrap;
+  max-width: 100%;
+  white-space: nowrap;
+}

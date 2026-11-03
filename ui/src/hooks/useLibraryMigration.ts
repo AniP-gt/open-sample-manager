@@ -1,3 +1,6 @@
+import { useMessageState } from "../i18n/useMessageState";
+import { localizedMessage } from "../i18n/messages";
+import { translate } from "../i18n";
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -17,7 +20,7 @@ export function useLibraryMigration({
   refreshAfterImport,
 }: UseLibraryMigrationParams) {
   const [migrationBusy, setMigrationBusy] = useState(false);
-  const [migrationStatus, setMigrationStatus] = useState<string | null>(null);
+  const [migrationStatus, setMigrationStatus] = useMessageState();
 
   const selectFolder = useCallback(async (title: string): Promise<string | null> => {
     const selectedPath: DialogPath = await open({
@@ -36,10 +39,10 @@ export function useLibraryMigration({
   const selectImportFolder = useCallback(async (): Promise<string | null> => {
     const selectedPath: DialogPath = await open({
       multiple: false,
-      title: "Select samples.db to Import",
+      title: translate("selectSamplesDbToImport"),
       filters: [
         {
-          name: "Open Sample Manager Export",
+          name: translate("openSampleManagerExport"),
           extensions: ["db"],
         },
       ],
@@ -61,7 +64,7 @@ export function useLibraryMigration({
   const handleExportDatabase = useCallback(async () => {
     setError(null);
     try {
-      const folderPath = await selectFolder("Select Export Folder");
+      const folderPath = await selectFolder(translate("selectExportFolder"));
       if (!folderPath) {
         return;
       }
@@ -72,7 +75,7 @@ export function useLibraryMigration({
         folderPath,
       });
       setMigrationStatus(
-        `Exported ${summary.sample_count} samples and ${summary.midi_count} MIDI files.`,
+        localizedMessage("exportCompleted", { samples: summary.sample_count, midis: summary.midi_count }),
       );
     } catch (error) {
       setError(getErrorMessage(error));
@@ -96,7 +99,7 @@ export function useLibraryMigration({
       });
       await refreshAfterImport();
       setMigrationStatus(
-        `Imported ${summary.sample_count} samples and ${summary.midi_count} MIDI files.`,
+        localizedMessage("importCompleted", { samples: summary.sample_count, midis: summary.midi_count }),
       );
     } catch (error) {
       setError(getErrorMessage(error));

@@ -20,8 +20,10 @@
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-shell": "^2",
+    "i18next": "^26.7.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.1.11",
     "wavesurfer.js": "^7.12.1",
     "zustand": "^5.0.11"
   },
