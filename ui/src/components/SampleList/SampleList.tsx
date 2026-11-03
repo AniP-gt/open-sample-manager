@@ -4,7 +4,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useFavoritesStore } from "../../store/useFavoritesStore";
 import { GridView } from "./GridView";
 import type { SampleListProps, SampleListHandle } from "./types";
-import type { InstrumentType, Sample, SampleType } from "../../types/sample";
+import type { Sample } from "../../types/sample";
 import { useColumnResize } from "./useColumnResize";
 import {
   DEFAULT_SAMPLE_COLUMN_WIDTHS,
@@ -13,40 +13,16 @@ import {
 import { useDragDropList } from "./useDragDropList";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { SampleListListView } from "./SampleListListView";
+import { sortSampleRows } from "./sortSampleRows";
 import { matchesSampleFilters } from "../../utils/sampleFilter";
 import { appendPreviousRandomSelection, chooseRandomSample, popRandomHistory } from "./randomSelection";
-import { KEY_FILTER_OPTIONS } from "../../utils/keyOptions";
-import { SampleListSearch } from "./SampleListSearch";
+import { useSamplePaginationObservers } from "./useSamplePaginationObservers";
+import { SampleListToolbar } from "./SampleListToolbar";
+import { SampleListEmptyState } from "./SampleListEmptyState";
+import { clearedSampleFilters, getActiveSampleFilters } from "./ActiveSampleFilters";
 
 export { extractPathsFromDataTransfer } from "../../utils/dataTransfer";
 export type { SampleListHandle, SampleListProps } from "./types";
-
-const sampleTypeOptions: Array<SampleType | "all"> = ["all", "loop", "one-shot"];
-
-const controlStyle = {
-  height: "26px",
-  padding: "3px 6px",
-  borderRadius: "4px",
-  border: "1px solid #1f2937",
-  background: "#0f1117",
-  color: "#9ca3af",
-  fontSize: "12px",
-  fontFamily: "'Courier New', monospace",
-  outline: "none",
-  boxSizing: "border-box" as const,
-};
-
-const randomButtonStyle = (disabled: boolean) => ({
-  background: disabled ? "#0f1117" : "#111827",
-  border: "1px solid #1f2937",
-  color: disabled ? "#374151" : "#f97316",
-  padding: "4px 8px",
-  borderRadius: "2px",
-  cursor: disabled ? "not-allowed" : "pointer",
-  fontFamily: "'Courier New', monospace",
-  fontSize: "12px",
-  letterSpacing: "0.04em",
-});
 
 export const SampleList = memo(forwardRef(function SampleList(props: SampleListProps, ref: React.Ref<SampleListHandle>) {
   const {
@@ -113,39 +89,7 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     return samples.filter((sample) => matchesSampleFilters(sample, filters, favSet.has(sample.id)));
   }, [samples, filters, favSet, preserveOrder]);
 
-  const instrumentTypeOptions = useMemo(() => {
-    if (fullInstrumentTypeOptions && fullInstrumentTypeOptions.length > 0) {
-      return Array.from(new Set(fullInstrumentTypeOptions.filter(Boolean))).sort();
-    }
-    return Array.from(new Set(samples.map((sample) => sample.instrument_type).filter(Boolean))).sort();
-  }, [fullInstrumentTypeOptions, samples]);
-
-  const licenseOptions = useMemo(() => {
-    return Array.from(new Set(samples.map((sample) => sample.license).filter((license): license is string => Boolean(license)))).sort();
-  }, [samples]);
-
-  const sorted = useMemo(() => {
-    if (preserveOrder) return filtered;
-    const copy = [...filtered];
-    const dir = sort.direction === "asc" ? 1 : -1;
-    copy.sort((a, b) => {
-      switch (sort.field) {
-        case "id": return (a.id - b.id) * dir;
-        case "file_name": return a.file_name.localeCompare(b.file_name) * dir;
-        case "sample_type": return a.sample_type.localeCompare(b.sample_type) * dir;
-        case "instrument_type": return a.instrument_type.localeCompare(b.instrument_type) * dir;
-        case "bpm": return ((a.bpm ?? 0) - (b.bpm ?? 0)) * dir;
-        case "duration": return (a.duration - b.duration) * dir;
-        case "sample_rate": return ((a.sample_rate ?? 0) - (b.sample_rate ?? 0)) * dir;
-        case "musical_key": return (a.musical_key ?? "").localeCompare(b.musical_key ?? "") * dir;
-        case "license": return (a.license ?? "").localeCompare(b.license ?? "") * dir;
-        case "source": return (a.source ?? "").localeCompare(b.source ?? "") * dir;
-        case "quality_flags": return (a.quality_flags.length - b.quality_flags.length) * dir;
-        default: return 0;
-      }
-    });
-    return copy;
-  }, [filtered, preserveOrder, sort]);
+  const sorted = useMemo(() => preserveOrder ? filtered : sortSampleRows(filtered, sort), [filtered, preserveOrder, sort]);
 
   const rowHeight = 48;
   const virtualizer = useVirtualizer({
@@ -199,8 +143,6 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     onSampleSelect(previousSample);
   }, [randomHistory, onSampleSelect]);
 
-  const isRandomDisabled = sorted.length === 0;
-  const isRandomBackDisabled = randomHistory.length === 0;
 
   const lastScrolledRef = useRef<number | null>(null);
   useEffect(() => {
@@ -212,43 +154,8 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
     virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" });
   }, [selectedSample, sorted, virtualizer]);
 
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    const root = listRef.current;
-    if (!sentinel || !root || !onLoadMore) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            if (sorted.length === 0 || isLoadingMore || canLoadMore === false) return;
-            void onLoadMore();
-          }
-        }
-      },
-      { root, rootMargin: "200px", threshold: 0.1 }
-    );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [onLoadMore, isLoadingMore, canLoadMore, sorted.length]);
-
-  useEffect(() => {
-    const sentinel = topSentinelRef.current;
-    const root = listRef.current;
-    if (!sentinel || !root || !onLoadPrevious) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            if (isLoadingPrevious || canLoadPrevious === false) return;
-            void onLoadPrevious();
-          }
-        }
-      },
-      { root, rootMargin: "200px", threshold: 0.1 }
-    );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [onLoadPrevious, isLoadingPrevious, canLoadPrevious]);
+  useSamplePaginationObservers({ listRef, sentinelRef, topSentinelRef, resultCount: sorted.length,
+    onLoadMore, isLoadingMore, canLoadMore, onLoadPrevious, isLoadingPrevious, canLoadPrevious });
 
   useImperativeHandle(ref, () => ({
     focusSelected: () => {
@@ -282,109 +189,16 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div style={{ padding: "10px 16px", borderBottom: "1px solid #0f1117", background: "#0a0c12", display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2">
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
-        <SampleListSearch
-          appliedQuery={filters.search}
-          onSubmit={onSearchSubmit}
-        />
-        <input
-          type="number"
-          value={filters.filterBpmMin}
-          onChange={(e) => onFilterChange({ filterBpmMin: e.target.value })}
-          placeholder="BPM MIN"
-          aria-label="Sample BPM minimum"
-          style={{ ...controlStyle, width: "78px" }}
-        />
-        <input
-          type="number"
-          value={filters.filterBpmMax}
-          onChange={(e) => onFilterChange({ filterBpmMax: e.target.value })}
-          placeholder="BPM MAX"
-          aria-label="Sample BPM maximum"
-          style={{ ...controlStyle, width: "78px" }}
-        />
-        <select
-          value={filters.filterType}
-          onChange={(e) => onFilterChange({ filterType: e.target.value as SampleType | "all" })}
-          aria-label="Sample type filter"
-          style={{ ...controlStyle, width: "92px" }}
-        >
-          {sampleTypeOptions.map((type) => (
-            <option key={type} value={type}>{type === "all" ? "TYPE" : type}</option>
-          ))}
-        </select>
-        <select
-          value={filters.filterInstrumentType}
-          onChange={(e) => onFilterChange({ filterInstrumentType: e.target.value as InstrumentType | "" })}
-          aria-label="Sample instrument type filter"
-          style={{ ...controlStyle, width: "96px" }}
-        >
-          <option value="">INST</option>
-          {instrumentTypeOptions.map((instrumentType) => (
-            <option key={instrumentType} value={instrumentType}>{instrumentType}</option>
-          ))}
-        </select>
-        <select
-          value={filters.filterKey}
-          onChange={(e) => onFilterChange({ filterKey: e.target.value })}
-          aria-label="Sample key filter"
-          style={{ ...controlStyle, width: "74px" }}
-        >
-          {KEY_FILTER_OPTIONS.map((key) => (
-            <option key={key || "all"} value={key}>{key || "KEY"}</option>
-          ))}
-        </select>
-        {showSampleMetadataQuality && (
-          <>
-            <select
-              value={filters.filterLicense}
-              onChange={(e) => onFilterChange({ filterLicense: e.target.value })}
-              aria-label="Sample license filter"
-              style={{ ...controlStyle, width: "94px" }}
-            >
-              <option value="">LIC</option>
-              {licenseOptions.map((license) => (
-                <option key={license} value={license}>{license}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => onFilterChange({ qualityIssuesOnly: !filters.qualityIssuesOnly })}
-              aria-pressed={filters.qualityIssuesOnly}
-              title="Show samples with quality flags"
-              style={{ ...controlStyle, width: "74px", cursor: "pointer", color: filters.qualityIssuesOnly ? "#f97316" : "#6b7280", borderColor: filters.qualityIssuesOnly ? "#f97316" : "#1f2937" }}
-            >
-              QC
-            </button>
-          </>
-        )}
-        <span style={{ fontSize: "14px", color: "#374151", letterSpacing: "0.1em" }}>
-          {sorted.length}/{samples.length} RESULTS
-        </span>
-        {preserveOrder && onRestoreSearchResults && (
-          <button
-            type="button"
-            onClick={onRestoreSearchResults}
-            style={{ background: "transparent", border: "1px solid #1f2937", color: "#f97316", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}
-          >
-            Back to search results
-          </button>
-        )}
-        <div style={{ display: "flex", gap: "4px" }}>
-          <button type="button" onClick={handleRandomSample} disabled={isRandomDisabled} title="Select random sample" style={randomButtonStyle(isRandomDisabled)}>Random</button>
-          <button type="button" onClick={handleRandomBack} disabled={isRandomBackDisabled} title="Return to previous random sample" style={randomButtonStyle(isRandomBackDisabled)}>Back</button>
-        </div>
-        <div style={{ display: "flex", gap: "4px" }}>
-          <button type="button" onClick={() => setViewMode("list")} title="List view" style={{ background: viewMode === "list" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "list" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>☰</button>
-          <button type="button" onClick={() => setViewMode("grid")} title="Grid view" style={{ background: viewMode === "grid" ? "#1f2937" : "transparent", border: "1px solid #1f2937", color: viewMode === "grid" ? "#f97316" : "#6b7280", padding: "4px 8px", borderRadius: "2px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "12px" }}>▦</button>
-        </div>
-      </div>
+      <SampleListToolbar
+        samples={samples} instrumentTypeOptions={fullInstrumentTypeOptions}
+        filters={filters} onFilterChange={onFilterChange} onSearchSubmit={onSearchSubmit}
+        showSampleMetadataQuality={showSampleMetadataQuality} resultCount={sorted.length}
+        onRandom={handleRandomSample} onRandomBack={handleRandomBack}
+        canRandomBack={randomHistory.length > 0} viewMode={viewMode} onViewModeChange={setViewMode}
+        preserveOrder={preserveOrder} onRestoreSearchResults={onRestoreSearchResults}
+      />
 
-      {viewMode === "grid" ? (
+      {viewMode === "grid" && sorted.length > 0 ? (
         <GridView samples={sorted} selectedId={selectedSample?.id ?? null} onSelect={handleSampleSelectInternal} onMetadataClick={onMetadataClick} showSampleMetadataQuality={showSampleMetadataQuality} />
       ) : (
         <div
@@ -396,6 +210,13 @@ export const SampleList = memo(forwardRef(function SampleList(props: SampleListP
           }}
         >
           <SampleListListView
+            emptyState={sorted.length === 0 ? <SampleListEmptyState
+              isLoading={props.isLoading} error={props.loadError}
+              hasFilters={getActiveSampleFilters(filters).length > 0}
+              isCollectionView={props.isCollectionView}
+              onClearFilters={() => { onFilterChange(clearedSampleFilters); onSearchSubmit?.(""); }}
+              onScanLibrary={props.onScanLibrary} onRetry={props.onRetry}
+            /> : undefined}
             samples={sorted}
             samplePaths={samplePaths}
             selectedSample={selectedSample}

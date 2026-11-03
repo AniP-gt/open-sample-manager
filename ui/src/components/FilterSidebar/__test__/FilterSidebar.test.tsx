@@ -5,7 +5,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { startDrag } from '@crabnebula/tauri-plugin-drag';
 import { useRecentStore } from '../../../store/useRecentStore';
 import type { Sample } from '../../../types/sample';
-import { KEY_FILTER_OPTIONS } from '../../../utils/keyOptions';
 
 vi.mock('../../../store/useRecentStore');
 
@@ -79,31 +78,10 @@ describe('FilterSidebar', () => {
     expect(onFilterChange).toHaveBeenCalledWith({ favoritesOnly: true });
   });
 
-  test('calls onFilterChange when key filter changes', () => {
-    const onFilterChange = vi.fn();
-    render(
-      <FilterSidebar
-        scannedPaths={[]}
-        selectedPath={null}
-        onFilterChange={onFilterChange}
-      />
-    );
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'C' } });
-    expect(onFilterChange).toHaveBeenCalledWith({ filterKey: 'C' });
-  });
-
-  test('uses the shared key filter values with an All label for the empty value', () => {
-    render(
-      <FilterSidebar
-        scannedPaths={[]}
-        selectedPath={null}
-        onFilterChange={vi.fn()}
-      />
-    );
-
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
-    expect(Array.from(select.options).map((option) => option.value)).toEqual([...KEY_FILTER_OPTIONS]);
-    expect(select.options[0].textContent).toBe('All');
+  test('leaves key filtering to the result toolbar', () => {
+    render(<FilterSidebar scannedPaths={[]} selectedPath={null} onFilterChange={vi.fn()} />);
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /FAVORITES/ })).toBeInTheDocument();
   });
 
   test('renders file tree for scanned paths', () => {

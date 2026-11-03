@@ -66,6 +66,11 @@ export function AppMainPane({
       {uiState.viewMode === "sample" ? (
         <SampleList
           ref={sampleListRef}
+          isLoading={sampleState.isSearching}
+          loadError={sampleState.searchError}
+          isCollectionView={isCollectionView}
+          onScanLibrary={() => { void scanState.handleScanClick(); }}
+          onRetry={() => { void sampleState.handleSearch(sampleState.filters.search); }}
           samples={displayedSamples}
           instrumentTypeOptions={instrumentTypeOptions}
           samplePaths={samplePaths}

@@ -21,6 +21,7 @@ export function HeaderBrand() {
         <div
           style={{
             fontSize: "18px",
+            fontFamily: "'Courier New', monospace",
             fontWeight: 700,
             letterSpacing: "0.1em",
             color: "#f1f5f9",
@@ -30,8 +31,8 @@ export function HeaderBrand() {
         </div>
         <div
           style={{
-            fontSize: "14px",
-            color: "#374151",
+            fontSize: "12px",
+            color: "var(--osm-secondary)",
             letterSpacing: "0.12em",
           }}
         >

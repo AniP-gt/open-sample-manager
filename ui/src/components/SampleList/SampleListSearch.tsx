@@ -16,7 +16,7 @@ export function SampleListSearch({
   }, [appliedQuery]);
 
   return (
-    <>
+    <div className="sample-search-form" role="search" aria-label="Search sample library">
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -26,26 +26,16 @@ export function SampleListSearch({
           }
         }}
         placeholder="Search by filename, tag, key..."
-        style={{ flex: "1 1 220px", minWidth: "160px", fontSize: "16px", color: "#9ca3af", letterSpacing: "0.04em", background: "transparent", border: "none", outline: "none", fontFamily: "'Courier New', monospace" }}
+        aria-label="Search sample library"
       />
       <button
         type="button"
         aria-label="Search samples"
         onClick={() => onSubmit?.(query)}
-        style={{ ...controlStyle, cursor: "pointer", color: "#f97316" }}
+        className="sample-search-submit"
       >
         Search
       </button>
-    </>
+    </div>
   );
 }
-
-const controlStyle = {
-  background: "#111827",
-  border: "1px solid #1f2937",
-  padding: "5px 8px",
-  borderRadius: "3px",
-  fontFamily: "'Courier New', monospace",
-  fontSize: "12px",
-  letterSpacing: "0.04em",
-} as const;

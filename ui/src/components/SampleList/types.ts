@@ -1,6 +1,11 @@
 import type { Sample, FilterState, SortState, SampleProcessingSettings } from "../../types/sample";
 
 export interface SampleListProps {
+  isLoading?: boolean;
+  loadError?: string | null;
+  isCollectionView?: boolean;
+  onScanLibrary?: () => void;
+  onRetry?: () => void;
   samples: Sample[];
   instrumentTypeOptions?: FilterState["filterInstrumentType"][];
   samplePaths: Record<number, string>;

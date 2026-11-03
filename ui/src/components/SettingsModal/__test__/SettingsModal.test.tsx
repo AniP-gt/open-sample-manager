@@ -12,6 +12,8 @@ describe("SettingsModal", () => {
     renderSettingsModal({ sampleCount: 1234, autoPlayOnSelect: true });
 
     expect(screen.getByText("SETTINGS")).toBeInTheDocument();
+    expect(screen.queryByText("EXPORT DB")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Database" }));
     expect(screen.getByText("1234 samples indexed")).toBeInTheDocument();
     expect(screen.getByText("EXPORT DB")).toBeInTheDocument();
     expect(screen.getByText("IMPORT DB")).toBeInTheDocument();
@@ -30,6 +32,7 @@ describe("SettingsModal", () => {
     const onProviderBrowserModeChange = vi.fn();
     renderSettingsModal({ providerBrowserMode: "window", onProviderBrowserModeChange });
 
+    fireEvent.click(screen.getByRole("button", { name: "Downloads" }));
     fireEvent.click(screen.getByRole("radio", { name: "EMBEDDED" }));
     expect(onProviderBrowserModeChange).toHaveBeenCalledWith("embedded");
   });
@@ -58,6 +61,7 @@ describe("SettingsModal", () => {
       credential: "configured", canDownload: false, downloadPreview: vi.fn(), error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, activeQuery: "", previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), failPreview: vi.fn(), openHomepage: vi.fn(), openRegistration: vi.fn(),
     } });
 
+    fireEvent.click(screen.getByRole("button", { name: "Downloads" }));
     expect(screen.getByLabelText("Freesound API key")).toHaveAttribute("type", "password");
     expect(screen.getByRole("button", { name: "REPLACE KEY" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "REMOVE KEY" })).toBeInTheDocument();
@@ -70,6 +74,7 @@ describe("SettingsModal", () => {
       credential: "unset", canDownload: false, downloadPreview: vi.fn(), error: null, fetchPreview: vi.fn(), isBusy: false, page: 1, activeQuery: "", previewUrl: null, query: "", results: [], saveApiKey: vi.fn(), search: vi.fn(), setQuery: vi.fn(), stopPreview: vi.fn(), totalCount: 0, deleteApiKey: vi.fn(), failPreview: vi.fn(), openHomepage: vi.fn(), openRegistration,
     } });
 
+    fireEvent.click(screen.getByRole("button", { name: "Downloads" }));
     fireEvent.click(screen.getByRole("button", { name: "GET API KEY" }));
 
     expect(openRegistration).toHaveBeenCalledTimes(1);

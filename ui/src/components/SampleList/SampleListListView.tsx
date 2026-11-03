@@ -1,9 +1,10 @@
-import type { MutableRefObject } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import type { Sample, SortState, SampleProcessingSettings } from "../../types/sample";
 import { SampleListHeader } from "./SampleListHeader";
 import { SampleRow } from "./SampleRow";
 
 interface SampleListListViewProps {
+  emptyState?: ReactNode;
   samples: Sample[];
   samplePaths: Record<number, string>;
   selectedSample: Sample | null;
@@ -42,6 +43,7 @@ interface SampleListListViewProps {
 }
 
 export function SampleListListView({
+  emptyState,
   samples,
   samplePaths,
   selectedSample,
@@ -91,6 +93,7 @@ export function SampleListListView({
         headerRefs={headerRefs}
         showSampleMetadataQuality={showSampleMetadataQuality}
       />
+      {emptyState}
       {(externalIsDragOver || isDragOver) && (
           <div
             role="status"
@@ -159,9 +162,9 @@ export function SampleListListView({
         <div style={{ padding: "8px 16px", textAlign: "center", color: "#9ca3af" }}>
           {isLoadingMore ? (
             <div style={{ fontSize: 13 }}>Loading...</div>
-          ) : canLoadMore === false ? (
+          ) : canLoadMore === false && samples.length > 0 ? (
             <div style={{ fontSize: 13 }}>No more results</div>
-          ) : onLoadMore ? (
+          ) : canLoadMore !== false && onLoadMore ? (
             <button
               type="button"
               onClick={() => void onLoadMore()}

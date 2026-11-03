@@ -22,7 +22,6 @@ export function FilterSidebar({
   favoritesOnly = false,
   hideDuplicates = false,
   duplicateCount = 0,
-  filterKey = "",
   samples = [],
   onSampleSelect,
   activeDirectoryPath,
@@ -96,7 +95,7 @@ export function FilterSidebar({
   return (
     <div style={{ height: "100%", minHeight: 0, width: `${width}px`, borderRight: "1px solid #0f1117", background: "#0a0c12", display: "flex", flexDirection: "column", flexShrink: 0 }} className="filter-sidebar-root">
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingTop: "12px", paddingLeft: "0", paddingRight: "0", paddingBottom: `${12 + bottomInset}px` }}>
-        <FilterControls favoritesOnly={favoritesOnly} hideDuplicates={hideDuplicates} duplicateCount={duplicateCount} filterKey={filterKey} favoritesCount={favoritesCount} onFilterChange={onFilterChange} />
+        <FilterControls favoritesOnly={favoritesOnly} hideDuplicates={hideDuplicates} duplicateCount={duplicateCount} favoritesCount={favoritesCount} onFilterChange={onFilterChange} />
         <CollectionSelector collections={collections} activeCollectionId={activeCollectionId} isCollectionView={isCollectionView} onSelectCollection={(collectionId) => onSelectCollection?.(collectionId)} onClearCollection={() => onClearCollection?.()} />
         <ScannedFolders scannedPaths={scannedPaths} tree={tree} expandedPaths={expandedPaths} selectedPath={selectedPath} activeDirectoryPath={activeDirectoryPath} onClearDirectoryPath={onClearDirectoryPath} onToggleExpand={handleToggleExpand} onMoveSample={handleMoveSample} onPathSelect={onPathSelect} onImportPaths={onImportPaths} draggableFilePaths={draggableFilePaths} preparedPathsRef={preparedPathsRef} dragIconPathRef={dragIconPathRef} />
         <RecentSection recentIds={recentIds} sampleById={sampleById} onSampleSelect={onSampleSelect} />

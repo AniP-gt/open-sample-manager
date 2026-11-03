@@ -99,9 +99,9 @@ export function FileTreeItem({
           padding: "4px 8px",
           paddingLeft: `${depth * 12 + 8}px`,
           cursor: isDraggableFile ? "grab" : "pointer",
-          color: isSelected ? "#f97316" : isAncestorOfSelected ? "#9ca3af" : "#6b7280",
+          color: isSelected ? "#f97316" : isAncestorOfSelected ? "#9ca3af" : "var(--osm-secondary)",
           fontSize: "13px",
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "var(--osm-font)",
           borderRadius: "2px",
           background: isSelected ? "#1f2937" : "transparent",
         }}
@@ -126,7 +126,7 @@ export function FileTreeItem({
         onDrop={handleDrop}
       >
         {hasChildren ? (
-          <span style={{ marginRight: "4px", color: "#4b5563" }}>
+          <span style={{ marginRight: "4px", color: "var(--osm-secondary)" }}>
             {isExpanded ? "▼" : "▶"}
           </span>
         ) : (
