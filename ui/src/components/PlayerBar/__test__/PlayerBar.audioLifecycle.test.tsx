@@ -104,7 +104,7 @@ describe("PlayerBar audio lifecycle", () => {
     expect(sharedPlayerBarAudio.src).toBe("blob:language");
     expect(sharedPlayerBarAudio.currentTime).toBe(2.5);
     expect(mockInvoke.mock.calls.filter(([command]) => command === "read_audio_file")).toHaveLength(1);
-    expect(screen.getByText("ワンショット")).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe("ja");
   });
 
   it("does not install a deferred prior-path response after path intent changes", async () => {
