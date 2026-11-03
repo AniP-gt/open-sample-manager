@@ -81,6 +81,16 @@ tracking started. Errors keep editable input and provide retry.
   within the visible controls. Escape closes and restores the opener's focus.
 - No theme switch, new dependencies, or changes to audio/IPC contracts are needed.
 
+## Similar sample results
+
+Layout: overlay-stack + scroll-body-shell. Render the overlay at the document
+body level above the library and player. Keep the title and close button fixed;
+only the result list scrolls within the bounded dialog. Cap its width to the
+viewport with 16px outer spacing. Each row reserves a non-shrinking, single-line
+similarity score; the filename truncates with a full title and the path wraps.
+Primary action: select a similar sample. Preserve descending ranking, filename,
+full path, similarity, empty feedback, close button and backdrop dismissal.
+
 ## Verification ledger
 
 | Gap | Acceptance check |

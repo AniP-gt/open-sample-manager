@@ -47,10 +47,10 @@ describe("EmbeddingResultsModal", () => {
   ];
 
   it("does not render when not open", () => {
-    const { container } = render(
+    render(
       <EmbeddingResultsModal isOpen={false} results={dummyResults} onClose={vi.fn()} onSelect={vi.fn()} />
     );
-    expect(container.firstChild).toBeNull();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("renders correctly and sorts results descending", () => {
