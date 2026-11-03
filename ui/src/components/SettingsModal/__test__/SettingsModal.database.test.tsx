@@ -7,6 +7,7 @@ describe("SettingsModal database actions", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     try {
       renderSettingsModal();
+      fireEvent.click(screen.getByRole("button", { name: "Database" }));
       fireEvent.click(screen.getByText("CLEAR ALL"));
 
       expect(dispatchSpy).toHaveBeenCalled();
@@ -27,6 +28,7 @@ describe("SettingsModal database actions", () => {
       databaseMigrationStatus: "Exported 1 samples and 0 MIDI files.",
     });
 
+    fireEvent.click(screen.getByRole("button", { name: "Database" }));
     fireEvent.click(screen.getByText("EXPORT DB"));
     fireEvent.click(screen.getByText("IMPORT DB"));
 
