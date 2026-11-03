@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-record-sample-usage"
+description = "Enables the record_sample_usage command without any pre-configured scope."
+commands.allow = ["record_sample_usage"]
+
+[[permission]]
+identifier = "deny-record-sample-usage"
+description = "Denies the record_sample_usage command without any pre-configured scope."
+commands.deny = ["record_sample_usage"]

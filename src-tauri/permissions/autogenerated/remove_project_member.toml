@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-project-member"
+description = "Enables the remove_project_member command without any pre-configured scope."
+commands.allow = ["remove_project_member"]
+
+[[permission]]
+identifier = "deny-remove-project-member"
+description = "Denies the remove_project_member command without any pre-configured scope."
+commands.deny = ["remove_project_member"]
