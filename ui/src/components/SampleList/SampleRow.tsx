@@ -108,14 +108,14 @@ export function SampleRow({
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          color: isFavorite ? "#f6e05e" : "#4b5563",
+          color: isFavorite ? "#f6e05e" : "var(--osm-secondary)",
           fontSize: "22px",
         }}
         title={isFavorite ? "Remove from favorites" : "Add to favorites"}
       >
         {isFavorite ? "★" : "☆"}
       </div>
-      <div style={{ fontSize: "14px", color: "#374151" }}>{s.id}</div>
+      <div style={{ fontSize: "14px", color: "var(--osm-secondary)" }}>{s.id}</div>
       <div style={{ overflow: "hidden", minWidth: 0 }}>
         <div
           style={{
@@ -138,7 +138,7 @@ export function SampleRow({
                 fontSize: "13px",
                 padding: "1px 4px",
                 background: "#0f1117",
-                color: "#4b5563",
+                color: "var(--osm-secondary)",
                 border: "1px solid #1a1f2e",
                 borderRadius: "1px",
               }}
@@ -156,8 +156,8 @@ export function SampleRow({
           onClick={() => onTypeClick?.(s)}
           onMouseDown={(e) => e.stopPropagation()}
           style={{
-            fontSize: "10px",
-            fontFamily: "'Courier New', monospace",
+            fontSize: "12px",
+            fontFamily: "var(--osm-font)",
             fontWeight: 600,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
@@ -171,22 +171,22 @@ export function SampleRow({
       <div
         style={{
           fontSize: "16px",
-          color: s.bpm ? "#22d3ee" : "#374151",
+          color: s.bpm ? "#22d3ee" : "var(--osm-secondary)",
           fontWeight: s.bpm ? 700 : 400,
         }}
       >
         {s.bpm ? `${Math.floor(s.bpm)}` : "-"}
       </div>
-      <div style={{ fontSize: "16px", color: "#6b7280" }}>
+      <div style={{ fontSize: "16px", color: "var(--osm-secondary)" }}>
         {s.duration.toFixed(2)}s
       </div>
       <div
         style={{
           fontSize: "14px",
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "var(--osm-font)",
           fontWeight: 600,
           letterSpacing: "0.08em",
-          color: s.musical_key ? "#a78bfa" : "#374151",
+          color: s.musical_key ? "#a78bfa" : "var(--osm-secondary)",
         }}
       >
         {s.musical_key ?? "-"}
@@ -205,13 +205,13 @@ export function SampleRow({
               padding: 0,
               textAlign: "left",
               cursor: "pointer",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "var(--osm-font)",
             }}
           >
-            <div style={{ fontSize: "11px", color: s.license ? "#22d3ee" : "#374151", fontWeight: 700, letterSpacing: "0.08em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: "12px", color: s.license ? "#22d3ee" : "var(--osm-secondary)", fontWeight: 700, letterSpacing: "0.08em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {s.license ?? "NO LIC"}
             </div>
-            <div style={{ fontSize: "10px", color: s.source || s.pack_name ? "#6b7280" : "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: "12px", color: s.source || s.pack_name ? "var(--osm-secondary)" : "var(--osm-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {s.pack_name ?? s.source ?? "source"}
             </div>
           </button>
@@ -221,9 +221,9 @@ export function SampleRow({
               display: "flex",
               alignItems: "center",
               gap: "4px",
-              fontSize: "11px",
-              fontFamily: "'Courier New', monospace",
-              color: s.quality_flags.length > 0 ? "#f97316" : "#374151",
+              fontSize: "12px",
+              fontFamily: "var(--osm-font)",
+              color: s.quality_flags.length > 0 ? "#f97316" : "var(--osm-secondary)",
               fontWeight: 700,
             }}
           >

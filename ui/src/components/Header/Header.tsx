@@ -41,15 +41,15 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
         <HeaderViewTabs viewMode={viewMode} onViewModeChange={onViewModeChange} />
         {showProviderHistoryControls && (
           <>
-            <button type="button" title="Go back" aria-label="Go back" onClick={onGoBack} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
+            <button type="button" title="Go back" aria-label="Go back" onClick={onGoBack} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
               BACK
             </button>
-            <button type="button" title="Go forward" aria-label="Go forward" onClick={onGoForward} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
+            <button type="button" title="Go forward" aria-label="Go forward" onClick={onGoForward} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>
               FORWARD
             </button>
           </>
         )}
-        {showBackToSources && <button type="button" title="Back to sources" aria-label="Back to sources" onClick={onBackToSources} style={{ background: "transparent", border: "1px solid #374151", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>BACK TO SOURCES</button>}
+        {showBackToSources && <button type="button" title="Back to sources" aria-label="Back to sources" onClick={onBackToSources} style={{ background: "transparent", border: "1px solid var(--osm-border)", borderRadius: "2px", color: "#d1d5db", cursor: "pointer", fontFamily: "var(--osm-font)", fontSize: "11px", letterSpacing: "0.08em", padding: "6px 8px" }}>BACK TO SOURCES</button>}
 
         {scanned && (
           <div
@@ -71,13 +71,13 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
           title="Settings"
           style={{
             background: "transparent",
-            border: "1px solid #374151",
-            color: "#6b7280",
+            border: "1px solid var(--osm-border)",
+            color: "var(--osm-secondary)",
             padding: "6px 10px",
             borderRadius: "2px",
             cursor: "pointer",
             fontSize: "14px",
-            fontFamily: "'Courier New', monospace",
+            fontFamily: "var(--osm-font)",
           }}
         >
           ⚙
@@ -88,13 +88,13 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
             title="Reload file tree"
             style={{
               background: "transparent",
-              border: "1px solid #374151",
-              color: "#6b7280",
+              border: "1px solid var(--osm-border)",
+              color: "var(--osm-secondary)",
               padding: "6px 10px",
               borderRadius: "2px",
               cursor: "pointer",
               fontSize: "14px",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "var(--osm-font)",
             }}
           >
             ↻
@@ -140,7 +140,7 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
                 padding: "6px 14px",
                 borderRadius: "2px",
                 cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
+                fontFamily: "var(--osm-font)",
                 fontWeight: 700,
               }}
             >
@@ -154,12 +154,12 @@ export function Header({ sampleCount, scanned, onScanClick, onSettingsClick, onR
                   fontSize: "12px",
                   letterSpacing: "0.08em",
                   background: "transparent",
-                  color: "#6b7280",
+                  color: "var(--osm-secondary)",
                   border: "1px solid #1f2937",
                   padding: "6px 10px",
                   borderRadius: "2px",
                   cursor: "pointer",
-                  fontFamily: "'Courier New', monospace",
+                  fontFamily: "var(--osm-font)",
                 }}
               >
                 RE-SCAN

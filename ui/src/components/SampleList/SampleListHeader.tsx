@@ -75,15 +75,15 @@ export function SampleListHeader({
         boxSizing: "border-box",
         borderBottom: "1px solid #0f1117",
         fontSize: "13px",
-        letterSpacing: "0.14em",
-        color: "#374151",
+        letterSpacing: "0.04em",
+        color: "var(--osm-secondary)",
         background: "#020617",
         position: "sticky",
         top: 0,
         zIndex: 10,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563", fontSize: "16px" }}>☆</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--osm-secondary)", fontSize: "16px" }}>☆</div>
       
       <div style={{ position: "relative" }} ref={(el) => (headerRefs.current[1] = el)} onMouseDown={(e) => handleMouseDown(1, e)}>
         <SortHeader field="id" currentSort={sort} onSort={onSortChange} columnIndex={1} draggedColumnRef={draggedColumnRef}>#</SortHeader>

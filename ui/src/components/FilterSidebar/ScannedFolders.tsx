@@ -34,15 +34,15 @@ export function ScannedFolders({
   dragIconPathRef,
 }: ScannedFoldersProps) {
   if (scannedPaths.length === 0) {
-    return <div style={{ padding: "16px 12px", fontSize: "12px", color: "#4b5563", fontFamily: "'Courier New', monospace" }}>No folders scanned</div>;
+    return <div style={{ padding: "16px 12px", fontSize: "12px", color: "var(--osm-secondary)", fontFamily: "var(--osm-font)" }}>No folders scanned</div>;
   }
 
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 12px 8px" }}>
-        <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em" }}>SCANNED FOLDERS</div>
+        <div style={{ fontSize: "11px", color: "var(--osm-secondary)", letterSpacing: "0.04em" }}>SCANNED FOLDERS</div>
         {activeDirectoryPath && (
-          <button type="button" title="Clear directory filter" aria-label="Clear directory filter" onClick={onClearDirectoryPath} style={{ background: "transparent", border: "none", color: "#f97316", fontSize: "11px", cursor: "pointer", fontFamily: "'Courier New', monospace", padding: 0 }}>
+          <button type="button" title="Clear directory filter" aria-label="Clear directory filter" onClick={onClearDirectoryPath} style={{ background: "transparent", border: "none", color: "#f97316", fontSize: "11px", cursor: "pointer", fontFamily: "var(--osm-font)", padding: 0 }}>
             [clear]
           </button>
         )}

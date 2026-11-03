@@ -46,7 +46,7 @@ export function GridView({ samples, selectedId, onSelect, onMetadataClick, showS
               style={{
                 fontSize: "13px",
                 color: "#d1d5db",
-                fontFamily: "'Courier New', monospace",
+                fontFamily: "var(--osm-font)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -61,12 +61,12 @@ export function GridView({ samples, selectedId, onSelect, onMetadataClick, showS
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                fontSize: "11px",
-                color: "#6b7280",
-                fontFamily: "'Courier New', monospace",
+                fontSize: "12px",
+                color: "var(--osm-secondary)",
+                fontFamily: "var(--osm-font)",
               }}
             >
-              <span style={{ color: s.bpm ? "#22d3ee" : "#374151" }}>
+              <span style={{ color: s.bpm ? "#22d3ee" : "var(--osm-secondary)" }}>
                 {s.bpm ? `${Math.floor(s.bpm)} BPM` : "—"}
               </span>
               <span>{s.duration ? `${s.duration.toFixed(2)}s` : "—"}</span>
@@ -79,10 +79,10 @@ export function GridView({ samples, selectedId, onSelect, onMetadataClick, showS
                   background: "#080a0f",
                   border: "1px solid #1f2937",
                   borderRadius: "2px",
-                  color: s.license ? "#22d3ee" : "#374151",
+                  color: s.license ? "#22d3ee" : "var(--osm-secondary)",
                   cursor: "pointer",
-                  fontFamily: "'Courier New', monospace",
-                  fontSize: "10px",
+                  fontFamily: "var(--osm-font)",
+                  fontSize: "12px",
                   letterSpacing: "0.08em",
                   padding: "4px 6px",
                   textAlign: "left",
@@ -94,9 +94,9 @@ export function GridView({ samples, selectedId, onSelect, onMetadataClick, showS
             {s.musical_key && (
               <div
                 style={{
-                  fontSize: "11px",
+                  fontSize: "12px",
                   color: "#a78bfa",
-                  fontFamily: "'Courier New', monospace",
+                  fontFamily: "var(--osm-font)",
                   letterSpacing: "0.08em",
                 }}
               >

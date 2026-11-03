@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+@import './library.css';
 
 :root {
   font-size: 18px;
@@ -13,6 +14,7 @@
 }
 
 body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 1rem;
   line-height: 1.5;
 }
@@ -21,6 +23,9 @@ input, textarea {
   -webkit-user-select: text;
   user-select: text;
 }
+
+button, input, select, textarea { font-family: inherit; }
+::selection { background: #334155; color: #f8fafc; }
 
 ::-webkit-scrollbar {
   width: 4px;
