@@ -30,3 +30,38 @@ improve information legibility without reducing the number of samples visible.
   sample-list scroll region.
 - Truncated filenames retain their full value through the existing title and
   selection behavior.
+
+## Library usability refinement
+
+- Primary action: submit a sample search; scanning is the next action for an empty library.
+- Information priorities: search query, applied filters, matching sample rows.
+- Layout: fixed-sidenav-shell with a two-row search/filter toolbar, a scrolling
+  results region and the existing optional detail panel. Settings use category
+  navigation beside one independently scrolling content panel.
+- Preserve all filters, metadata columns, random history, pagination, drag-out,
+  keyboard selection, and the list/grid switch. Keep the logo's monospace type;
+  use the system sans-serif stack for controls and library content.
+- UI tokens: canvas #080a0f, surface #0f1117, raised #18202d, border #64748b,
+  text #e2e8f0, secondary #b8c2d1, disabled #788496, accent #fb923c,
+  focus #22d3ee. Controls use a 32px minimum height and 13px text.
+- Search fills the available first-row space. Filters wrap on their own row;
+  advanced license/quality filters retain their existing visibility setting.
+- KEY filtering lives in the result toolbar only. Active conditions can be
+  removed individually or cleared together, including sidebar conditions.
+- Empty results distinguish loading, failed retrieval, an empty library, an
+  empty collection, and a search/filter with no matches. Existing pagination
+  behavior is preserved when a loaded page has no locally matching samples.
+- Settings categories: Playback, Display (including navigation), Downloads,
+  Database and About. Hidden categories are unmounted so keyboard focus remains
+  within the visible controls. Escape closes and restores the opener's focus.
+- No theme switch, new dependencies, or changes to audio/IPC contracts are needed.
+
+## Verification ledger
+
+| Gap | Acceptance check |
+| --- | --- |
+| Low-contrast labels | Normal text at least 4.5:1 and control edges at least 3:1 on their surfaces |
+| Crowded toolbar | Search and filters occupy separate rows at 1200px and 800px |
+| Duplicate KEY controls | One sample KEY filter; removing its condition updates the same filter state |
+| Ambiguous empty view | Loading, failed, empty-library, empty-collection and no-match scenarios have distinct guidance |
+| Long settings modal | Each category is directly reachable; existing handlers, focus trap and Escape still work |
