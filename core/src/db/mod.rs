@@ -11,3 +11,4 @@ pub struct Database {
     /// Connection string for database access.
     pub connection_string: String,
 }
+mod discovery_schema;

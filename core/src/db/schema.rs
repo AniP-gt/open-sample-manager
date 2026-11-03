@@ -250,6 +250,7 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     );
 
     run_collections_migration(conn)?;
+    super::discovery_schema::migrate(conn)?;
 
     // Migration: add musical_key column to samples
     let _ = conn.execute("ALTER TABLE samples ADD COLUMN musical_key TEXT", []);
