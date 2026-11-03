@@ -106,6 +106,8 @@ export function useSampleState({
   });
 
   return {
+    isSearching: searchState.isSearching,
+    searchError: searchState.searchError,
     samples: searchState.samples,
     selected: selection.selected,
     selectedIds: selection.selectedIds,
