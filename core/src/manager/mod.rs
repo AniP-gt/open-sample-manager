@@ -22,6 +22,7 @@
 mod analyze;
 mod audio;
 mod collections;
+pub mod discovery;
 mod instrument_types;
 mod midi;
 mod midi_queries;

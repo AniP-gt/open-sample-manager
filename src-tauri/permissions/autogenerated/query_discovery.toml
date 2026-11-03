@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-query-discovery"
+description = "Enables the query_discovery command without any pre-configured scope."
+commands.allow = ["query_discovery"]
+
+[[permission]]
+identifier = "deny-query-discovery"
+description = "Denies the query_discovery command without any pre-configured scope."
+commands.deny = ["query_discovery"]

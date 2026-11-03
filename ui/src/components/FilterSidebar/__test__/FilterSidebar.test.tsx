@@ -115,7 +115,7 @@ describe('FilterSidebar', () => {
     expect(invoke).not.toHaveBeenCalledWith('delete_file', expect.anything());
 
     fireEvent.dragStart(fileNode as Element);
-    expect(startDrag).toHaveBeenCalledWith({ item: ['/Users/test/samples/kick.wav'], icon: '/tmp/osm_drag_icon.png' });
+    expect(startDrag).toHaveBeenCalledWith({ item: ['/Users/test/samples/kick.wav'], icon: '/tmp/osm_drag_icon.png' }, expect.any(Function));
   });
 
   test('renders recent items', () => {
