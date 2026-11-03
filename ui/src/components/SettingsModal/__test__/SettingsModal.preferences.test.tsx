@@ -6,6 +6,7 @@ describe("SettingsModal preferences", () => {
   it("toggles instrumentColorCoding", () => {
     const onInstrumentColorCodingChange = vi.fn();
     renderSettingsModal({ instrumentColorCoding: true, onInstrumentColorCodingChange });
+    fireEvent.click(screen.getByRole("button", { name: "Display" }));
 
     fireEvent.click(screen.getByRole("switch", { name: "Instrument color coding" }));
     expect(onInstrumentColorCodingChange).toHaveBeenCalledWith(false);
@@ -14,6 +15,7 @@ describe("SettingsModal preferences", () => {
   it("toggles directoryClickFiltering", () => {
     const onDirectoryClickFilteringChange = vi.fn();
     renderSettingsModal({ onDirectoryClickFilteringChange });
+    fireEvent.click(screen.getByRole("button", { name: "Display" }));
 
     fireEvent.click(screen.getByRole("switch", { name: "Directory click filtering" }));
     expect(onDirectoryClickFilteringChange).toHaveBeenCalledWith(false);
@@ -22,6 +24,7 @@ describe("SettingsModal preferences", () => {
   it("toggles sample metadata and quality UI", () => {
     const onShowSampleMetadataQualityChange = vi.fn();
     renderSettingsModal({ onShowSampleMetadataQualityChange });
+    fireEvent.click(screen.getByRole("button", { name: "Display" }));
 
     fireEvent.click(screen.getByRole("switch", { name: "Sample metadata and quality UI" }));
     expect(onShowSampleMetadataQualityChange).toHaveBeenCalledWith(false);

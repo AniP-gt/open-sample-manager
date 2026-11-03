@@ -162,7 +162,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
               style={{
                 background: "transparent",
                 border: "none",
-                color: "#6b7280",
+                color: "var(--osm-secondary)",
                 fontSize: "18px",
                 cursor: "pointer",
                 padding: "4px",
@@ -173,7 +173,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
               }}
               aria-label="Close detail panel"
               onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
-              onMouseLeave={(e) => e.currentTarget.style.color = "#6b7280"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "var(--osm-secondary)"}
             >
               ×
             </button>
@@ -201,7 +201,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
                 border: "none",
                 borderRadius: "8px",
                 cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
+                fontFamily: "var(--osm-font)",
                 fontSize: "14px",
                 fontWeight: 600,
                 boxShadow: "0 6px 18px rgba(34,211,238,0.08)",
@@ -223,7 +223,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
                 border: "1px solid #164e63",
                 borderRadius: "8px",
                 cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
+                fontFamily: "var(--osm-font)",
                 fontSize: "13px",
                 fontWeight: 600,
               }}
@@ -264,11 +264,11 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
       {/* Moved filter controls from left sidebar into the right detail panel */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.12em" }}>FILTERS</div>
+          <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.12em" }}>FILTERS</div>
           {onFilterChange && (
             <button
               onClick={() => onFilterChange({ filterType: 'all', filterBpmMin: '', filterBpmMax: '', filterInstrumentType: '' })}
-              style={{ background: "transparent", border: "none", color: "#9ca3af", fontSize: "11px", fontFamily: "'Courier New', monospace", cursor: "pointer" }}
+              style={{ background: "transparent", border: "none", color: "#9ca3af", fontSize: "12px", fontFamily: "var(--osm-font)", cursor: "pointer" }}
               onMouseEnter={(e) => e.currentTarget.style.color = "#f97316"}
               onMouseLeave={(e) => e.currentTarget.style.color = "#9ca3af"}
               aria-label="Reset sample filters"
@@ -279,7 +279,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "8px" }}>
           <div>
-            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>SAMPLE TYPE</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>SAMPLE TYPE</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {typeFilters.map((t) => (
                 <button
@@ -297,18 +297,18 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
                     color: "#e2e8f0",
                     cursor: onFilterChange ? "pointer" : "default",
                     borderRadius: "4px",
-                    fontFamily: "'Courier New', monospace",
+                    fontFamily: "var(--osm-font)",
                   }}
                 >
                   <span>{t.toUpperCase()}</span>
-                  <span style={{ fontSize: "12px", color: "#374151" }}>{getTypeCount(t)}</span>
+                  <span style={{ fontSize: "12px", color: "var(--osm-secondary)" }}>{getTypeCount(t)}</span>
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>BPM RANGE</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>BPM RANGE</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               <input
                 type="number"
@@ -346,10 +346,10 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           </div>
 
           <div>
-            <div style={{ fontSize: "11px", color: "#374151", letterSpacing: "0.14em", marginBottom: "6px" }}>INST</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.14em", marginBottom: "6px" }}>INST</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
               {allInstrumentTypes.map((inst) => (
-                <button key={inst} onClick={() => onFilterChange && onFilterChange({ filterInstrumentType: filters?.filterInstrumentType === inst ? "" : inst })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: filters?.filterInstrumentType === inst ? "#f97316" : "transparent", color: filters?.filterInstrumentType === inst ? "#fff" : "#6b7280", cursor: onFilterChange ? "pointer" : "default" }}>{inst}</button>
+                <button key={inst} onClick={() => onFilterChange && onFilterChange({ filterInstrumentType: filters?.filterInstrumentType === inst ? "" : inst })} style={{ padding: "4px 8px", border: "1px solid #1f2937", borderRadius: "4px", background: filters?.filterInstrumentType === inst ? "#f97316" : "transparent", color: filters?.filterInstrumentType === inst ? "#fff" : "var(--osm-secondary)", cursor: onFilterChange ? "pointer" : "default" }}>{inst}</button>
               ))}
             </div>
           </div>
@@ -361,20 +361,20 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {/* sample_rate replaces low-ratio display in the UI */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>SAMPLE RATE</div>
-            <div style={{ fontSize: "13px", color: "#4b5563" }}>{sample.sample_rate ? `${sample.sample_rate} Hz` : '—'}</div>
+      <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>SAMPLE RATE</div>
+            <div style={{ fontSize: "13px", color: "var(--osm-secondary)" }}>{sample.sample_rate ? `${sample.sample_rate} Hz` : '—'}</div>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>FILE SIZE</div>
-            <div style={{ fontSize: "13px", color: "#4b5563" }}>{typeof sample.file_size === 'number' ? `${(sample.file_size/1024).toFixed(1)} KB` : '—'}</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>FILE SIZE</div>
+            <div style={{ fontSize: "13px", color: "var(--osm-secondary)" }}>{typeof sample.file_size === 'number' ? `${(sample.file_size/1024).toFixed(1)} KB` : '—'}</div>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>ARTIST</div>
-            <div style={{ fontSize: "13px", color: "#4b5563" }}>{sample.artist ?? '—'}</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>ARTIST</div>
+            <div style={{ fontSize: "13px", color: "var(--osm-secondary)" }}>{sample.artist ?? '—'}</div>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: "12px", color: "#374151", letterSpacing: "0.06em" }}>KEY</div>
-            <div style={{ fontSize: "13px", color: sample.musical_key ? "#a78bfa" : "#4b5563" }}>{sample.musical_key ?? '—'}</div>
+            <div style={{ fontSize: "12px", color: "var(--osm-secondary)", letterSpacing: "0.06em" }}>KEY</div>
+            <div style={{ fontSize: "13px", color: sample.musical_key ? "#a78bfa" : "var(--osm-secondary)" }}>{sample.musical_key ?? '—'}</div>
           </div>
           <AnalysisBar
             label="PERIODICITY"
@@ -426,7 +426,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
         <div
           style={{
             fontSize: "13px",
-            color: "#374151",
+            color: "var(--osm-secondary)",
             letterSpacing: "0.08em",
             marginBottom: "4px",
           }}
@@ -437,7 +437,7 @@ export function DetailPanel({ sample, path, samples = [], filters, onFilterChang
           title={path || "—"}
           style={{
             fontSize: "13px",
-            color: "#4b5563",
+            color: "var(--osm-secondary)",
             lineHeight: 1.6,
             whiteSpace: "nowrap",
             overflow: "hidden",

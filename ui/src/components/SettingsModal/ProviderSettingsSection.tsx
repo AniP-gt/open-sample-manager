@@ -40,7 +40,7 @@ export function ProviderSettingsSection({
     <SettingsSection title="PROVIDER DOWNLOADS" hasBottomMargin>
       <div style={{ padding: "12px", background: "#080a0f", borderRadius: "2px" }}>
         <div style={{ fontSize: "14px", color: "#d1d5db" }}>Download folder</div>
-        <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px", overflowWrap: "anywhere" }}>
+        <div style={{ fontSize: "12px", color: "var(--osm-secondary)", marginTop: "4px", overflowWrap: "anywhere" }}>
           {providerDownloadRoot ?? "App default"}
         </div>
         <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
@@ -50,7 +50,7 @@ export function ProviderSettingsSection({
             style={{
               fontSize: "12px", letterSpacing: "0.1em", background: "#f97316", color: "#000",
               border: "1px solid #f97316", padding: "8px 12px", borderRadius: "2px", cursor: "pointer",
-              fontFamily: "'Courier New', monospace", fontWeight: 700,
+              fontFamily: "var(--osm-font)", fontWeight: 700,
             }}
           >
             SELECT FOLDER
@@ -61,9 +61,9 @@ export function ProviderSettingsSection({
             disabled={providerDownloadRoot === null}
             style={{
               fontSize: "12px", letterSpacing: "0.1em", background: "transparent",
-              color: providerDownloadRoot === null ? "#374151" : "#d1d5db", border: "1px solid #374151",
+              color: providerDownloadRoot === null ? "#374151" : "#d1d5db", border: "1px solid var(--osm-border)",
               padding: "8px 12px", borderRadius: "2px", cursor: providerDownloadRoot === null ? "not-allowed" : "pointer",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "var(--osm-font)",
             }}
           >
             USE DEFAULT
@@ -71,7 +71,7 @@ export function ProviderSettingsSection({
         </div>
         <div style={{ borderTop: "1px solid #1f2937", marginTop: "12px", paddingTop: "12px" }}>
           <div style={{ fontSize: "14px", color: "#d1d5db" }}>Provider browser display</div>
-          <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+          <div style={{ fontSize: "12px", color: "var(--osm-secondary)", marginTop: "4px" }}>
             Open providers in a separate window or place them inside the WEB workspace.
           </div>
           <div role="radiogroup" aria-label="Provider browser display mode" style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
@@ -87,7 +87,7 @@ export function ProviderSettingsSection({
                 style={{
                   background: providerBrowserMode === mode ? "#f97316" : "transparent", border: "1px solid #f97316",
                   borderRadius: "2px", color: providerBrowserMode === mode ? "#000" : "#d1d5db", cursor: "pointer",
-                  fontFamily: "'Courier New', monospace", fontSize: "12px", fontWeight: 700,
+                  fontFamily: "var(--osm-font)", fontSize: "12px", fontWeight: 700,
                   letterSpacing: "0.08em", padding: "8px 12px",
                 }}
               >
@@ -98,7 +98,7 @@ export function ProviderSettingsSection({
         </div>
         <div style={{ borderTop: "1px solid #1f2937", marginTop: "12px", paddingTop: "12px" }}>
           <div style={{ color: "#d1d5db", fontSize: "14px", marginBottom: "4px" }}>Freesound API</div>
-          <div style={{ color: "#9ca3af", fontSize: "12px", marginBottom: "12px" }}>Configure, replace, or remove your personal API key. The saved key is never shown.</div>
+          <div style={{ color: "var(--osm-secondary)", fontSize: "12px", marginBottom: "12px" }}>Configure, replace, or remove your personal API key. The saved key is never shown.</div>
           <FreesoundCredentialForm credential={freesoundWorkspace.credential} isBusy={freesoundWorkspace.isBusy} onSave={freesoundWorkspace.saveApiKey} onDelete={() => { void freesoundWorkspace.deleteApiKey(); }} onOpenRegistration={freesoundWorkspace.openRegistration} />
           {freesoundWorkspace.error && <div role="alert" style={{ color: "#f97316", fontSize: "11px", marginTop: "8px" }}>{freesoundWorkspace.error}</div>}
         </div>

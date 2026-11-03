@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { FilterState, Sample, SortState } from "../../types/sample";
+import { useSampleLibraryPaths } from "./useSampleLibraryPaths";
+import { getErrorMessage } from "../../utils/sampleMapper";
+import { initialFilters, withInstrumentFilter } from "./sampleSearchQuery";
 import type { TauriSampleRow } from "../../types/tauri";
 import {
   appendFreshSamples,
-  collectDirectoriesFromPaths,
   getAroundOffset,
   mapSampleRowsToPathMap,
   mapSampleRowsToSamples,
@@ -25,27 +27,6 @@ type UseSampleSearchPaginationParams = {
   onInvokeError: InvokeErrorHandler;
 };
 
-const initialFilters: FilterState = {
-  search: "",
-  filterType: "all",
-  filterBpmMin: "",
-  filterBpmMax: "",
-  filterInstrumentType: "",
-  favoritesOnly: false,
-  hideDuplicates: false,
-  filterKey: "",
-  filterLicense: "",
-  qualityIssuesOnly: false,
-  directoryPath: "",
-};
-
-function withInstrumentFilter(query: string, instrumentType: string) {
-  const trimmedQuery = query.trim();
-  if (!instrumentType) return trimmedQuery;
-  const instrumentClause = `instrument:${instrumentType}`;
-  return trimmedQuery ? `${trimmedQuery} ${instrumentClause}` : instrumentClause;
-}
-
 export function useSampleSearchPagination({
   pageLimit,
   setError,
@@ -58,8 +39,7 @@ export function useSampleSearchPagination({
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const suppressSearchRef = useRef(false);
   const [sort, setSort] = useState<SortState>({ field: "id", direction: "asc" });
-  const [scannedPaths, setScannedPaths] = useState<string[]>([]);
-  const [allSamplePaths, setAllSamplePaths] = useState<string[]>([]);
+  const { scannedPaths, setScannedPaths, allSamplePaths, setAllSamplePaths, fetchAllSamplePaths } = useSampleLibraryPaths();
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
   const [currentOffset, setCurrentOffset] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -67,42 +47,48 @@ export function useSampleSearchPagination({
   const [canLoadMore, setCanLoadMore] = useState(true);
   const [canLoadPrevious, setCanLoadPrevious] = useState(false);
 
+  const [isSearching, setIsSearching] = useState(true);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchRequestRef = useRef(0);
+
   const runSearch = useCallback(
     async (query: string) => {
-      const backendQuery = withInstrumentFilter(query, filters.filterInstrumentType);
-      const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
-        query: backendQuery || null,
-        limit: pageLimit,
-        offset: 0,
-        directoryPath: filters.directoryPath || null,
-      });
-      const nextSamples = mapSampleRowsToSamples(rows);
+      const requestId = ++searchRequestRef.current;
+      setIsSearching(true);
+      setSearchError(null);
+      try {
+        const backendQuery = withInstrumentFilter(query, filters.filterInstrumentType);
+        const rows = await invoke<TauriSampleRow[]>("list_samples_paginated", {
+          query: backendQuery || null,
+          limit: pageLimit,
+          offset: 0,
+          directoryPath: filters.directoryPath || null,
+        });
+        const nextSamples = mapSampleRowsToSamples(rows);
 
-      setSamplePaths(mapSampleRowsToPathMap(rows));
-      setSamples(nextSamples);
-      setCurrentOffset(0);
-      setLastFetchCount(rows.length);
-      setCanLoadMore(rows.length >= pageLimit);
-      setCanLoadPrevious(false);
-      setSelected((prev) => {
-        if (!prev) {
-          return null;
-        }
-        return nextSamples.find((sample) => sample.id === prev.id) ?? null;
-      });
-      return nextSamples;
+        if (requestId !== searchRequestRef.current) return nextSamples;
+        setSamplePaths(mapSampleRowsToPathMap(rows));
+        setSamples(nextSamples);
+        setCurrentOffset(0);
+        setLastFetchCount(rows.length);
+        setCanLoadMore(rows.length >= pageLimit);
+        setCanLoadPrevious(false);
+        setSelected((prev) => {
+          if (!prev) {
+            return null;
+          }
+          return nextSamples.find((sample) => sample.id === prev.id) ?? null;
+        });
+        return nextSamples;
+      } catch (error) {
+        if (requestId === searchRequestRef.current) setSearchError(getErrorMessage(error));
+        throw error;
+      } finally {
+        if (requestId === searchRequestRef.current) setIsSearching(false);
+      }
     },
     [filters.directoryPath, filters.filterInstrumentType, pageLimit, setSelected],
   );
-
-  const fetchAllSamplePaths = useCallback(async () => {
-    try {
-      const paths = await invoke<string[]>("list_all_sample_paths");
-      setAllSamplePaths(paths);
-    } catch (e) {
-      console.error("Failed to fetch all sample paths:", e);
-    }
-  }, []);
 
   const handleSearch = useCallback(
     async (query: string) => {
@@ -223,14 +209,6 @@ export function useSampleSearchPagination({
   );
 
   useEffect(() => {
-    void fetchAllSamplePaths();
-  }, [fetchAllSamplePaths]);
-
-  useEffect(() => {
-    setScannedPaths(collectDirectoriesFromPaths(allSamplePaths));
-  }, [allSamplePaths]);
-
-  useEffect(() => {
     if (suppressSearchRef.current) {
       suppressSearchRef.current = false;
       return;
@@ -243,6 +221,8 @@ export function useSampleSearchPagination({
   }, []);
 
   return {
+    isSearching,
+    searchError,
     samples,
     setSamples,
     samplePaths,

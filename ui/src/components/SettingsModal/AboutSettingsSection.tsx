@@ -9,17 +9,17 @@ export function AboutSettingsSection() {
           background: "#080a0f",
           borderRadius: "2px",
           fontSize: "13px",
-          color: "#6b7280",
+          color: "var(--osm-secondary)",
         }}
       >
         <div style={{ marginBottom: "8px" }}>
-          <span style={{ color: "#9ca3af" }}>Version:</span> 0.1.0-alpha
+          <span style={{ color: "var(--osm-secondary)" }}>Version:</span> 0.1.0-alpha
         </div>
         <div style={{ marginBottom: "8px" }}>
-          <span style={{ color: "#9ca3af" }}>Database:</span> SQLite (WAL mode)
+          <span style={{ color: "var(--osm-secondary)" }}>Database:</span> SQLite (WAL mode)
         </div>
         <div>
-          <span style={{ color: "#9ca3af" }}>Search:</span> FTS5 Full-Text
+          <span style={{ color: "var(--osm-secondary)" }}>Search:</span> FTS5 Full-Text
         </div>
       </div>
     </SettingsSection>

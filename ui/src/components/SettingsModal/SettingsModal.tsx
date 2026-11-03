@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { ProviderBrowserMode } from "../../types/provider";
 import type { FreesoundWorkspace } from "../../hooks/useFreesoundWorkspace";
 import { AboutSettingsSection } from "./AboutSettingsSection";
@@ -7,6 +7,9 @@ import { DisplaySettingsSection } from "./DisplaySettingsSection";
 import { NavigationSettingsSection } from "./NavigationSettingsSection";
 import { PlaybackSettingsSection } from "./PlaybackSettingsSection";
 import { ProviderSettingsSection } from "./ProviderSettingsSection";
+
+const categories = ["Playback", "Display", "Downloads", "Database", "About"] as const;
+type SettingsCategory = typeof categories[number];
 
 interface SettingsModalProps {
   readonly isOpen: boolean;
@@ -56,11 +59,14 @@ export function SettingsModal({
   databaseMigrationBusy,
   databaseMigrationStatus,
 }: Omit<SettingsModalProps, "onClearAllSamples">) {
+  const [category, setCategory] = useState<SettingsCategory>("Playback");
+  const contentRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+    setCategory("Playback");
     previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.querySelector<HTMLButtonElement>("[data-settings-close]")?.focus();
     return () => previouslyFocusedRef.current?.focus();
@@ -86,6 +92,8 @@ export function SettingsModal({
     }
   };
 
+  useEffect(() => { contentRef.current?.scrollTo?.(0, 0); }, [category]);
+
   if (!isOpen) return null;
 
   return (
@@ -107,15 +115,17 @@ export function SettingsModal({
       onClick={onClose}
     >
       <div
+        className="settings-dialog"
         style={{
           background: "#0f1117",
-          border: "1px solid #1f2937",
+          border: "1px solid var(--osm-border)",
           borderRadius: "4px",
           padding: "24px",
-          width: "min(500px, 100%)",
-          maxWidth: "500px",
+          width: "min(820px, 100%)",
+          maxWidth: "820px",
+          height: "min(680px, calc(100vh - 48px))",
           maxHeight: "calc(100vh - 48px)",
-          overflowY: "auto",
+          overflow: "hidden",
           boxSizing: "border-box",
         }}
         role="dialog"
@@ -142,38 +152,45 @@ export function SettingsModal({
             onClick={onClose}
             data-settings-close
             aria-label="Close settings"
-            style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "20px", padding: "4px 8px" }}
+            style={{ background: "transparent", border: "none", color: "var(--osm-secondary)", cursor: "pointer", fontSize: "20px", padding: "4px 8px" }}
           >
             ✕
           </button>
         </div>
-        <PlaybackSettingsSection autoPlayOnSelect={autoPlayOnSelect} onAutoPlayChange={onAutoPlayChange} />
-        <DisplaySettingsSection
-          instrumentColorCoding={instrumentColorCoding}
-          onInstrumentColorCodingChange={onInstrumentColorCodingChange}
-          showSampleMetadataQuality={showSampleMetadataQuality}
-          onShowSampleMetadataQualityChange={onShowSampleMetadataQualityChange}
-        />
-        <NavigationSettingsSection
-          directoryClickFiltering={directoryClickFiltering}
-          onDirectoryClickFilteringChange={onDirectoryClickFilteringChange}
-        />
-        <ProviderSettingsSection
-          providerDownloadRoot={providerDownloadRoot}
-          onSelectProviderDownloadRoot={onSelectProviderDownloadRoot}
-          onClearProviderDownloadRoot={onClearProviderDownloadRoot}
-          providerBrowserMode={providerBrowserMode}
-          onProviderBrowserModeChange={onProviderBrowserModeChange}
-          freesoundWorkspace={freesoundWorkspace}
-        />
-        <DatabaseSettingsSection
-          sampleCount={sampleCount}
-          onDatabaseExport={onDatabaseExport}
-          onDatabaseImport={onDatabaseImport}
-          databaseMigrationBusy={databaseMigrationBusy}
-          databaseMigrationStatus={databaseMigrationStatus}
-        />
-        <AboutSettingsSection />
+        <div className="settings-layout">
+          <nav className="settings-categories" aria-label="Settings categories">
+            {categories.map((name) => <button key={name} type="button" aria-current={category === name ? "page" : undefined} onClick={() => setCategory(name)}>{name}</button>)}
+          </nav>
+          <section className="settings-content" ref={contentRef} aria-label={`${category} settings`}>
+            {category === "Playback" && <PlaybackSettingsSection autoPlayOnSelect={autoPlayOnSelect} onAutoPlayChange={onAutoPlayChange} />}
+            {category === "Display" && <><DisplaySettingsSection
+              instrumentColorCoding={instrumentColorCoding}
+              onInstrumentColorCodingChange={onInstrumentColorCodingChange}
+              showSampleMetadataQuality={showSampleMetadataQuality}
+              onShowSampleMetadataQualityChange={onShowSampleMetadataQualityChange}
+            />
+            <NavigationSettingsSection
+              directoryClickFiltering={directoryClickFiltering}
+              onDirectoryClickFilteringChange={onDirectoryClickFilteringChange}
+            /></>}
+            {category === "Downloads" && <ProviderSettingsSection
+              providerDownloadRoot={providerDownloadRoot}
+              onSelectProviderDownloadRoot={onSelectProviderDownloadRoot}
+              onClearProviderDownloadRoot={onClearProviderDownloadRoot}
+              providerBrowserMode={providerBrowserMode}
+              onProviderBrowserModeChange={onProviderBrowserModeChange}
+              freesoundWorkspace={freesoundWorkspace}
+            />}
+            {category === "Database" && <DatabaseSettingsSection
+              sampleCount={sampleCount}
+              onDatabaseExport={onDatabaseExport}
+              onDatabaseImport={onDatabaseImport}
+              databaseMigrationBusy={databaseMigrationBusy}
+              databaseMigrationStatus={databaseMigrationStatus}
+            />}
+            {category === "About" && <AboutSettingsSection />}
+          </section>
+        </div>
       </div>
     </div>
   );
